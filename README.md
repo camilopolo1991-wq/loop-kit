@@ -77,13 +77,13 @@ The redactor (`loop_redact.py`) masks secrets and every entry of `names.txt` in 
 
 ## Install
 
-You need bash, and a Python 3 interpreter that runs. Pass its full path; the kit never falls back to whatever `python3` happens to be on `PATH`.
+You need bash, and a Python 3 interpreter that runs. Pass its full path. Only `loop-preflight` has a fallback: when `LOOP_PY` is unset or does not run, it tries `python3` and then `python` from `PATH`. Every other tool in `bin/` stops with an error and does not fall back.
 
 ```
 bash install.sh /full/path/to/python
 ```
 
-`install.sh` checks that the interpreter runs before it writes anything. If it does not, it exits non-zero and writes no `config.env`. If any destination file or a `config.env` already exists, it exits 4 and overwrites nothing. Otherwise it copies the kit into `$HOME` at this layout, replaces every `@LOOP_PYTHON@` token in the copied files with the interpreter, and writes `config.env` last.
+`install.sh` checks that the interpreter runs before it writes anything. If it does not, it exits non-zero and writes no `config.env`. If any destination file or a `config.env` already exists, it exits 4 and overwrites nothing. Otherwise it copies the kit into `$HOME` at this layout, replaces every `@LOOP_PYTHON@` token in the copied files with the interpreter, and writes `config.env` last. On Windows, a test install into another home needs `USERPROFILE` set to that home as well as `HOME`, because the kit's Python code resolves `~` with `os.path.expanduser`, which reads `USERPROFILE` there.
 
 | Repository | Installed at |
 |---|---|
