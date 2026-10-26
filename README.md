@@ -2,7 +2,7 @@
 
 A guard kit for running Claude Code agents as a small team that cannot leak a secret, cannot widen its own scope, and leaves a trail another agent can audit. It is the kit behind a working loop: one leader plans a goal, a scout measures, a writer makes one change, a reviewer tries to break it, an auditor judges all of them afterwards.
 
-Before you push this repository: the LICENSE file and other files carry the placeholder `OWNER_HANDLE`. Replace it with your own handle everywhere it appears before the first push, then rebuild `MANIFEST.txt` if you keep it. The kit does not do it for you.
+The LICENSE file names the licence holder. In `bin/loop_ticket.py`, `agents/loop-leader.md` and `hooks/pretool-guard.py` the token `OWNER_HANDLE` stands for the owner's account name on the machine the kit was taken from: set it at install if you use the ticket gate. `MANIFEST.txt` records those files as they are here.
 
 Every number in this file is followed by the command that produced it, shown as a `$` line and its exact output. Commands are run from the repository root unless a path says otherwise. Paths outside the repository are written relative to `$HOME`.
 
