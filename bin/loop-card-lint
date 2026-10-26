@@ -1,0 +1,98 @@
+#!/usr/bin/env bash
+# loop-card-lint <file>... : lints a task or review card, plan.md and report.md, chosen by file name.
+#   card.md   : no line outside Criteria / Done when may route the role to plan.md, STATE.md or the
+#               journal (JOURNAL.md, loop-journal, "the journal"). The leader copies what the role needs
+#               into the card instead. Criteria and Done when are the GOAL's words, verbatim, and exempt.
+#   plan.md   : the tasks are a table with a status column (P34: a plan with no task table, or a task
+#               written as a prose line such as "1. T01 scout: ...", is rejected). Every task status
+#               is TODO, RUNNING, PASS, FAIL(n), BLOCKED or GATE as its first word.
+#               The ## Live line carries `status:` with PLANNING, RUNNING, HELD or DONE, nothing in
+#               parentheses.
+#   report.md : the first line reads `VERDICT: DONE` or `VERDICT: HELD`, nothing after it in parentheses.
+# Exit 0 clean, 1 a rule broke (each named), 2 usage or unreadable or unknown file kind.
+# P33. Written after the RECORD-01 audits: a plan row read "DONE (closing)" and cards routed the
+# reviewer to plan.md and the journal.
+set -euo pipefail
+BIN="$(dirname "$(readlink -f "$0")")"
+# LOOP_PY resolved the way the P12 stubs resolve it: the environment first, then config.env
+# read with sed, and deliberately NO fallback to python3 or python on PATH.
+LOOP_HOME_D="${LOOP_HOME:-$HOME/.loop}"
+if [ -z "${LOOP_PY:-}" ] && [ -f "$LOOP_HOME_D/config.env" ]; then
+  LOOP_PY="$(sed -n 's/^[[:space:]]*LOOP_PY=//p' "$LOOP_HOME_D/config.env" | tail -1)"
+  LOOP_PY="${LOOP_PY%%#*}"
+  LOOP_PY="$(printf '%s' "$LOOP_PY" | sed 's/[[:space:]]*$//')"
+fi
+PY="${LOOP_PY:-}"
+if [ -z "$PY" ] || ! "$PY" -c 'import sys' >/dev/null 2>&1; then
+  echo "loop-card-lint: LOOP_PY does not resolve to a working python interpreter." >&2
+  echo "loop-card-lint: set LOOP_PY in the environment, or as LOOP_PY= in $LOOP_HOME_D/config.env." >&2
+  echo "loop-card-lint: there is no fallback to python3 on PATH, by design." >&2
+  exit 3
+fi
+[ $# -ge 1 ] || { echo "usage: loop-card-lint <card.md|plan.md|report.md>..."; exit 2; }
+exec "$PY" -c '
+import os, re, sys
+ROUTE = re.compile(r"(?i)(\bplan\.md\b|\bSTATE\.md\b|\bJOURNAL\.md\b|\bloop-journal\b|\bthe journal\b)")
+EXEMPT = ("criteria:", "done when:")
+FIELD = re.compile(r"^([A-Z][A-Za-z ]{1,30}):")
+TASK = re.compile(r"^(TODO|RUNNING|PASS|FAIL\(\d+\)|BLOCKED|GATE)$")
+GOAL = ("PLANNING", "RUNNING", "HELD", "DONE")
+bad = 0; worst = 0
+def say(f, n, msg):
+    global bad
+    bad += 1
+    print("%s:%s: %s" % (f, n, msg))
+for f in sys.argv[1:]:
+    name = os.path.basename(f).lower()
+    try:
+        lines = open(f, encoding="utf-8").read().splitlines()
+    except OSError as e:
+        print("%s: unreadable (%s)" % (f, e.__class__.__name__)); worst = 2; continue
+    if name.endswith("card.md"):
+        exempt = False
+        for n, l in enumerate(lines, 1):
+            m = FIELD.match(l)
+            if m:
+                exempt = (m.group(1) + ":").lower() in EXEMPT
+            if exempt:
+                continue
+            r = ROUTE.search(l)
+            if r:
+                say(f, n, "routes the role to %s. Copy what the role needs into the card instead." % r.group(1))
+    elif name == "plan.md":
+        live = None; hdr = None; inlive = False
+        for n, l in enumerate(lines, 1):
+            if re.match(r"^\s*(\d+[.)]|[-*])\s+T\d+\b", l):
+                say(f, n, "task written as prose, not a table row: %r" % l.strip()[:40])
+            if l.strip().startswith("## Live"):
+                inlive = True; continue
+            if inlive and l.strip().startswith("goal:"):
+                live = (n, l); inlive = False
+            if l.startswith("|") and hdr is None and "status" in l.lower():
+                hdr = [c.strip().lower() for c in l.strip().strip("|").split("|")]; continue
+            if hdr and re.match(r"^\|\s*T\d+", l):
+                cells = [c.strip() for c in l.strip().strip("|").split("|")]
+                st = cells[hdr.index("status")] if len(cells) > hdr.index("status") else ""
+                first = st.split()[0] if st.split() else ""
+                if not TASK.match(first) or re.match(r"^\S+\s+\(", st):
+                    say(f, n, "task %s status %r is not one of TODO, RUNNING, PASS, FAIL(n), BLOCKED, GATE" % (cells[0], st[:30]))
+        if hdr is None:
+            say(f, "-", "no task table: plan.md needs | T | task | ... | status | rows")
+        if live is None:
+            say(f, "-", "no goal: line under ## Live")
+        else:
+            m = re.search(r"\bstatus:\s*([^|]*)", live[1])
+            v = m.group(1).strip() if m else ""
+            if v not in GOAL:
+                say(f, live[0], "## Live status %r is not PLANNING, RUNNING, HELD or DONE (nothing in parentheses)" % (v[:30] or "missing"))
+    elif name == "report.md":
+        first = lines[0] if lines else ""
+        m = re.search(r"VERDICT:\s*(.*)$", first)
+        v = m.group(1).strip() if m else ""
+        if v not in ("DONE", "HELD"):
+            say(f, 1, "VERDICT %r is not DONE or HELD" % (v[:30] or "missing"))
+    else:
+        print("%s: unknown kind, name it card.md, plan.md or report.md" % f); worst = 2
+print("loop-card-lint: %d file(s), %d rule(s) broken" % (len(sys.argv) - 1, bad))
+sys.exit(worst or (1 if bad else 0))
+' "$@"

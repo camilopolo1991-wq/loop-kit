@@ -1,0 +1,128 @@
+#!/usr/bin/env bash
+# loop-journal <GOAL-ID> <T-nn|GOAL> "<one line: what happened, with ids>"
+# Appends one line with a MEASURED UTC timestamp to the journal. The journal is append-only.
+#
+# loop-journal --read <GOAL-ID> [--tail N]
+#   Read-only. Prints only journal lines whose goal-id field (token 3 of
+#   "- <ts> <GOAL-ID> <rest>") EXACTLY equals <GOAL-ID> -- never a prefix
+#   match, so "KIT-03" and "KIT-030" never cross-match. With --tail N,
+#   prints only the last N of those matching lines. Never appends.
+#   Reads $JOURNAL_FILE if set (for testing against a fixture file); otherwise
+#   falls back to the configured real journal path.
+#
+# loop-journal --check <GOAL-ID>
+#   P33. Read-only. Exit 1 when a writer task (plan.md owner column says writer) has a PASS line
+#   with no ROLLBACK line for the same task before it. Exit 2 when plan.md or the journal
+#   cannot be read. Exit 0 otherwise, with the counts printed.
+set -euo pipefail
+BIN="$(dirname "$(readlink -f "$0")")"
+
+# P20. The old line here was PY="${LOOP_PY:-"$PY"}": self-referential, so under
+# set -u it died with "PY: unbound variable" whenever LOOP_PY was not exported.
+# That is how RECORD-01 was held before its first task. Resolved now the way the
+# P12 stubs do it: the environment first, then config.env read with sed, never
+# through loop_conf (that needs a python, which is what is being resolved), and
+# deliberately NO fallback to python3 or python on PATH.
+case "$(uname -s 2>/dev/null)" in
+  MINGW*|MSYS*|CYGWIN*) BIN_NATIVE="$(cygpath -m "$BIN" 2>/dev/null || printf '%s' "$BIN")";;
+  *) BIN_NATIVE="$BIN";;
+esac
+LOOP_HOME_D="${LOOP_HOME:-$HOME/.loop}"
+if [ -z "${LOOP_PY:-}" ] && [ -f "$LOOP_HOME_D/config.env" ]; then
+  LOOP_PY="$(sed -n 's/^[[:space:]]*LOOP_PY=//p' "$LOOP_HOME_D/config.env" | tail -1)"
+  LOOP_PY="${LOOP_PY%%#*}"
+  LOOP_PY="$(printf '%s' "$LOOP_PY" | sed 's/[[:space:]]*$//')"
+fi
+PY="${LOOP_PY:-}"
+if [ -z "$PY" ] || ! "$PY" -c 'import sys' >/dev/null 2>&1; then
+  echo "loop-journal: LOOP_PY does not resolve to a working python interpreter." >&2
+  echo "loop-journal: set LOOP_PY in the environment, or as LOOP_PY= in $LOOP_HOME_D/config.env." >&2
+  echo "loop-journal: there is no fallback to python3 on PATH, by design." >&2
+  exit 3
+fi
+
+resolve_jf() {
+    if [ -n "${JOURNAL_FILE:-}" ]; then
+        printf '%s' "$JOURNAL_FILE"
+    else
+        "$PY" -c "import sys; sys.path.insert(0,'$BIN_NATIVE'); import loop_conf; print(loop_conf.load()['JOURNAL_FILE'])"
+    fi
+}
+
+if [ "${1:-}" = "--check" ]; then
+    [ $# -eq 2 ] || { echo "usage: loop-journal --check <GOAL-ID>"; exit 64; }
+    JF="$(resolve_jf)"
+    PLAN="$LOOP_HOME_D/goals/$2/plan.md"
+    exec "$PY" -c '
+import re, sys
+gid, jf, plan = sys.argv[1:4]
+try:
+    pl = open(plan, encoding="utf-8").read().splitlines()
+except OSError:
+    print("loop-journal --check %s: plan.md unreadable at %s, writer tasks cannot be told apart" % (gid, plan)); sys.exit(2)
+try:
+    jl = open(jf, encoding="utf-8", errors="replace").read().splitlines()
+except OSError:
+    print("loop-journal --check %s: journal unreadable at %s" % (gid, jf)); sys.exit(2)
+hdr = None; writers = []
+for l in pl:
+    if l.startswith("|") and hdr is None and "owner" in l.lower():
+        hdr = [c.strip().lower() for c in l.strip().strip("|").split("|")]; continue
+    if hdr and re.match(r"^\|\s*T\d+", l):
+        c = [x.strip() for x in l.strip().strip("|").split("|")]
+        if len(c) > hdr.index("owner") and re.search(r"\bwriter\b", c[hdr.index("owner")], re.I):
+            writers.append(c[0])
+if hdr is None:
+    print("loop-journal --check %s: no task table with an owner column in plan.md" % gid); sys.exit(2)
+rows = []
+for l in jl:
+    t = l.split(None, 4)
+    if len(t) >= 4 and t[0] == "-" and t[2] == gid:
+        rows.append((t[1], t[3], t[4] if len(t) > 4 else ""))
+bad = []
+passed = 0
+for w in writers:
+    p = next((i for i, r in enumerate(rows) if r[1] == w and r[2].startswith("PASS")), None)
+    if p is None:
+        continue
+    passed += 1
+    if not any(r[1] == w and r[2].startswith("ROLLBACK") for r in rows[:p]):
+        bad.append("%s PASS at %s has no ROLLBACK line before it" % (w, rows[p][0]))
+print("loop-journal --check %s: %d journal lines, writer tasks %d (%s), writer PASS %d, missing ROLLBACK %d"
+      % (gid, len(rows), len(writers), " ".join(writers) or "none", passed, len(bad)))
+for b in bad:
+    print("  FAIL " + b)
+sys.exit(1 if bad else 0)
+' "$2" "$JF" "$PLAN"
+fi
+
+if [ "${1:-}" = "--read" ]; then
+    [ $# -ge 2 ] || { echo "usage: loop-journal --read <GOAL-ID> [--tail N]"; exit 64; }
+    GOAL_ID="$2"
+    TAIL_N=""
+    if [ $# -ge 3 ]; then
+        [ "${3:-}" = "--tail" ] || { echo "usage: loop-journal --read <GOAL-ID> [--tail N]"; exit 64; }
+        [ $# -eq 4 ] || { echo "usage: loop-journal --read <GOAL-ID> --tail N"; exit 64; }
+        TAIL_N="$4"
+    fi
+    JF="$(resolve_jf)"
+    [ -n "$JF" ] || { echo "JOURNAL_FILE not configured"; exit 2; }
+    [ -f "$JF" ] || { echo "journal not found: $JF"; exit 2; }
+    MATCHES="$(awk -v g="$GOAL_ID" '{ if ($3 == g) print }' "$JF")"
+    if [ -z "$MATCHES" ]; then
+        exit 0
+    fi
+    if [ -n "$TAIL_N" ]; then
+        printf '%s\n' "$MATCHES" | tail -n "$TAIL_N"
+    else
+        printf '%s\n' "$MATCHES"
+    fi
+    exit 0
+fi
+
+JF="$(resolve_jf)"
+[ -n "$JF" ] || { echo "JOURNAL_FILE not configured"; exit 2; }
+[ $# -ge 3 ] || { echo "usage: loop-journal <GOAL-ID> <step> \"<line>\""; exit 64; }
+LINE="- $(date -u +%Y-%m-%dT%H:%M:%SZ) $1 $2 $3"
+printf '%s\n' "$LINE" | "$PY" "$BIN_NATIVE/loop_redact.py" >> "$JF"
+echo "journaled: $1 $2"

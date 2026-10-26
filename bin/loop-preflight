@@ -1,0 +1,101 @@
+#!/usr/bin/env bash
+# loop-preflight: the carry-forward in about a dozen lines. The leader runs it at goal start and after any compaction.
+# Every value here is measured now. Nothing is read from a state file the same goal wrote.
+set -uo pipefail
+BIN="$(dirname "$(readlink -f "$0")")"
+# Native spelling of BIN for anything handed to a NATIVE interpreter. Under `bash -lc`
+# readlink returns the emulated form (/c/Users/...), a native python resolves that against
+# the wrong prefix, and `conf()` then fails every lookup with ModuleNotFoundError while the
+# script still exits 0. Measured: all 7 conf() calls failed and the redactor control could
+# not open loop_redact.py.
+case "$(uname -s 2>/dev/null)" in
+  MINGW*|MSYS*|CYGWIN*) BIN_NATIVE="$(cygpath -m "$BIN" 2>/dev/null || printf '%s' "$BIN")";;
+  *) BIN_NATIVE="$BIN";;
+esac
+
+# Interpreter by full path, never `python3` off PATH: on this host that resolves to a
+# Microsoft Store stub which exits 49, and under `set -u` the previous self-referential
+# default (PY="${LOOP_PY:-"$PY"}") died with "PY: unbound variable" on line 8, before any
+# check ran. A SessionStart gate that cannot start is not a gate.
+LOOP_HOME_D="${LOOP_HOME:-$HOME/.loop}"
+if [ -z "${LOOP_PY:-}" ] && [ -f "$LOOP_HOME_D/config.env" ]; then
+  LOOP_PY="$(sed -n 's/^[[:space:]]*LOOP_PY=//p' "$LOOP_HOME_D/config.env" | tail -1)"
+fi
+PY="${LOOP_PY:-}"
+if [ -z "$PY" ] || ! "$PY" -c 'import sys' >/dev/null 2>&1; then
+  for _c in python3 python; do
+    _p="$(command -v "$_c" 2>/dev/null)" || continue
+    if "$_p" -c 'import sys' >/dev/null 2>&1; then PY="$_p"; break; fi
+  done
+fi
+if [ -z "$PY" ] || ! "$PY" -c 'import sys' >/dev/null 2>&1; then
+  echo "STOP   no working python interpreter. Set LOOP_PY to the full path of a python that"
+  echo "       runs, or record it as LOOP_PY= in $LOOP_HOME_D/config.env"
+  exit 3
+fi
+conf() { "$PY" -c "import sys; sys.path.insert(0,'$BIN_NATIVE'); import loop_conf; print(loop_conf.load()['$1'])"; }
+ER="$(conf ENGINE_RECORD_DIR)"; RB="$(conf RECORD_BRANCH)"; STATE="$(conf STATE_FILE)"; SMAX="$(conf STATE_MAX_LINES)"; LH="$(conf LOOP_HOME)"; SURF="$(conf SURFACES)"; ML="$(conf MAX_LEADERS)"
+echo "preflight $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+if [ -n "$ER" ] && [ -d "$ER" ]; then
+  # P18. With no remote, `git rev-parse origin/<branch>` ECHOES ITS OWN ARGUMENT to
+  # stdout, so ${O:0:12} printed the made-up upstream "origin/recor" and DIFFERS.
+  # A repo with no remote now reads "no remote" and OK. --verify -q prints nothing
+  # for a ref that does not exist, so a missing upstream can never pose as a sha.
+  H=$(git -C "$ER" rev-parse HEAD 2>/dev/null); D=$(git -C "$ER" status --porcelain 2>/dev/null | wc -l)
+  if [ -z "$(git -C "$ER" remote 2>/dev/null)" ]; then
+    echo "git      $RB HEAD=${H:0:12} no remote dirty_paths=$D OK"
+  else
+    git -C "$ER" fetch -q origin "$RB" 2>/dev/null
+    O=$(git -C "$ER" rev-parse -q --verify "origin/$RB^{commit}" 2>/dev/null)
+    if [ -z "$O" ]; then
+      echo "git      $RB HEAD=${H:0:12} origin/$RB absent dirty_paths=$D DIFFERS"
+    else
+      U=$(git -C "$ER" rev-list --count "origin/$RB..HEAD" 2>/dev/null)
+      echo "git      $RB HEAD=${H:0:12} origin=${O:0:12} unpushed=$U dirty_paths=$D $([ "$H" = "$O" ] && echo OK || echo DIFFERS)"
+    fi
+  fi
+else
+  echo "git      ENGINE_RECORD_DIR not configured or missing: STOP"
+fi
+case " $SURF " in *" n8n "*) echo -n "n8n      "; "$BIN/loop-n8n" sweep 2>&1 | tail -n 1 | sed 's/^/active|mismatched|total = /';; *) echo "surfaces ${SURF:-none configured}";; esac
+# P07: pgrep does not exist on Windows and `|| echo 0` turned that into a false
+# zero. loop_procs.py is the one instrument the dispatcher uses too, and it says
+# UNKNOWN rather than 0 when it cannot measure. P30: read here, before the goal
+# line, because STALE needs it. Printed below on the leaders line, unchanged.
+LEAD="$("$PY" "$BIN_NATIVE/loop_procs.py" 2>/dev/null)" || LEAD="UNKNOWN"
+[ -n "$LEAD" ] || LEAD="UNKNOWN"
+CG="$LH/current_goal"
+if [ -f "$CG" ]; then
+  G1="$(head -1 "$CG" | tr -d '\r')"
+  # P30. STALE: the file names a goal whose report.md reads VERDICT DONE or HELD and no
+  # leader is counted. The leader's own SessionStart preflight counts itself, so a
+  # resumed HELD goal never reads STALE to its own leader. Same rule as settle.
+  V="$(head -c 4000 "$LH/goals/$G1/report.md" 2>/dev/null | grep -oE 'VERDICT:[[:space:]]*(DONE|HELD)' | head -1 | sed 's/VERDICT:[[:space:]]*//')"
+  if [ -n "$V" ] && [ "$LEAD" = "0" ]; then
+    echo "goal     current_goal=$G1 STALE: its report.md reads VERDICT $V and no leader is counted. Clear it with loop_dispatch.py --settle"
+  else
+    echo "goal     current_goal=$G1"
+  fi
+else
+  echo "goal     current_goal not set (loop_dispatch.py writes $CG before it launches the leader)"
+fi
+PL="$LH/goals/$( [ -f "$CG" ] && head -1 "$CG" )/plan.md"; [ -f "$PL" ] && { echo -n "live     "; awk '/^## Live/{f=1;next} f&&NF{print;exit}' "$PL"; }
+if [ "$LEAD" = "UNKNOWN" ]; then
+  echo "leaders  running=UNKNOWN max=$ML no working process instrument: STOP"
+else
+  echo "leaders  running=$LEAD max=$ML $([ "$LEAD" -gt "$ML" ] && echo OVER || echo OK)"
+fi
+if [ -f "$STATE" ]; then
+  L=$(wc -l < "$STATE"); S=$(sha256sum < "$STATE" | cut -c1-16)
+  echo "state    $STATE lines=$L sha256=$S $([ "$L" -le "$SMAX" ] && echo OK || echo "OVER CAP $SMAX")"
+else
+  echo "state    STATE_FILE missing: $STATE"
+fi
+NF="$LH/names.txt"
+if [ -f "$NF" ]; then echo "names    entries=$(grep -c . "$NF") age_days=$(( ( $(date +%s) - $(stat -c %Y "$NF") ) / 86400 ))"; else echo "names    names.txt missing (owner-maintained, written by hand)"; fi
+echo -n "guard    "; printf 'api-key: abcdefghijklmnop123456789\n' | "$PY" "$BIN_NATIVE/loop_redact.py" | grep -q REDACTED && echo "redactor control fired" || echo "REDACTOR CONTROL FAILED: STOP"  # loop-scan:control
+# P23. `df -h /` measured the drive MSYS mounts as /, which is wherever Git is
+# installed, not the drive holding LOOP_HOME. They agree on this host only by accident.
+# The dispatcher's floor reads the same instrument, shutil.disk_usage(LOOP_HOME).
+DSK="$(LH_D="$LH" "$PY" -c "import os,shutil;u=shutil.disk_usage(os.environ['LH_D']);print('%.1fG free of %.1fG on the LOOP_HOME drive' % (u.free/2**30, u.total/2**30))" 2>/dev/null)"
+echo "disk     ${DSK:-UNKNOWN for $LH}"

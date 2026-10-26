@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# loop-names-refresh: RETIRED.
+#
+# It queried a Postgres container over docker exec using PG_CONTAINER, PG_USER
+# and PG_DB. None of those three is a key in config.env, docker is not installed
+# here, and names.sql never existed on this machine. The name list it built came
+# from a database that belonged to another installation.
+# names.txt is written by the owner by hand. loop-preflight checks presence only.
+echo "loop-names-refresh: retired. names.txt is written by the owner by hand." >&2
+exit 2

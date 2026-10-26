@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# commit-msg hook for the record repo and task branches: enforces the shape the leader promises.
+# Install: cp into <repo>/.git/hooks/commit-msg && chmod +x. loop-record and loop-git cite this file.
+msg_file="$1"
+subject="$(head -n1 "$msg_file")"
+if [ "${#subject}" -gt 72 ]; then echo "commit-msg: subject over 72 chars"; exit 1; fi
+if ! printf '%s' "$subject" | grep -Eq '^(feat|fix|refactor|docs|chore|test|revert)\([a-z0-9._-]+\): .+'; then
+  echo "commit-msg: subject must be type(scope): summary with type in feat|fix|refactor|docs|chore|test|revert"; exit 1
+fi
+if printf '%s' "$subject" | grep -q '^docs(record)' && ! grep -Eq '^Goal: [A-Za-z0-9._-]+$' "$msg_file"; then
+  echo "commit-msg: a record commit needs a 'Goal: <GOAL-ID>' footer"; exit 1
+fi
+if grep -q -- '—' "$msg_file"; then echo "commit-msg: no em dashes"; exit 1; fi
+exit 0

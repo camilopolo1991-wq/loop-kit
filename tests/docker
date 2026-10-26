@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# tests/docker : a fake `docker` for `loop-tripwire selftest`. Selftest use only.
+#
+# The tripwire's n8n detector reads workflow rows through a SQL wrapper that ends in a
+# `docker` call. The selftest (bin/tripwire_selftest.py, find_shim_dir) puts the
+# directory holding this file first on PATH, so that call lands here instead of on a
+# real container. This script never contacts anything and never reads a real record.
+#
+# It prints a psql-style unaligned table, `|`-separated, with a header line, the way
+# bin/loop_tripwire.py collect_n8n() parses it (the trailing "(N rows)" line has one
+# field, not four, so the parser skips it):
+#
+#   id|versionId|activeVersionId|active
+#
+# Environment (both set by the selftest per case, both optional):
+#   LOOP_TRIPWIRE_FAKE_VERSIONID  versionId reported for the first workflow row.
+#                                 Default "stable-version-aaa". Case 6 changes it
+#                                 between `start` and `check`; the tripwire must see
+#                                 the difference and exit 1 naming N8N.
+#   LOOP_TRIPWIRE_SHIM_FAIL       when set to 1, print one line to stderr and exit 1
+#                                 (a failed read). Case 7: the tripwire must exit 2,
+#                                 never 0 or 1.
+set -u
+
+if [ "${LOOP_TRIPWIRE_SHIM_FAIL:-}" = "1" ]; then
+  echo "docker shim: simulated failure (LOOP_TRIPWIRE_SHIM_FAIL=1)" >&2
+  exit 1
+fi
+
+VID="${LOOP_TRIPWIRE_FAKE_VERSIONID:-stable-version-aaa}"
+
+printf '%s\n' 'id|versionId|activeVersionId|active'
+printf '%s\n' "wf-selftest-1|${VID}|${VID}|t"
+printf '%s\n' 'wf-selftest-2|stable-version-ccc|stable-version-ccc|f'
+printf '%s\n' '(2 rows)'
+exit 0

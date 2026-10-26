@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# loop-ticket-migrate: bash stub. The python payload is loop_ticket_migrate.py beside this file.
+#
+# P12. This file carried a python3 shebang. On this host python3 on PATH is the
+# Microsoft Store stub: it exits 49 and prints an install prompt, so the wrapper
+# died before its first line. loop-guard-run is required by CLAUDE.md for every
+# shell command the loop runs, so the loop could not run at all.
+#
+# LOOP_PY is resolved the way loop-preflight resolves it: the environment first,
+# then config.env. There is deliberately NO fallback to python3 or python on
+# PATH. A wrapper that silently finds the Store stub is the defect itself.
+set -uo pipefail
+BIN="$(dirname "$(readlink -f "$0")")"
+case "$(uname -s 2>/dev/null)" in
+  MINGW*|MSYS*|CYGWIN*) BIN_NATIVE="$(cygpath -m "$BIN" 2>/dev/null || printf '%s' "$BIN")";;
+  *) BIN_NATIVE="$BIN";;
+esac
+LOOP_HOME_D="${LOOP_HOME:-$HOME/.loop}"
+if [ -z "${LOOP_PY:-}" ] && [ -f "$LOOP_HOME_D/config.env" ]; then
+  LOOP_PY="$(sed -n 's/^[[:space:]]*LOOP_PY=//p' "$LOOP_HOME_D/config.env" | tail -1)"
+  LOOP_PY="${LOOP_PY%%#*}"
+  LOOP_PY="$(printf '%s' "$LOOP_PY" | sed 's/[[:space:]]*$//')"
+fi
+PY="${LOOP_PY:-}"
+if [ -z "$PY" ] || ! "$PY" -c 'import sys' >/dev/null 2>&1; then
+  echo "loop-ticket-migrate: LOOP_PY does not resolve to a working python interpreter." >&2
+  echo "loop-ticket-migrate: set LOOP_PY in the environment, or as LOOP_PY= in $LOOP_HOME_D/config.env." >&2
+  echo "loop-ticket-migrate: there is no fallback to python3 on PATH, by design." >&2
+  exit 3
+fi
+exec "$PY" "$BIN_NATIVE/loop_ticket_migrate.py" "$@"
