@@ -1,0 +1,83 @@
+# C1 rows for the writer's shell hook (hooks/writer-git-guard.py).
+# Format, one row per line:  id :: mode :: expect :: body
+#   mode   nowt = goal from LOOP_GOAL, no writable.txt
+#          wt   = goal from LOOP_GOAL, writable.txt lists the tree and the work folder
+#          cg   = goal only from the current_goal file, writable.txt present
+#          a mode may end in @home: the command runs with its working folder at the test
+#          home, which is no listed root. A \n in a body is a line break.
+#   expect allow (empty output, exit 0) or deny (a deny decision in the JSON output)
+#   body   the command inside the guarded heredoc; the runner wraps it in the wrapper
+#          line and the terminator line. Placeholders: {TREE} {HOME} {WORK} {PY} {EV}
+#          ({EV} is the fixture goal's evidence folder).
+# The first twelve rows are the card's rows; the rest cover the same hook.
+nowt-bare-script :: nowt :: deny :: {WORK}/under-root.sh
+nowt-interp-script :: nowt :: deny :: {PY} {WORK}/under-root.py
+nowt-sha256sum :: nowt :: allow :: sha256sum {WORK}/src.txt
+nowt-ticket-wrapper :: nowt :: deny :: loop-ticket list
+nowt-assign-sha256sum :: nowt :: allow :: FIXTURE_VAR=1 sha256sum {WORK}/src.txt
+cg-script-under-root :: cg :: allow :: {PY} {WORK}/under-root.py
+wt-script-outside-root :: wt :: deny :: {PY} {HOME}/outside/x.py
+wt-bare-script-under-root :: wt :: allow :: {WORK}/under-root.sh
+wt-interp-script-under-root :: wt :: allow :: {PY} {WORK}/under-root.py
+wt-cp-into-root :: wt :: allow :: cp {WORK}/src.txt {WORK}/copy.txt
+wt-cp-into-evidence :: wt :: allow :: cp {WORK}/src.txt {EV}/T01/writer/copy.txt
+wt-cp-elsewhere :: wt :: deny :: cp {WORK}/src.txt {HOME}/outside/copy.txt
+nowt-cp-into-root :: nowt :: deny :: cp {WORK}/src.txt {WORK}/copy.txt
+nowt-step-log :: nowt :: allow :: loop-journal GOAL-X T01 "a line"
+nowt-scan-file :: nowt :: allow :: loop-scan {WORK}/src.txt
+nowt-scan-range :: nowt :: deny :: loop-scan --range a..b
+nowt-git :: nowt :: deny :: git status
+wt-git :: wt :: deny :: git status
+wt-wrapper-listed :: wt :: allow :: loop-fixture put x
+nowt-wrapper-not-listed :: nowt :: deny :: loop-fixture put x
+wt-ticket-wrapper-listed :: wt :: deny :: loop-ticket list
+wt-rm-outside :: wt :: deny :: rm {HOME}/outside/x.txt
+wt-rm-in-root :: wt :: allow :: rm {WORK}/copy.txt
+wt-mkdir-root :: wt :: allow :: mkdir {WORK}/d
+wt-mkdir-evidence :: wt :: deny :: mkdir {EV}/T01/writer/d
+wt-redirect-root-and-dup :: wt :: allow :: echo x > {WORK}/out.txt 2>&1
+nowt-fd-dup :: nowt :: allow :: ls {WORK} 2>&1
+nowt-sed-inplace :: nowt :: deny :: sed -i s/a/b/ {WORK}/src.txt
+nowt-sed-print :: nowt :: allow :: sed -n 1,2p {WORK}/src.txt
+wt-py-X-value-is-not-script :: wt@home :: deny :: {PY} -X {TREE}/k {HOME}/outside/x.py
+wt-py-W-value-is-not-script :: wt@home :: deny :: {PY} -W {TREE}/k {HOME}/outside/x.py
+wt-bash-rcfile-value-is-not-script :: wt@home :: deny :: bash --rcfile {TREE}/k {HOME}/outside/s.sh
+wt-py-module :: wt :: deny :: {PY} -m pip
+wt-py-X-then-script :: wt@home :: deny :: {PY} -X utf8 {WORK}/under-root.py
+wt-quoted-space-path :: wt :: allow :: {PY} "{WORK}/sp ace/x.py"
+wt-heredoc-data :: wt :: allow :: cat <<'EOF'\nrm -rf nothing; bogus-cmd\nEOF
+wt-heredoc-lookalike-in-quotes :: wt :: deny :: echo "<<EOF"\nrm {HOME}/outside/x.txt\nEOF
+wt-heredoc-lookalike-in-arith :: wt :: deny :: echo $((1<<EOF))\nrm {HOME}/outside/x.txt\nEOF
+wt-install-shaped-cwd-outside-roots :: wt@home :: allow :: HOME={TREE} USERPROFILE={TREE} bash {TREE}/install.sh
+nowt-home-assign-sha256sum :: nowt :: allow :: HOME={WORK} sha256sum {WORK}/src.txt
+wt-inline-python :: wt :: deny :: {PY} -c 'print(1)'
+wt-env-launcher :: wt :: deny :: env sha256sum {WORK}/src.txt
+wt-script-traversal :: wt :: deny :: {PY} {WORK}/../outside/x.py
+# Retry 3: fail closed on unlisted flags and interpreter names; no character set on a path.
+wt-py-unlisted-flag-outside :: wt :: deny :: {PY} --check-hash-based-pycs always {HOME}/outside/x.py
+wt-bash-plus-O-outside :: wt :: deny :: bash +O extglob {HOME}/outside/s.sh
+wt-bash-plus-o-outside :: wt :: deny :: bash +o posix {HOME}/outside/s.sh
+wt-pythonw-under-root :: wt :: deny :: pythonw {WORK}/under-root.py
+wt-python312-under-root :: wt :: deny :: python3.12 {WORK}/under-root.py
+wt-quoted-parens-path :: wt :: allow :: {PY} "{WORK}/pa(re)n/x.py"
+wt-quoted-space-path-2 :: wt :: allow :: {PY} "{WORK}/my script/y.py"
+wt-nonascii-path :: wt :: allow :: {PY} {WORK}/café/x.py
+# Retry 4, ruling 7: the script clause is one shape (interpreter, one script path); a body holding
+# $( , a backtick or a backslash is denied; a path is judged by its resolved prefix only.
+# Out is a file outside every root; the root is {WORK}. Row wt-py-X-then-script above moved from
+# allow to deny by ruling 7a (a flag before the script is no longer the allowed shape).
+S1-bash-ox-posix :: wt :: deny :: bash -ox posix {HOME}/outside/o.sh
+S2-bash-Ox-extglob :: wt :: deny :: bash -Ox extglob {HOME}/outside/o.sh
+S3-dollar-paren-in-dquotes :: wt :: deny :: echo "$({PY} {HOME}/outside/o.py)"
+S4-backtick-in-dquotes :: wt :: deny :: echo "`{PY} {HOME}/outside/o.py`"
+S5-backslash-quote-split :: wt :: deny :: echo \"; {PY} {HOME}/outside/o.py; echo \"
+S6-brackets-path-under-root :: wt :: allow :: {PY} "{WORK}/a[1]/x.py"
+S7-braces-path-under-root :: wt :: allow :: {PY} "{WORK}/b{2}/x.py"
+r2-python-check-hash-based-pycs :: wt :: deny :: python --check-hash-based-pycs always {HOME}/outside/o.py
+r2-bash-plus-O :: wt :: deny :: bash +O extglob {HOME}/outside/o.sh
+r2-bash-plus-o :: wt :: deny :: bash +o posix {HOME}/outside/o.sh
+wt-interp-script-third-word :: wt :: deny :: {PY} {WORK}/under-root.py extra
+wt-interp-flag-before-script :: wt :: deny :: {PY} -B {WORK}/under-root.py
+wt-bash-flag-before-script :: wt :: deny :: bash -x {WORK}/under-root.sh
+wt-bash-long-flag-before-script :: wt :: deny :: bash --posix {WORK}/under-root.sh
+wt-install-shaped-extra-arg :: wt@home :: deny :: HOME={TREE} USERPROFILE={TREE} bash {TREE}/install.sh --yes
