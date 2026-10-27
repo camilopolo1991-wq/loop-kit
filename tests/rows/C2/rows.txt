@@ -1,0 +1,38 @@
+# C2 rows for the read-only hook (hooks/readonly-guard.py): a listing under the goals folder.
+# Format, one row per line:  id :: role :: expect :: body
+#   role   the value of LOOP_ROLE for the row (scout, reviewer, auditor)
+#   expect allow (empty output, exit 0) or deny (a deny decision in the JSON output)
+#   body   the command inside the guarded heredoc; the runner wraps it in the wrapper
+#          line and the terminator line. Placeholders: {EV} the fixture goal's evidence
+#          folder, {LH} the loop home, {OTHER} a sibling goal's evidence folder. The hook judges the string
+#          only, so no fixture is written to disk.
+scout-ev-T01-allow :: scout :: allow :: ls {EV}/T01/
+scout-ev-T01-review-deny :: scout :: deny :: ls {EV}/T01/review/
+reviewer-ev-T01-review-allow :: reviewer :: allow :: ls {EV}/T01/review/
+reviewer-ev-T02-deny :: reviewer :: deny :: ls {EV}/T02/
+auditor-ev-AUDIT-allow :: auditor :: allow :: ls {EV}/AUDIT/
+auditor-other-goal-deny :: auditor :: deny :: ls {OTHER}/T01/
+# Retry 1. Case folds as on Windows (t01 and T01 are one folder); a wildcard in the segment
+# where "goals" belongs is judged as a goals target ({LH} is the loop home).
+scout-lowercase-t01-allow :: scout :: allow :: ls {EV}/t01/
+scout-wildcard-above-goals-deny :: scout :: deny :: ls {LH}/goal*/FIXTURE-C2/evidence/T01/writ*
+# Retry 2. A $ segment right under the loop home reaching writer is denied; a brace-list target
+# whose literal prefix is not the loop home keeps the verdict it had before (allowed).
+scout-dollar-segment-under-home-deny :: scout :: deny :: ls {LH}/${X}/FIXTURE-C2/evidence/T01/writer
+scout-brace-list-outside-home-allow :: scout :: allow :: ls C:/tmp/{a,b}/goals
+# Retry 3 (owner ruling 8 (a)). A leading ~, $HOME, ${HOME}, $LOOP_HOME, ${LOOP_HOME} is expanded to
+# the home and loop home the hook knows, then judged; any other $ or a backtick is denied; inside a
+# target only * ? [ are wildcards, so a ~ that is not leading and a { are literal ({FIX} is the fixture goal id).
+scout-tilde-goals-deny :: scout :: deny :: ls ~/.loop/goals/
+scout-lochome-var-goals-deny :: scout :: deny :: ls $LOOP_HOME/goals/
+reviewer-home-braces-T02-deny :: reviewer :: deny :: ls ${HOME}/.loop/goals/{FIX}/evidence/T02/
+reviewer-tilde-T01-review-allow :: reviewer :: allow :: ls ~/.loop/goals/{FIX}/evidence/T01/review/
+scout-dollar-other-var-deny :: scout :: deny :: ls {EV}/T01/$OTHER
+scout-backtick-deny :: scout :: deny :: ls "{EV}/T01/a`b"
+scout-tilde-segment-literal-allow :: scout :: allow :: ls {LH}/~x/
+reviewer-brace-literal-allow :: reviewer :: allow :: ls {EV}/T01/review/{x}
+# The defects the last reading measured, spelled as the owner listed them.
+scout-lochome-braces-goals-deny :: scout :: deny :: ls ${LOOP_HOME}/goals
+scout-find-tilde-goals-deny :: scout :: deny :: find ~/.loop/goals -name x
+scout-tilde-other-goal-deny :: scout :: deny :: ls ~/.loop/goals/{FIX}-OTHER/evidence/
+scout-tilde-inside-name-allow :: scout :: allow :: ls {EV}/T01/a~b

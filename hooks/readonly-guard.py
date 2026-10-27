@@ -328,6 +328,7 @@ def resolve(toks, start, acc, depth=0):
                 acc.append(('rm', rest))
             for k, t in enumerate(rest):
                 if t in ('-exec', '-execdir', '-ok', '-okdir') and k + 1 < len(rest):
+                    acc.append(('find', rest[:k]))  # C2: the find's own targets are judged too
                     resolve(rest, k + 1, acc, depth + 1)
                     return
             acc.append(('find', rest))
@@ -441,6 +442,114 @@ def sed_perl_reason(word, rest):
     return None
 
 
+LISTING_WORDS = {'ls', 'find', 'tree', 'dir'}
+REASON_LISTING = ('Read-only role: a listing under $LOOP_HOME/goals/ may target only the role\'s own '
+                  'evidence folders (scout: this goal\'s evidence/T<nn>/ and below, not review/ or writer/; '
+                  'reviewer: evidence/T<nn>/review/ and below; auditor: evidence/T<nn>/, '
+                  'evidence/T<nn>/review/, evidence/AUDIT/ and below). The writer subfolder is never listed.')
+_GOALS_ROOT_RE = re.compile(r'^' + re.escape(_canon(LOOP_HOME)) + r'/goals(/|$)', _RF)
+_HOME_CHILD_RE = re.compile(r'^' + re.escape(_canon(LOOP_HOME)) + r'/([^/]*)(/|$)', _RF)
+_LIST_EVIDENCE_RE =re.compile(r'^' + re.escape(_canon(LOOP_HOME)) + r'/goals/' + _goal_part + r'/evidence/', _RF)
+
+
+def listing_targets(word, rest):
+    """C2. The path arguments of a listing command, as written. No disk access."""
+    if word == 'find':
+        j = 0
+        while j < len(rest):
+            if rest[j] in ('-H', '-L', '-P') or re.fullmatch(r'-O\d', rest[j]):
+                j += 1
+            elif rest[j] == '-D':
+                j += 2
+            else:
+                break
+        ts = []
+        while j < len(rest) and not (rest[j].startswith('-') or rest[j] in ('(', '!', ',')):
+            ts.append(rest[j])
+            j += 1
+        return ts
+    ts, past = [], False
+    for t in rest:
+        if past:
+            ts.append(t)
+        elif t == '--':
+            past = True
+        elif t.startswith('-') and t != '-':
+            continue
+        else:
+            ts.append(t)
+    return ts
+
+
+REASON_LISTING_UNRESOLVED = ('Read-only role: a listing target with $ or a backtick (other than a leading '
+                             '~, $HOME, ${HOME}, $LOOP_HOME, ${LOOP_HOME}) cannot be judged and is denied.')
+_LEAD_VAR_RE = re.compile(r'^(~|\$HOME|\$\{HOME\}|\$LOOP_HOME|\$\{LOOP_HOME\})(?=/|$)')
+
+
+def _expand_listing_target(tgt):
+    """C2 r3. Expand ONE leading ~, $HOME, ${HOME}, $LOOP_HOME or ${LOOP_HOME} to the home and
+    loop home this hook already knows. Returns (target, None) or (None, reason). A leading ~
+    followed by anything but / (a ~user form) and any other $ or backtick are unresolvable
+    at hook time and fail closed. ~ elsewhere and { are literal characters."""
+    m = _LEAD_VAR_RE.match(tgt)
+    if m:
+        tok = m.group(1)
+        if tok in ('$LOOP_HOME', '${LOOP_HOME}'):
+            lead = LOOP_HOME
+        else:
+            lead = os.environ.get('HOME') or os.path.expanduser('~')
+        tgt = lead + tgt[m.end():]
+    elif tgt.startswith('~'):
+        return None, REASON_LISTING_UNRESOLVED
+    if '$' in tgt or '`' in tgt:
+        return None, REASON_LISTING_UNRESOLVED
+    return tgt, None
+
+
+def listing_target_reason(raw):
+    """C2. Judge one listing target by its string. A target under $LOOP_HOME/goals/ is
+    allowed only inside the role's own pattern. Outside the goals folder, relative, or
+    absent: not judged here (the hook's other checks stand as before)."""
+    tgt = strip_quotes(raw)
+    if not tgt:
+        return None
+    tgt, why = _expand_listing_target(tgt)
+    if why:
+        return why
+    if not _is_abs(tgt):
+        return None
+    p = _canon(tgt)
+    special = '*?['  # the only wildcards inside a target; ~ (not leading) and { are literal
+    hm = _HOME_CHILD_RE.match(p)
+    if not hm:
+        return None  # literal prefix is not the loop home: the verdict is the hook's as before
+    if any(ch in hm.group(1) for ch in special):
+        # the segment where "goals" belongs holds a wildcard: it could be the goals
+        # folder and cannot be resolved here, so it is denied
+        return REASON_LISTING
+    if not _GOALS_ROOT_RE.match(p):
+        return None
+    if any(ch in p for ch in special):
+        return REASON_LISTING  # below goals: could expand into review/ or writer/
+    m = _LIST_EVIDENCE_RE.match(p)
+    if not m:
+        return REASON_LISTING
+    segs = p[m.end():].split('/')
+    low = [s.lower() if os.name == 'nt' else s for s in segs]
+    # fold case the way the hook's other path checks do (_RF): same folder on Windows
+    first, tail = low[0], low[1:]
+    t_prefix, audit = ('t', 'audit') if os.name == 'nt' else ('T', 'AUDIT')
+    if 'writer' in tail:
+        return REASON_LISTING
+    if ROLE == 'auditor':
+        return None if (first == audit or first.startswith(t_prefix)) else REASON_LISTING
+    if not first.startswith(t_prefix):
+        return REASON_LISTING
+    if ROLE == 'reviewer':
+        return None if tail[:1] == ['review'] else REASON_LISTING
+    return REASON_LISTING if 'review' in tail else None
+
+
 def check_segment(seg):
     seg = seg.replace('\\\n', ' ')
     if re.search(r"\$'", seg):
@@ -466,6 +575,11 @@ def check_segment(seg):
         if any(ch in cw for ch in '$`{?*[') and base(cw).lower() not in SHELL_KEYWORDS:
             return 'Read-only role: a command word with $ ` { ? * [ cannot be judged and is denied.'
     for word, rest in acc:
+        if word in LISTING_WORDS:
+            for t in listing_targets(word, rest):
+                r = listing_target_reason(t)
+                if r:
+                    return r
         if word in ('xargs', 'find'):
             continue
         r = interpreter_reason(word, rest, seg)
