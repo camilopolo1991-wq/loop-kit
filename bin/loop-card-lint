@@ -8,8 +8,20 @@
 #               is TODO, RUNNING, PASS, FAIL(n), BLOCKED or GATE as its first word.
 #               The ## Live line carries `status:` with PLANNING, RUNNING, HELD or DONE, nothing in
 #               parentheses.
+#               --log PATH (accepted anywhere among the arguments; a log fixture) makes the plan lint
+#               check each task row whose status first word is PASS against the step log:
+#                 (i)  the log must hold a line for that goal id and task id whose text starts with PASS or
+#                      DONE ("- <timestamp> <GOAL-ID> <step> <text>"); otherwise the row fails, naming the task.
+#                 (ii) the status cell evidence path must hold no path segment named writer (a writer's own
+#                      folder is not the reviewer evidence a PASS rests on); otherwise the row fails, naming
+#                      the task, whether or not the log has a line.
+#               The goal id is read from the goal: field of the ## Live line. The step log is the --log file
+#               when given, otherwise what the step-log tool (loop-journal) resolves: JOURNAL_FILE in the
+#               environment, else the loop_conf JOURNAL_FILE value. The log is read only when a plan holds a
+#               PASS row. A log that cannot be read exits 2 with a message naming it.
 #   report.md : the first line reads `VERDICT: DONE` or `VERDICT: HELD`, nothing after it in parentheses.
-# Exit 0 clean, 1 a rule broke (each named), 2 usage or unreadable or unknown file kind.
+# Card and report linting ignore --log.
+# Exit 0 clean, 1 a rule broke (each named), 2 usage or unreadable or unknown file kind or unreadable log.
 # P33. Written after the RECORD-01 audits: a plan row read "DONE (closing)" and cards routed the
 # reviewer to plan.md and the journal.
 set -euo pipefail
@@ -29,9 +41,49 @@ if [ -z "$PY" ] || ! "$PY" -c 'import sys' >/dev/null 2>&1; then
   echo "loop-card-lint: there is no fallback to python3 on PATH, by design." >&2
   exit 3
 fi
-[ $# -ge 1 ] || { echo "usage: loop-card-lint <card.md|plan.md|report.md>..."; exit 2; }
+[ $# -ge 1 ] || { echo "usage: loop-card-lint [--log PATH] <card.md|plan.md|report.md>..."; exit 2; }
+case "$(uname -s 2>/dev/null)" in
+  MINGW*|MSYS*|CYGWIN*) BIN_NATIVE="$(cygpath -m "$BIN" 2>/dev/null || printf '%s' "$BIN")";;
+  *) BIN_NATIVE="$BIN";;
+esac
+export LOOP_CARD_LINT_BIN="$BIN_NATIVE"
 exec "$PY" -c '
 import os, re, sys
+args = sys.argv[1:]; files = []; logpath = None; i = 0
+while i < len(args):
+    if args[i] == "--log":
+        if i + 1 >= len(args):
+            print("usage: loop-card-lint [--log PATH] <card.md|plan.md|report.md>..."); sys.exit(2)
+        logpath = args[i + 1]; i += 2
+    else:
+        files.append(args[i]); i += 1
+if not files:
+    print("usage: loop-card-lint [--log PATH] <card.md|plan.md|report.md>..."); sys.exit(2)
+LOGROWS = None
+def logrows():
+    global LOGROWS
+    if LOGROWS is not None:
+        return LOGROWS
+    jf = logpath
+    if jf is None:
+        jf = os.environ.get("JOURNAL_FILE", "")
+        if not jf:
+            try:
+                sys.path.insert(0, os.environ.get("LOOP_CARD_LINT_BIN", ""))
+                import loop_conf
+                jf = loop_conf.load().get("JOURNAL_FILE", "")
+            except Exception:
+                jf = ""
+    try:
+        text = open(jf, encoding="utf-8", errors="replace").read().splitlines()
+    except (OSError, ValueError):
+        print("loop-card-lint: step log unreadable (%s)" % (jf or "no JOURNAL_FILE configured")); sys.exit(2)
+    LOGROWS = []
+    for l in text:
+        t = l.split(None, 4)
+        if len(t) >= 4 and t[0] == "-":
+            LOGROWS.append((t[2], t[3], t[4] if len(t) > 4 else ""))
+    return LOGROWS
 ROUTE = re.compile(r"(?i)(\bplan\.md\b|\bSTATE\.md\b|\bJOURNAL\.md\b|\bloop-journal\b|\bthe journal\b)")
 EXEMPT = ("criteria:", "done when:")
 FIELD = re.compile(r"^([A-Z][A-Za-z ]{1,30}):")
@@ -42,7 +94,7 @@ def say(f, n, msg):
     global bad
     bad += 1
     print("%s:%s: %s" % (f, n, msg))
-for f in sys.argv[1:]:
+for f in files:
     name = os.path.basename(f).lower()
     try:
         lines = open(f, encoding="utf-8").read().splitlines()
@@ -60,7 +112,7 @@ for f in sys.argv[1:]:
             if r:
                 say(f, n, "routes the role to %s. Copy what the role needs into the card instead." % r.group(1))
     elif name == "plan.md":
-        live = None; hdr = None; inlive = False
+        live = None; hdr = None; inlive = False; passrows = []
         for n, l in enumerate(lines, 1):
             if re.match(r"^\s*(\d+[.)]|[-*])\s+T\d+\b", l):
                 say(f, n, "task written as prose, not a table row: %r" % l.strip()[:40])
@@ -80,6 +132,8 @@ for f in sys.argv[1:]:
                     rest = st.split()[1:]
                     if rest and not (len(rest) == 1 and (rest[0].startswith("evidence/") or rest[0].startswith("$LOOP_HOME/goals/"))):
                         say(f, n, "task %s status %r has more after the status word than one evidence path (evidence/... or $LOOP_HOME/goals/...)" % (cells[0], st[:30]))
+                if first == "PASS":
+                    passrows.append((n, cells[0], st.split()[1:]))
         if hdr is None:
             say(f, "-", "no task table: plan.md needs | T | task | ... | status | rows")
         if live is None:
@@ -89,6 +143,15 @@ for f in sys.argv[1:]:
             v = m.group(1).strip() if m else ""
             if v not in GOAL:
                 say(f, live[0], "## Live status %r is not PLANNING, RUNNING, HELD or DONE (nothing in parentheses)" % (v[:30] or "missing"))
+        if passrows:
+            gm = re.search(r"\bgoal:\s*([^\s|]+)", live[1]) if live else None
+            gid = gm.group(1) if gm else ""
+            rows = logrows()
+            for n, tid, rest in passrows:
+                if not any(r[0] == gid and r[1] == tid and (r[2].startswith("PASS") or r[2].startswith("DONE")) for r in rows):
+                    say(f, n, "task %s is PASS but the step log has no PASS or DONE line for goal %s and task %s" % (tid, gid or "(none)", tid))
+                if rest and "writer" in re.split(r"[\\/]+", rest[0]):
+                    say(f, n, "task %s is PASS with a writer folder as its evidence path %r; a PASS rests on reviewer or leader evidence" % (tid, rest[0][:60]))
     elif name == "report.md":
         first = lines[0] if lines else ""
         m = re.search(r"VERDICT:\s*(.*)$", first)
@@ -97,6 +160,6 @@ for f in sys.argv[1:]:
             say(f, 1, "VERDICT %r is not DONE or HELD" % (v[:30] or "missing"))
     else:
         print("%s: unknown kind, name it card.md, plan.md or report.md" % f); worst = 2
-print("loop-card-lint: %d file(s), %d rule(s) broken" % (len(sys.argv) - 1, bad))
+print("loop-card-lint: %d file(s), %d rule(s) broken" % (len(files), bad))
 sys.exit(worst or (1 if bad else 0))
 ' "$@"

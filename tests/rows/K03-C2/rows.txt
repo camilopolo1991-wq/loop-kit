@@ -1,0 +1,9 @@
+# K03-C2 rows: the card lint checks plan PASS cells against the step log.
+# Format: id :: kind :: expect :: arg
+#   kind   lint : writes a plan fixture and a log fixture under LOOP_WORK/<id>/, runs the lint with --log
+#   expect <exit code>|<text the output must hold, or - for none>
+#   arg    <evidence path of the T02 PASS cell>|<log lines, separated by \n>
+# The goal id in every fixture is made up (ZZZ-99). Paths are the ~ spelling only.
+a :: lint :: 1|T02 :: evidence/T02/review|- 2026-01-01T00:00:00Z ZZZ-99 T01 PASS scout fixture\n- 2026-01-01T00:00:01Z ZZZ-99 T02 ROLLBACK ~/x
+b :: lint :: 0|- :: evidence/T02/review|- 2026-01-01T00:00:00Z ZZZ-99 T01 PASS scout fixture\n- 2026-01-01T00:00:01Z ZZZ-99 T02 PASS fixture writer done
+c :: lint :: 1|T02 :: evidence/T02/writer|- 2026-01-01T00:00:00Z ZZZ-99 T01 PASS scout fixture\n- 2026-01-01T00:00:01Z ZZZ-99 T02 PASS fixture writer done
