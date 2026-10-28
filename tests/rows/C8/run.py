@@ -61,8 +61,19 @@ def run_plan(tree, work, env, rid, expect, cell):
     fixture = folder + '/plan.md'
     with open(fixture, 'w', encoding='utf-8', newline='\n') as fh:
         fh.write(plan_text(cell))
+    # A step log fixture with a PASS line for the fixture's goal id (its Live goal: line) and task id T01,
+    # named to the lint through JOURNAL_FILE in this process's environment (no --log: wt-main would read it as a file).
+    goal = 'FIXT-C8'
+    for pl in plan_text(cell).splitlines():
+        if pl.startswith('goal:'):
+            goal = pl.split()[1]
+    logfix = folder + '/steps.log'
+    with open(logfix, 'w', encoding='utf-8', newline='\n') as fh:
+        fh.write('- 2026-01-01T00:00:00Z %s T01 PASS fixture line\n' % goal)
+    renv = dict(env)
+    renv['JOURNAL_FILE'] = logfix
     cp = subprocess.run(['bash', tree + '/bin/loop-card-lint', fixture],
-                        capture_output=True, text=True, env=env, cwd=work)
+                        capture_output=True, text=True, env=renv, cwd=work)
     want = 0 if expect == 'pass' else 1
     names_task = ('task T01' in cp.stdout)
     ok = cp.returncode == want and (expect == 'pass' or names_task)

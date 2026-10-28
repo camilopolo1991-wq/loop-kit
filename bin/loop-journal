@@ -19,6 +19,11 @@
 #   line with no ROLLBACK line for the same task before the first of them. --file reads a log
 #   fixture instead of the journal, --plan a plan fixture instead of the goal's plan.md. Exit 2 when plan.md or the journal
 #   cannot be read. Exit 0 otherwise, with the counts printed.
+#   K03-C8. Also exit 1 when a task whose plan status cell (the status column) has PASS as its first
+#   word has no line for that goal id and that task id whose text starts with PASS or DONE; one FAIL
+#   line names the task. The goal id and task id are matched exactly as loop-card-lint matches a PASS cell
+#   to its log line (token 3 equals the goal id, token 4 equals the task id), so the record check at close
+#   and the card lint agree. The summary line ends with ", PASS tasks N, missing PASS or DONE M".
 #
 # loop-journal --active <GOAL-ID> [--file PATH]
 #   K03-C5. Read-only. The one instrument for a goal's active time. --file reads a log fixture
@@ -153,7 +158,7 @@ try:
     jl = open(jf, encoding="utf-8", errors="replace").read().splitlines()
 except OSError:
     print("loop-journal --check %s: journal unreadable at %s" % (gid, jf)); sys.exit(2)
-hdr = None; writers = []
+hdr = None; writers = []; passtasks = []
 for l in pl:
     if l.startswith("|") and hdr is None and "owner" in l.lower():
         hdr = [c.strip().lower() for c in l.strip().strip("|").split("|")]; continue
@@ -161,6 +166,10 @@ for l in pl:
         c = [x.strip() for x in l.strip().strip("|").split("|")]
         if len(c) > hdr.index("owner") and re.search(r"\bwriter\b", c[hdr.index("owner")], re.I):
             writers.append(c[0])
+        if "status" in hdr and len(c) > hdr.index("status"):
+            sw = c[hdr.index("status")].split()
+            if sw and sw[0] == "PASS":
+                passtasks.append(c[0])
 if hdr is None:
     print("loop-journal --check %s: no task table with an owner column in plan.md" % gid); sys.exit(2)
 rows = []
@@ -177,11 +186,15 @@ for w in writers:
     passed += 1
     if not any(r[1] == w and r[2].startswith("ROLLBACK") for r in rows[:p]):
         bad.append("%s %s at %s has no ROLLBACK line before it" % (w, rows[p][2][:4], rows[p][0]))
-print("loop-journal --check %s: %d journal lines, writer tasks %d (%s), writer PASS %d, missing ROLLBACK %d"
-      % (gid, len(rows), len(writers), " ".join(writers) or "none", passed, len(bad)))
-for b in bad:
+nolog = []
+for tid in passtasks:
+    if not any(r[1] == tid and (r[2].startswith("PASS") or r[2].startswith("DONE")) for r in rows):
+        nolog.append("%s is PASS in the plan but the journal has no PASS or DONE line for goal %s and task %s" % (tid, gid, tid))
+print("loop-journal --check %s: %d journal lines, writer tasks %d (%s), writer PASS %d, missing ROLLBACK %d, PASS tasks %d, missing PASS or DONE %d"
+      % (gid, len(rows), len(writers), " ".join(writers) or "none", passed, len(bad), len(passtasks), len(nolog)))
+for b in bad + nolog:
     print("  FAIL " + b)
-sys.exit(1 if bad else 0)
+sys.exit(1 if (bad or nolog) else 0)
 ' "$2" "$JF" "$PLAN"
 fi
 

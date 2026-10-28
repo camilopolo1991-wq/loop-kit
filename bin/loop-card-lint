@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# loop-card-lint <file>... : lints a task or review card, plan.md and report.md, chosen by file name.
+# loop-card-lint [--log PATH] <file>... : lints a task or review card, plan.md and report.md, chosen by file name.
 #   card.md   : no line outside Criteria / Done when may route the role to plan.md, STATE.md or the
 #               journal (JOURNAL.md, loop-journal, "the journal"). The leader copies what the role needs
 #               into the card instead. Criteria and Done when are the GOAL's words, verbatim, and exempt.

@@ -1,0 +1,12 @@
+# K03-C8 rows: loop-journal --check also fails a plan PASS task that has no PASS or DONE line in the step log.
+# Format: id :: kind :: expect :: arg
+# kind check : expect = <exit>|<text the output must hold, or - for none>; arg = <tasks>|<log lines>
+#   tasks     : comma list of <task id>/<owner>/<status cell>; the plan fixture is written from it
+#   log lines : joined by \n; @G stands for the made-up goal id
+# kind phrase: expect = found; arg = <relpath>|<line number>|<phrase>; a Python bytes search of that line
+#   (a) T01 (scout) is PASS in the plan and the log has no line for it: exit 1 naming it (wt-main exits 0).
+c8-a-pass-no-line :: check :: 1|FAIL T01 is PASS in the plan but :: T01/scout/PASS,T02/writer/PASS evidence/T02/review|- 2026-01-01T00:00:01Z @G T02 ROLLBACK snapshot taken\n- 2026-01-01T00:00:02Z @G T02 DONE change made\n- 2026-01-01T00:00:03Z @G T02 PASS reviewed
+#   (b) every line in place, ROLLBACK lines before the writer DONE and PASS lines: exit 0 on both trees.
+c8-b-all-in-place :: check :: 0|missing ROLLBACK 0 :: T01/scout/PASS,T02/writer/PASS,T03/writer/TODO|- 2026-01-01T00:00:01Z @G T01 PASS looked\n- 2026-01-01T00:00:02Z @G T02 ROLLBACK snapshot taken\n- 2026-01-01T00:00:03Z @G T02 DONE change made\n- 2026-01-01T00:00:04Z @G T02 PASS reviewed
+#   (c) the card lint usage comment, line 2, names the --log option (absent under wt-main).
+c8-c-lint-usage-names-log :: phrase :: found :: bin/loop-card-lint|2|--log PATH
