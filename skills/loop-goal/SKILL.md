@@ -17,7 +17,7 @@ Budget: max writes, max external calls, max model calls, max wall time. Four cei
 Out of scope: named.
 Known context: pointers only (report ids, card titles). Never machine values: the scout measures those.
 ```
-An edit to a placed GOAL.md leaves a signed trace: a commit by the owner, or a ledger row naming the owner as the source of the text, with the new sha256. The orchestrator cites that trace in RULING.md. A GOAL.md whose sha changed with no such trace is not run.
+An edit to a placed GOAL.md leaves a signed trace: a commit by the owner, or a ledger row naming the owner as the source of the text, with the new sha256. The orchestrator's RULING.md names that trace by its ledger row number and the full sha. A GOAL.md whose sha changed with no such entry is not run.
 
 ## plan.md (the leader's, on disk, so a compaction costs nothing)
 ```
@@ -67,6 +67,7 @@ The pretool guard denies a reviewer dispatch that carries RESULT/proof/writes li
 ## Rules the leader applies
 - A card never routes a role to plan.md, STATE.md or the journal. The leader copies what the role needs into the card. When a criterion names PASS rows of plan.md or journal lines, the leader copies those rows into the review card's Artefacts, and the reviewer's rule (never read plan.md) stands. Criteria and Done when stay the GOAL's words, verbatim, even when those words name plan.md.
 - Every card is written to its card file with the Write tool (that write makes the task's evidence folder), then `loop-card-lint <card file>` must exit 0, then the role is dispatched with the same text. A card is written before its tripwire window opens, never inside one.
+- A GOAL.md whose sha changed is run only when RULING.md cites the ledger row number and the full sha.
 - One goal at a time. Inside it, tasks run in order. Scouts may run in parallel when their questions do not depend on each other. Writers never run in parallel.
 - A finding inside the goal's surface and authority that is reversible becomes a new task. Everything else becomes a proposed card.
 - Two readings that disagree are both kept and shown. Never merge them into one answer.

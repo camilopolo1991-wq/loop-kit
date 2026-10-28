@@ -1,6 +1,6 @@
 ---
 name: loop-audit
-description: The four audit checklists for the loop roles (leader, scout, writer, reviewer), each item naming the artefact and the failure condition. Loaded by loop-auditor after a goal closes or holds.
+description: The audit checklists for the loop roles (leader, scout, writer, reviewer, auditor), each item naming the artefact and the failure condition. Loaded by loop-auditor after a goal closes or holds.
 ---
 
 # Auditing the loop from its artefacts
@@ -18,12 +18,15 @@ Source: four independent reviews of the roles, 2026-10-20. Every item names what
 8. Record branch log filtered by the goal footer: commits equal 1, or 2 with a HELD report. Each commit's scan evidence shows the control fired and hits equal 0. FAIL otherwise.
 9. STATE.md: under 150 lines, section 0 names this goal, sections edited in place (the diff against the previous commit shows no appended history). FAIL otherwise.
 10. report.md: 80 lines or fewer, every number marked measured or CARRIED with its instrument, both readings present for every FAIL(2), VERDICT equal to the journal's. FAIL on any.
+11. Done-note (the record repository's docs/brain/ folder, written at close): FAIL if that folder exists and the close left no done-note file with frontmatter, one fact per file.
+12. Journal vs the writer's returns: FAIL if a writer return of BLOCKED has a DONE or PASS journal line for the same task.
+13. Journal START lines vs RULING.md: FAIL if a GOAL.md sha differs from the previous START line and RULING.md does not cite the ledger row number and the full sha.
 
 ### Leader, when the goal HELD before its first task
 Use this variant instead of items 2 to 10 when the journal holds no `T<nn>` line for this run. Those items are NOT APPLICABLE, never FAIL and never CANNOT DETERMINE: no task ran, so they have nothing to open.
 a. report.md: VERDICT HELD, names the stop rule from the leader's list that fired, and quotes the measured output that fired it (the preflight line, the guard denial, the error text). FAIL on a stop with no quoted output.
 b. Journal: exactly one HELD line for this run, after a START line. FAIL if missing or doubled.
-c. Record branch: no commit for this run, or exactly one carrying `Goal: <GOAL-ID>` if files changed. FAIL otherwise. Instrument, with every path written out literally in the command from the start: `git -C <record repo path> log --grep='Goal: <GOAL-ID>' --format='%h %s' > <goal dir>/evidence/AUDIT/review/record-log.txt`. A `$VAR` redirect target is denied by the guard because it cannot be resolved when the hook runs, and redoing a denied command with the literal path is re-routing.
+c. Record branch: no commit for this run, or exactly one carrying `Goal: <GOAL-ID>` if files changed. FAIL otherwise. Instrument, with every path written out literally in the command from the start (the return and the evidence quote it spelled from ~ or $LOOP_HOME): `git -C <record repo path> log --grep='Goal: <GOAL-ID>' --format='%h %s' > <goal dir>/evidence/AUDIT/review/record-log.txt`. A `$VAR` redirect target is denied by the guard because it cannot be resolved when the hook runs, and redoing a denied command with the literal path is re-routing.
 d. No `evidence/T<nn>/` folder holds anything but a card file. FAIL on any other file.
 e. STATE.md unchanged since the previous commit. FAIL on any diff.
 f. One `loop-report` for the stop, and the question to the owner follows the grill rules. FAIL on a second report or a question with no recommendation. Instrument: `$LOOP_HOME/report.log`, one line per loop-report call (SENT, KEPT or NOT SENT, with the label and path).
@@ -59,6 +62,9 @@ f. One `loop-report` for the stop, and the question to the owner follows the gri
 6. No Read of the writer's evidence folder, report.md or plan.md in the transcript.
 7. Regressions and findings-outside-task name a second copy of logic or a consumer checked; "none" needs a sweep command.
 8. `writes: NONE`, tripwire exit 0, and the writer's evidence sha256 unchanged since its RESULT.
+
+## Auditor (its own return and evidence/AUDIT/review/)
+1. Every path in the return and the evidence is spelled from ~ or $LOOP_HOME. FAIL on any path spelled from a drive letter or a user folder.
 
 ## Orchestrator (when the auditor is given the Hermes unit ledger)
 1. Every unit in `state/units/` with a DONE or PASS verdict has a review receipt whose reviewer is not the unit itself.
