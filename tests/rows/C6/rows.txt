@@ -1,0 +1,12 @@
+# C6 rows. Format: id :: kind :: expect :: argument
+# count_full / count_minus: run "loop-journal --dispatches FIXT-C6" on a fixture; expect = "scout writer reviewer".
+#   The fixture also holds lines that must not count: another goal's dispatch, a trailing-word dispatch (counts),
+#   a line whose text merely contains DISPATCH, an unknown role word, and a DISPATCHED-prefixed word.
+# hook_allow / hook_deny: feed the read-only hook "role|command"; allow = empty output and exit 0, deny = a deny decision.
+# phrase: a Python bytes search under <tree> for "file|phrase".
+c6-count-full    :: count_full  :: 2 3 2  :: two scout, three writer, two reviewer lines
+c6-count-minus   :: count_minus :: 2 3 1  :: the same fixture with one reviewer line removed
+c6-hook-allow    :: hook_allow  :: allow  :: auditor|loop-journal --dispatches FIXT-C6
+c6-hook-deny     :: hook_deny   :: deny   :: auditor|loop-journal FIXT-C6 T01 "DISPATCH writer card.md"
+c6-phrase-record :: phrase      :: found  :: skills/loop-record/SKILL.md|DISPATCH <role> <card path>
+c6-phrase-leader :: phrase      :: found  :: agents/loop-leader.md|DISPATCH <role> <card path>

@@ -10,6 +10,10 @@
 #   Reads $JOURNAL_FILE if set (for testing against a fixture file); otherwise
 #   falls back to the configured real journal path.
 #
+# loop-journal --dispatches <GOAL-ID>
+#   Read-only. Prints "<scout> <writer> <reviewer>": the count of that goal's lines whose text
+#   starts DISPATCH and then the role word. Words after the card path do not change the count.
+#
 # loop-journal --check <GOAL-ID> [--file PATH] [--plan PATH]
 #   P33. Read-only. Exit 1 when a writer task (plan.md owner column says writer) has a DONE or PASS
 #   line with no ROLLBACK line for the same task before the first of them. --file reads a log
@@ -109,6 +113,27 @@ for b in bad:
     print("  FAIL " + b)
 sys.exit(1 if bad else 0)
 ' "$2" "$JF" "$PLAN"
+fi
+
+if [ "${1:-}" = "--dispatches" ]; then
+    [ $# -eq 2 ] || { echo "usage: loop-journal --dispatches <GOAL-ID>"; exit 64; }
+    JF="$(resolve_jf)"
+    [ -n "$JF" ] || { echo "JOURNAL_FILE not configured"; exit 2; }
+    [ -f "$JF" ] || { echo "journal not found: $JF"; exit 2; }
+    "$PY" -c '
+import re, sys
+gid, jf = sys.argv[1:3]
+n = {"scout": 0, "writer": 0, "reviewer": 0}
+rx = re.compile(r"^DISPATCH\s+(scout|writer|reviewer)(?:\s|$)")
+for l in open(jf, encoding="utf-8", errors="replace").read().splitlines():
+    t = l.split(None, 4)
+    if len(t) >= 5 and t[0] == "-" and t[2] == gid:
+        m = rx.match(t[4])
+        if m:
+            n[m.group(1)] += 1
+print("%d %d %d" % (n["scout"], n["writer"], n["reviewer"]))
+' "$2" "$JF"
+    exit 0
 fi
 
 if [ "${1:-}" = "--read" ]; then

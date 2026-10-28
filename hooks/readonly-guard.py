@@ -161,7 +161,7 @@ WRAPPER_WRITE = {
     'loop-ticket': lambda rest: bool(rest) and rest[0] in {'set', 'note', 'edit', 'field', 'start', 'new', 'import', 'migrate'},
     # P34. A read is --read or --check as the FIRST argument. The old test ('--read' anywhere)
     # denied --check, the auditor's instrument, and allowed a write whose line text held --read.
-    'loop-journal': lambda rest: not (bool(rest) and rest[0] in {'--read', '--check'}),
+    'loop-journal': lambda rest: not (bool(rest) and rest[0] in {'--read', '--check', '--dispatches'}),
     'graphify': lambda rest: bool(rest) and rest[0] in {'extract', 'update', 'export', 'install', 'uninstall', 'hook', 'watch', 'add', 'merge-graphs', 'clone', 'global', 'cluster-only', 'label', 'save-result', 'reflect', 'prs'},
     'graphify-mcp': lambda rest: True,
 }

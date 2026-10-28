@@ -11,6 +11,7 @@ Fixed line shapes, so `loop-journal --check` and the auditor can read them:
 - `loop-journal <GOAL-ID> GOAL "START GOAL.md sha256 <first 16>"` at every leader start.
 - `loop-journal <GOAL-ID> <window-id> "TRIPWIRE OPEN"` before `loop-tripwire start`, and `"TRIPWIRE CLOSE exit <n>"` after `loop-tripwire check`.
 - `loop-journal <GOAL-ID> T<nn> "ROLLBACK <path> sha256 <first 16>"` by the writer, before its change.
+- `loop-journal <GOAL-ID> T<nn> "DISPATCH <role> <card path>"` by the leader for every dispatch, scouts and reviewers as well as writers; <role> is scout, writer or reviewer, and `loop-journal --dispatches <GOAL-ID>` counts them.
 - `loop-journal --check <GOAL-ID>` exits 1 when a writer task (owner column says writer) has a PASS line with no ROLLBACK line before it. The leader runs it before `GOAL CLOSED`, and a non-zero exit means the goal is not closed.
 
 ## STATE.md: current facts only, under 150 lines
