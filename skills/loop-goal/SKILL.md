@@ -30,6 +30,7 @@ Open questions for the owner: (only gates)
 goal: <id> | status: <PLANNING | RUNNING | HELD | DONE> | window: <open tripwire id or none> | branch: <checked-out task branch or none> | retries: T<nn>=<n> | gate: <pending gate or none>
 Proposed cards: (findings outside the goal)
 ```
+The Live block is rewritten before `TRIPWIRE OPEN` and after `TRIPWIRE CLOSE`, never inside a window, where only journal lines are written.
 Task status values: TODO, RUNNING, PASS, FAIL(n), BLOCKED, GATE, as the first word of the status cell.
 Goal status, the `status:` field in `## Live`: PLANNING, RUNNING, HELD, DONE. Nothing in parentheses, ever (`DONE (closing)` is not a status).
 `loop-card-lint plan.md` checks both, and `loop-card-lint report.md` checks the VERDICT.

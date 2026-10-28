@@ -1,0 +1,9 @@
+# K03-C3 rows: one phrase per row. Fields: id :: kind :: expected :: file|phrase
+# Each phrase is a run of words from a sentence added by card C3 and is absent from that file before C3.
+S1 :: phrase :: found :: agents/loop-leader.md|scout's PARTIAL return is recorded as PARTIAL, never as DONE
+S2 :: phrase :: found :: agents/loop-leader.md|never inside a window, where only journal lines are written
+S3 :: phrase :: found :: agents/loop-leader.md|Append a DISPATCH line only after the card file has been written
+LIVE :: phrase :: found :: skills/loop-goal/SKILL.md|never inside a window, where only journal lines are written
+A1 :: phrase :: found :: skills/loop-audit/SKILL.md|a PARTIAL scout return or a BLOCKED writer return is recorded DONE in the step log
+A2 :: phrase :: found :: skills/loop-audit/SKILL.md|a leader file write falls inside a window
+A3 :: phrase :: found :: skills/loop-audit/SKILL.md|a DISPATCH line is earlier than the write of its card file

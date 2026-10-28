@@ -21,6 +21,9 @@ Source: four independent reviews of the roles, 2026-10-20. Every item names what
 11. Done-note (the record repository's docs/brain/ folder, written at close): FAIL if that folder exists and the close left no done-note file with frontmatter, one fact per file.
 12. Journal vs the writer's returns: FAIL if a writer return of BLOCKED has a DONE or PASS journal line for the same task.
 13. Journal START lines vs RULING.md: FAIL if a GOAL.md sha differs from the previous START line and RULING.md does not cite the ledger row number and the full sha.
+14. Journal vs the scout and writer returns: FAIL if a PARTIAL scout return or a BLOCKED writer return is recorded DONE in the step log for the same task.
+15. Journal and plan.md vs the tripwire windows: FAIL if a leader file write falls inside a window, judged by the goal's tripwire window open and close times in the step log and its check files against the plan file's mtimes.
+16. Journal vs the card files: FAIL if a DISPATCH line is earlier than the write of its card file.
 
 ### Leader, when the goal HELD before its first task
 Use this variant instead of items 2 to 10 when the journal holds no `T<nn>` line for this run. Those items are NOT APPLICABLE, never FAIL and never CANNOT DETERMINE: no task ran, so they have nothing to open.
