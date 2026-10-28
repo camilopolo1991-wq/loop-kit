@@ -1,0 +1,6 @@
+# C4 rows: loop-journal --check judges every writer task with a DONE or PASS line, takes --file and --plan.
+# Format: id :: kind :: expected exit :: description
+# Fixtures are written by run.py under <work> at run time from these kinds.
+c4-missing :: missing :: 1 :: writer task T01 has a DONE line and no ROLLBACK before it: exit 1 and the FAIL line names T01 (reviewer T02 with a DONE line is not judged)
+c4-inplace :: inplace :: 0 :: writer task T01 has ROLLBACK before DONE and T03 has ROLLBACK before PASS: exit 0, missing ROLLBACK 0
+c4-noplan :: noplan :: 2 :: --file alone, and the default plan for the goal id is not readable: exit 2

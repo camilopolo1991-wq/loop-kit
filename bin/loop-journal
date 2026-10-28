@@ -10,9 +10,10 @@
 #   Reads $JOURNAL_FILE if set (for testing against a fixture file); otherwise
 #   falls back to the configured real journal path.
 #
-# loop-journal --check <GOAL-ID>
-#   P33. Read-only. Exit 1 when a writer task (plan.md owner column says writer) has a PASS line
-#   with no ROLLBACK line for the same task before it. Exit 2 when plan.md or the journal
+# loop-journal --check <GOAL-ID> [--file PATH] [--plan PATH]
+#   P33. Read-only. Exit 1 when a writer task (plan.md owner column says writer) has a DONE or PASS
+#   line with no ROLLBACK line for the same task before the first of them. --file reads a log
+#   fixture instead of the journal, --plan a plan fixture instead of the goal's plan.md. Exit 2 when plan.md or the journal
 #   cannot be read. Exit 0 otherwise, with the counts printed.
 set -euo pipefail
 BIN="$(dirname "$(readlink -f "$0")")"
@@ -50,9 +51,23 @@ resolve_jf() {
 }
 
 if [ "${1:-}" = "--check" ]; then
-    [ $# -eq 2 ] || { echo "usage: loop-journal --check <GOAL-ID>"; exit 64; }
-    JF="$(resolve_jf)"
-    PLAN="$LOOP_HOME_D/goals/$2/plan.md"
+    [ $# -ge 2 ] || { echo "usage: loop-journal --check <GOAL-ID> [--file PATH] [--plan PATH]"; exit 64; }
+    CHECK_GID="$2"
+    CHECK_FILE=""
+    CHECK_PLAN=""
+    shift 2
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --file) [ $# -ge 2 ] || { echo "usage: loop-journal --check <GOAL-ID> [--file PATH] [--plan PATH]"; exit 64; }
+                    CHECK_FILE="$2"; shift 2;;
+            --plan) [ $# -ge 2 ] || { echo "usage: loop-journal --check <GOAL-ID> [--file PATH] [--plan PATH]"; exit 64; }
+                    CHECK_PLAN="$2"; shift 2;;
+            *) echo "usage: loop-journal --check <GOAL-ID> [--file PATH] [--plan PATH]"; exit 64;;
+        esac
+    done
+    set -- "x" "$CHECK_GID"
+    if [ -n "$CHECK_FILE" ]; then JF="$CHECK_FILE"; else JF="$(resolve_jf)"; fi
+    if [ -n "$CHECK_PLAN" ]; then PLAN="$CHECK_PLAN"; else PLAN="$LOOP_HOME_D/goals/$2/plan.md"; fi
     exec "$PY" -c '
 import re, sys
 gid, jf, plan = sys.argv[1:4]
@@ -82,12 +97,12 @@ for l in jl:
 bad = []
 passed = 0
 for w in writers:
-    p = next((i for i, r in enumerate(rows) if r[1] == w and r[2].startswith("PASS")), None)
+    p = next((i for i, r in enumerate(rows) if r[1] == w and (r[2].startswith("PASS") or r[2].startswith("DONE"))), None)
     if p is None:
         continue
     passed += 1
     if not any(r[1] == w and r[2].startswith("ROLLBACK") for r in rows[:p]):
-        bad.append("%s PASS at %s has no ROLLBACK line before it" % (w, rows[p][0]))
+        bad.append("%s %s at %s has no ROLLBACK line before it" % (w, rows[p][2][:4], rows[p][0]))
 print("loop-journal --check %s: %d journal lines, writer tasks %d (%s), writer PASS %d, missing ROLLBACK %d"
       % (gid, len(rows), len(writers), " ".join(writers) or "none", passed, len(bad)))
 for b in bad:
