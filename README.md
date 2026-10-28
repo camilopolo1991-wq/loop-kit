@@ -108,6 +108,8 @@ It also makes `$HOME/.loop/goals`, `scratch` and `record/docs`, and copies the s
 
 `tests/docker` is a fake `docker` for `loop-tripwire selftest`: it prints fixed workflow rows, changes a version id on request and can be told to fail, so the selftest never touches a real container. `install.sh` copies `tests/` to `$HOME/.loop/tests/`, where the selftest looks for it, only when you pass `--with-tests`; without the flag no tests directory is made.
 
+`TRIPWIRE_NOISE` in `config.env` is a space-separated list of name patterns at the top of the home whose differences `loop-tripwire check` lists under NOISE and leaves out of its exit code; the default is `ntuser.dat* NTUSER.DAT*`.
+
 Measured on the Windows host this kit was built on, after `bash install.sh /full/path/to/python --with-tests` into an empty home. The exit code of the selftest:
 
 ```

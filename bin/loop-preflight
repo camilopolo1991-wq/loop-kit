@@ -93,6 +93,10 @@ else
 fi
 NF="$LH/names.txt"
 if [ -f "$NF" ]; then echo "names    entries=$(grep -c . "$NF") age_days=$(( ( $(date +%s) - $(stat -c %Y "$NF") ) / 86400 ))"; else echo "names    names.txt missing (owner-maintained, written by hand)"; fi
+# P11b. The leader cannot Read config.env (settings deny, P26), so this line is how a goal's
+# start read learns which trees it may write. Drive-aware split: C:/... stays one entry.
+WT="$(conf WRITABLE_TREES)"
+echo "writable $(WT_D="$WT" "$PY" -c "import os,re; t=re.findall(r'[A-Za-z]:/[^:]*|[^:]+', os.environ['WT_D']); print('%d: %s' % (len(t), ' | '.join(t)) if t else '0 (none)')")"
 echo -n "guard    "; printf 'api-key: abcdefghijklmnop123456789\n' | "$PY" "$BIN_NATIVE/loop_redact.py" | grep -q REDACTED && echo "redactor control fired" || echo "REDACTOR CONTROL FAILED: STOP"  # loop-scan:control
 # P23. `df -h /` measured the drive MSYS mounts as /, which is wherever Git is
 # installed, not the drive holding LOOP_HOME. They agree on this host only by accident.

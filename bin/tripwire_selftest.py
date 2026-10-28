@@ -451,6 +451,65 @@ def case15_control_outside_synced_timestamp_still_caught(script, shim_dir, tmp_r
                 f'change still trips) out={out1!r}')
 
 
+def case16_noise_file_at_top_is_noise(script, shim_dir, tmp_root):
+    """A file at the top of the home named like the default TRIPWIRE_NOISE pattern changes
+    size inside the window: exit 0, diff-latest.txt holds a NOISE (1): block naming it, and
+    stdout is exactly the one NOISE line expected, never 'no differences'."""
+    root = os.path.join(tmp_root, 'case16'); os.makedirs(root)
+    roots, env = base_env(root, shim_dir)
+    init_engine_repo(env, roots['engine_repo'])
+    write_stable_fixtures(roots)
+    window = 'case16'
+    noisy = os.path.join(roots['root_toplevel'], 'ntuser.dat.LOG1')
+    with open(noisy, 'w', encoding='utf-8') as fh:
+        fh.write('x\n')
+    rc0, out0, err0 = run_tripwire(script, ['start', GOAL, window], env)
+    if rc0 != 0:
+        return False, f'start exit {rc0} (want 0): out={out0!r} err={err0!r}'
+    with open(noisy, 'w', encoding='utf-8') as fh:
+        fh.write('a longer registry log line\n')
+    rc1, out1, err1 = run_tripwire(script, ['check', GOAL, window], env)
+    expect = f'NOISE FILE {noisy}: '
+    lines = out1.splitlines()
+    diff_txt = os.path.join(roots['loop'], 'goals', GOAL, 'evidence', window, 'diff-latest.txt')
+    try:
+        dtxt = open(diff_txt, encoding='utf-8').read()
+    except OSError as e:
+        dtxt = f'<unreadable: {e}>'
+    block = 'NOISE (1):\n' + f'FILE {noisy}: ' in dtxt
+    ok = (rc1 == 0 and len(lines) == 1 and lines[0].startswith(expect)
+          and 'no differences' not in out1 and 'DIFFERENCES (0):' in dtxt and block)
+    return ok, (f'check exit={rc1} (want 0), stdout lines={len(lines)} (want 1), '
+                f'want stdout line starting {expect!r}, got {out1!r}, NOISE (1) block in diff-latest={block}')
+
+
+def case17_control_non_noise_file_at_top_still_caught(script, shim_dir, tmp_root):
+    """Control for case16: a file at the top of the home whose name matches no pattern changes.
+    Exit 1, exactly one DIFFERENCES line, NOISE (0)."""
+    root = os.path.join(tmp_root, 'case17'); os.makedirs(root)
+    roots, env = base_env(root, shim_dir)
+    init_engine_repo(env, roots['engine_repo'])
+    write_stable_fixtures(roots)
+    window = 'case17'
+    plain = os.path.join(roots['root_toplevel'], 'notes.dat.LOG1')
+    with open(plain, 'w', encoding='utf-8') as fh:
+        fh.write('x\n')
+    rc0, out0, err0 = run_tripwire(script, ['start', GOAL, window], env)
+    if rc0 != 0:
+        return False, f'start exit {rc0} (want 0): out={out0!r} err={err0!r}'
+    with open(plain, 'w', encoding='utf-8') as fh:
+        fh.write('a longer line that is not noise\n')
+    rc1, out1, err1 = run_tripwire(script, ['check', GOAL, window], env)
+    diff_txt = os.path.join(roots['loop'], 'goals', GOAL, 'evidence', window, 'diff-latest.txt')
+    try:
+        dtxt = open(diff_txt, encoding='utf-8').read()
+    except OSError as e:
+        dtxt = f'<unreadable: {e}>'
+    ok = (rc1 == 1 and 'DIFFERENCES (1):\n' + f'FILE {plain}: ' in dtxt
+          and 'NOISE (0):' in dtxt and 'NOISE ' not in out1)
+    return ok, f'check exit={rc1} (want 1, one DIFFERENCES line, NOISE (0)) out={out1!r}'
+
+
 def bonus_check_without_start(script, shim_dir, tmp_root):
     """Not one of the 9 required cases: cheap extra proof that `check` fails
     closed (exit 2) rather than crashing or silently exiting 0 when there is
@@ -480,6 +539,8 @@ CASES = [
     ('case13-synced-file-added-CAUGHT', case13_synced_file_added_caught),
     ('case14-synced-file-removed-CAUGHT', case14_synced_file_removed_caught),
     ('case15-control-outside-synced-timestamp-still-CAUGHT', case15_control_outside_synced_timestamp_still_caught),
+    ('case16-noise-file-at-top-NOISE-exit-0', case16_noise_file_at_top_is_noise),
+    ('case17-control-non-noise-file-at-top-CAUGHT', case17_control_non_noise_file_at_top_still_caught),
 ]
 BONUS_CASES = [
     ('bonus-check-without-start-exits-2', bonus_check_without_start),

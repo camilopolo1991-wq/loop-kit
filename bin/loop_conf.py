@@ -29,6 +29,7 @@ DEFAULTS = {
     'WRITABLE_TREES': '',                    # colon-separated git worktrees the leader may create task branches in
     'MAX_LEADERS': '1',                      # leaders running at once on this machine
     'SURFACES': '',                          # space-separated surface wrappers installed here (n8n sql react ...), empty = none
+    'TRIPWIRE_NOISE': 'ntuser.dat* NTUSER.DAT*',  # space-separated name patterns at the top of the home whose changes the tripwire reports as noise. Not a path key.
     'REPORT_SEND_CMD': '',                   # e.g. /path/send.sh --subject {subject} --file {file}; empty = report stays on disk
     'REPORT_MAX_LINES': '80',
     'STATE_MAX_LINES': '150',

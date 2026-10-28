@@ -131,6 +131,7 @@ NOT COVERED BY THIS TRIPWIRE (say so in the report, don't discover it live)
 """
 import argparse
 import datetime
+import fnmatch
 import glob
 import hashlib
 import json
@@ -188,6 +189,9 @@ def get_roots():
         'root_toplevel': r('ROOT_TOPLEVEL', HOME),
         'evidence_root': r('EVIDENCE_ROOT', LH + '/goals'),
         'git_search_bases': [b for b in r('GIT_SEARCH_BASES', os.environ.get('WRITABLE_TREES', '')).split(':') if b],
+        # Name patterns at the top of the home whose changes are reported as NOISE, not differences
+        # (the Windows registry transaction logs change on their own). From loop_conf TRIPWIRE_NOISE.
+        'noise_patterns': r('NOISE', loop_conf.load().get('TRIPWIRE_NOISE', '')).split(),
     }
 
 
@@ -723,6 +727,22 @@ def cmd_check(goal_id, window_id):
         else:
             read_failures.append(f"N8N: base_error={base['n8n'].get('error')} cur_error={cur['n8n'].get('error')}")
 
+    # Noise: a FILE difference whose path is a direct child of root_toplevel and whose basename
+    # matches a TRIPWIRE_NOISE pattern. The baseline still records it, only the verdict moves.
+    noise = []
+    pats = roots['noise_patterns']
+    if pats:
+        top = os.path.normcase(os.path.normpath(roots['root_toplevel']))
+        keys = set(base['files']) | set(cur['files'])
+        nk = {k for k in keys
+              if os.path.normcase(os.path.dirname(os.path.normpath(k))) == top
+              and any(fnmatch.fnmatch(os.path.basename(k), p) for p in pats)}
+        kept = []
+        for l in all_diffs:
+            (noise if any(l.startswith(f'FILE {k}: ') for k in nk) else kept).append(l)
+        all_diffs = kept
+    noise_out = ['NOISE ' + l for l in noise]
+
     os.makedirs(edir, exist_ok=True)
     check_record = {
         'schema': 1,
@@ -732,6 +752,7 @@ def cmd_check(goal_id, window_id):
         'baseline_created_at': base.get('created_at'),
         'read_failures': read_failures,
         'differences': all_diffs,
+        'noise': noise,
     }
     write_json(os.path.join(edir, f'check-{utcnow_compact()}.json'), check_record)
 
@@ -747,21 +768,30 @@ def cmd_check(goal_id, window_id):
         fh.write(f'DIFFERENCES ({len(all_diffs)}):\n')
         for l in all_diffs:
             fh.write(l + '\n')
+        fh.write(f'\nNOISE ({len(noise)}):\n')
+        for l in noise:
+            fh.write(l + '\n')
 
     if read_failures:
-        shown = (read_failures + all_diffs)[:STDOUT_LINE_CAP]
+        shown = (read_failures + all_diffs + noise_out)[:STDOUT_LINE_CAP]
         for l in shown:
             print(l)
-        total = len(read_failures) + len(all_diffs)
+        total = len(read_failures) + len(all_diffs) + len(noise_out)
         if total > STDOUT_LINE_CAP:
             print(f'... {total - STDOUT_LINE_CAP} more, full list in {diff_txt}')
         return 2
     if all_diffs:
-        for l in all_diffs[:STDOUT_LINE_CAP]:
+        shown = (all_diffs + noise_out)[:STDOUT_LINE_CAP]
+        for l in shown:
             print(l)
-        if len(all_diffs) > STDOUT_LINE_CAP:
-            print(f'... {len(all_diffs) - STDOUT_LINE_CAP} more, full list in {diff_txt}')
+        total = len(all_diffs) + len(noise_out)
+        if total > STDOUT_LINE_CAP:
+            print(f'... {total - STDOUT_LINE_CAP} more, full list in {diff_txt}')
         return 1
+    if noise_out:
+        for l in noise_out[:STDOUT_LINE_CAP]:
+            print(l)
+        return 0
     print('no differences')
     return 0
 
