@@ -138,6 +138,46 @@ fi
 JF="$(resolve_jf)"
 [ -n "$JF" ] || { echo "JOURNAL_FILE not configured"; exit 2; }
 [ $# -ge 3 ] || { echo "usage: loop-journal <GOAL-ID> <step> \"<line>\""; exit 64; }
-LINE="- $(date -u +%Y-%m-%dT%H:%M:%SZ) $1 $2 $3"
+# C5. The home directory, in any spelling (drive letter with slash or backslash, the /c/ form,
+# the masked form whose segment after the first Users/ is the redactor's [NAME] tag), is rewritten to ~ in the
+# text before it is appended. Built from HOME and USERPROFILE at run time; no path is written here.
+# The python prints one flag byte (1 = rewrote, 0 = untouched) then the text; the trailing x keeps
+# command substitution from eating trailing newlines, so an untouched text stays byte-equal.
+RW="$(printf '%s' "$3" | "$PY" -c '
+import os, re, sys
+raw = sys.stdin.buffer.read().decode("utf-8", "surrogateescape")
+seen = []
+for k in ("HOME", "USERPROFILE"):
+    v = os.environ.get(k, "").replace("\\", "/")
+    m = re.match(r"^/([A-Za-z])(?:/(.*))?$", v)
+    if m:
+        v = m.group(1) + ":/" + (m.group(2) or "")
+    m = re.match(r"^([A-Za-z]):/*(.*)$", v)
+    if not m:
+        continue
+    segs = [s for s in m.group(2).split("/") if s]
+    if segs and (m.group(1).lower(), [s.lower() for s in segs]) not in seen:
+        seen.append((m.group(1).lower(), [s.lower() for s in segs]))
+alts = []
+sep = r"[\\/]+"
+for d, segs in seen:
+    pre = "(?:" + re.escape(d) + ":|/" + re.escape(d) + ")"
+    alts.append(pre + sep + sep.join(re.escape(s) for s in segs))
+    ui = next((i for i, s in enumerate(segs[:-1]) if s == "users"), None)
+    if ui is not None:
+        msegs = [re.escape(s) for s in segs]
+        msegs[ui + 1] = re.escape("[NAME]")
+        alts.append(pre + sep + sep.join(msegs))
+n = 0
+if alts:
+    rx = re.compile(r"(?<![\w.\\/-])(?:" + "|".join(alts) + r")(?![^\\/\s\x22\x27)\]}>,;:])", re.I)
+    raw, n = rx.subn("~", raw)
+sys.stdout.buffer.write((("1" if n else "0") + raw).encode("utf-8", "surrogateescape"))
+' && printf x)" || { echo "loop-journal: the home-path rewrite failed; nothing was appended" >&2; exit 4; }
+RW="${RW%x}"
+TEXT="${RW:1}"
+LINE="- $(date -u +%Y-%m-%dT%H:%M:%SZ) $1 $2 $TEXT"
 printf '%s\n' "$LINE" | "$PY" "$BIN_NATIVE/loop_redact.py" >> "$JF"
 echo "journaled: $1 $2"
+[ "${RW:0:1}" = "1" ] && echo "loop-journal: a home path in the text was rewritten to ~"
+exit 0

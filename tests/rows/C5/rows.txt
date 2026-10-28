@@ -1,0 +1,11 @@
+# C5 rows: loop-journal append mode rewrites the home directory, in any spelling, to ~ in the appended text.
+# Format: id :: kind :: expect (rewritten = tail comes back with ~, equal = tail comes back byte-equal) :: description
+# Spellings are built from HOME at run time by run.py; no home path is written here.
+C5-01 :: drive_slash :: rewritten :: drive letter with forward slashes
+C5-02 :: drive_back :: rewritten :: drive letter with backslashes
+C5-03 :: msys :: rewritten :: the /c/ form
+C5-04 :: masked :: rewritten :: segment after the first Users/ replaced by the redactor's name tag, slashes
+C5-05 :: plain :: equal :: text with no home path comes back byte-equal
+C5-06 :: masked_back :: rewritten :: masked form, backslashes
+C5-07 :: masked_msys :: rewritten :: masked form, the /c/ form
+C5-08 :: bak :: equal :: home followed by .bak (a sibling) comes back byte-equal
