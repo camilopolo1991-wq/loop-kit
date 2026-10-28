@@ -36,6 +36,44 @@ CONTROL = ('x-n8n-api-key: abcdefghijklmnop12345\n'  # loop-scan:control
            'API_SECRET=zz9zzzzzzzzzzzzz\n')  # loop-scan:control
 
 
+NAME_TAG = '[NAME]'  # the tag loop_redact.Redactor puts where a name was
+
+
+def home_parent_parts():
+    """(drive letter or '', [segments]) of the folder holding the home directory."""
+    home = os.path.expanduser('~').replace('\\', '/').rstrip('/')
+    parent = home.rpartition('/')[0]
+    drive = ''
+    if len(parent) >= 2 and parent[1] == ':':
+        drive, parent = parent[0], parent[2:]
+    return drive, [s for s in parent.split('/') if s]
+
+
+def masked_home_re():
+    """KIT-02 C3. The home path with its user segment already replaced by the name tag,
+    in any spelling: drive letter with slash or backslash, or the /c/ form. None when the
+    home has no parent folder to match."""
+    drive, segs = home_parent_parts()
+    if not drive and not segs:
+        return None
+    pre = '(?:%s:|/%s)' % (re.escape(drive), re.escape(drive)) if drive else ''
+    body = ''.join('[/\\\\]+' + re.escape(s) for s in segs)
+    return re.compile(r'(?<![\w])' + pre + body + r'[/\\]+' + re.escape(NAME_TAG), re.I)
+
+
+def masked_home_line():
+    """The path control line, built at run time from the home; never written out in the source."""
+    drive, segs = home_parent_parts()
+    if not drive and not segs:
+        return None  # a home with no user segment to mask: no control line can be built
+    return 'masked ' + (drive + ':' if drive else '') + ''.join('/' + s for s in segs) + '/' + NAME_TAG + '/x\n'
+
+
+# Built at import from the home. None when the home gives no user segment to mask.
+PATH_CONTROL = masked_home_line()
+CONTROL = CONTROL + (PATH_CONTROL or '')
+
+
 def hits(r, text):
     before = r.count
     r.redact(text)
@@ -90,7 +128,13 @@ def main():
     if ctrl.by_kind.get('pattern', 0) < 3:
         print('loop-scan: CONTROL DID NOT FIRE - scanner broken')
         return 3
-    name_control = 'n/a (no names file)'
+    path_re = masked_home_re()
+    # The path half of the control attests itself like the other categories: the scanner's own
+    # path detection runs over the built-in CONTROL text and must find the masked line there.
+    if path_re is None or not path_re.search(CONTROL):
+        print('loop-scan: PATH CONTROL DID NOT FIRE - scanner broken')
+        return 3
+    name_control ='n/a (no names file)'
     if r.names_re is not None:
         name_control = 'fired' if r.names_re.search(' ' + r.names_list[-1] + ' ') else 'NOT FIRED'
         if name_control != 'fired':
@@ -129,6 +173,11 @@ def main():
             skipped += 1
             continue
         n = hits(r, line)
+        if path_re is not None:
+            p = len(path_re.findall(line))
+            if p:
+                r._bump('path', p)
+                n += p
         if n:
             locs.append(f'{f}:{i}')
     print(f'loop-scan: control=fired name_control={name_control} lines={len(units)} control_lines_skipped={skipped} hits={r.count} ' +

@@ -1,0 +1,8 @@
+# C3 rows: id :: kind :: expect :: description
+# The fixture lines are built by run.py from the test home at run time. Here the home is only
+# spelled ~, and the masked form is ~'s parent folder followed by the name tag.
+# expect: hit1 = exit 1, hits=1, path=1, a hit at line 1.  clean = exit 0, hits=0.  ctrl = normal run control=fired, drive-root home exits 3.
+C3-1 :: drive :: hit1 :: a line with ~ in the drive spelling (slashes), user segment masked, is a path hit
+C3-2 :: cform :: hit1 :: a line with ~ in the /c/ spelling, user segment masked, is a path hit
+C3-3 :: clean :: clean :: a line holding no masked home path gives hits=0
+C3-4 :: control :: ctrl :: the path control is observed: a normal run prints control=fired, and a run whose home gives no user segment to mask exits 3 (PATH CONTROL DID NOT FIRE)
