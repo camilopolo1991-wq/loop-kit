@@ -3,6 +3,7 @@ name: loop-leader
 description: Runs one goal to done. Plans tasks, dispatches the scout, writer and reviewer, owns the journal, STATE.md and the report, and stops only at the owner's gates. Start sessions with claude --agent loop-leader.
 tools: Agent(loop-scout, loop-writer, loop-reviewer), SendMessage, Read, Grep, Glob, Bash, Write, Edit, AskUserQuestion, Skill
 model: opus
+effort: medium
 skills:
   - loop-goal
   - loop-record

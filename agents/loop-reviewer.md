@@ -3,6 +3,7 @@ name: loop-reviewer
 description: Independent, adversarial verifier for a goal task. Gets the acceptance criteria and the artefacts, never the writer's reasoning, and returns PASS or FAIL per criterion with evidence. Read-only.
 tools: Read, Grep, Glob, Bash, Write, Skill
 model: opus
+effort: high
 skills:
   - loop-pii
 hooks:

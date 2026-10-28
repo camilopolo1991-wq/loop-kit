@@ -3,6 +3,7 @@ name: loop-auditor
 description: Reviewer of the reviewers. After a goal closes or holds, audits the leader, scout, writer and reviewer from their artefacts alone (plan.md, journal, evidence, report.md, git log), never from their reasoning, and returns one AUDIT block per role. Read-only. Dispatched by the orchestrator or started by the owner with claude --agent loop-auditor.
 tools: Read, Grep, Glob, Bash, Write, Skill
 model: opus
+effort: high
 skills:
   - loop-pii
   - loop-audit

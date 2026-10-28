@@ -1,14 +1,14 @@
-agents/loop-auditor.md	984a6728947d6f336a3f0df93f047ab4ec0392c0d70ef02abb62f97b91eb93f7	89cf164ebdac8620970e0badf6afdbe31c5fe84870205c50c3f198942b5c8813
+agents/loop-auditor.md	984a6728947d6f336a3f0df93f047ab4ec0392c0d70ef02abb62f97b91eb93f7	45a327ca84850ee62017a998b0e9e3e6bcacbe059cc37be4515f70c3ed46003a
+	L15	          command: "LOOP_ROLE=reviewer @LOOP_PYTHON@ $HOME/.claude/hooks/readonly-guard.py"
+agents/loop-leader.md	f2e477ba71ff31d144ef2b2d29b12ae2990bef0003dd4dfa3688249aa32f62d4	aa13dd54126f04a6afc300f986b79ed354871a26ffc27ed7c73497afb1098c79
+	L12	You are the leader of the engineering loop on this machine. You run one goal at a time from `$LOOP_HOME/goals/<GOAL-ID>/GOAL.md` until every acceptance criterion passes, or until a stop condition says wait. `$LOOP_HOME` comes from `$LOOP_HOME/config.env` (default `~/.loop`). The owner is OWNER_HANDLE; "the owner" below means him.
+agents/loop-reviewer.md	d01ba9e808c8b3814bee6477bc3d1175cb5a871b3cc761c529d5122fb860fde3	dcdc83002346b890d0c6ee28805e5dbb2b5591561d9014d520a3c533cee1505a
 	L14	          command: "LOOP_ROLE=reviewer @LOOP_PYTHON@ $HOME/.claude/hooks/readonly-guard.py"
-agents/loop-leader.md	f2e477ba71ff31d144ef2b2d29b12ae2990bef0003dd4dfa3688249aa32f62d4	e568ff16a099ad05cf9f31c2f5818c385edaa24392b52858c9cf0130f0625f23
-	L11	You are the leader of the engineering loop on this machine. You run one goal at a time from `$LOOP_HOME/goals/<GOAL-ID>/GOAL.md` until every acceptance criterion passes, or until a stop condition says wait. `$LOOP_HOME` comes from `$LOOP_HOME/config.env` (default `~/.loop`). The owner is OWNER_HANDLE; "the owner" below means him.
-agents/loop-reviewer.md	d01ba9e808c8b3814bee6477bc3d1175cb5a871b3cc761c529d5122fb860fde3	0b76db7602010c40ab5fbbc7260bc80ff5ac635302173800974f549b39668a61
-	L13	          command: "LOOP_ROLE=reviewer @LOOP_PYTHON@ $HOME/.claude/hooks/readonly-guard.py"
-agents/loop-scout.md	0e6570d753599d2d4b103fcf77b58eba33276966317d37a7237f7bf3f45f89ab	ff685d6fd260448e3369877a56ff6285b4093d314c8b54cd2b32cec24a24616c
-	L13	          command: "LOOP_ROLE=scout @LOOP_PYTHON@ $HOME/.claude/hooks/readonly-guard.py"
-agents/loop-writer.md	80a83c8eeb3e04f53734bb054699188a80501b68b396c75205e6f4dbcec6dad5	5a27544d7efe108ce82ef484559d62f373f01b6f7ac057bb50d68a6c2b671e88
-	L13	          command: "@LOOP_PYTHON@ $HOME/.claude/hooks/writer-git-guard.py"
-	L19	          command: "@LOOP_PYTHON@ $HOME/.claude/hooks/writer-path-guard.py"
+agents/loop-scout.md	0e6570d753599d2d4b103fcf77b58eba33276966317d37a7237f7bf3f45f89ab	d7490530f9859d67b4bdac8617eef3cff21c2073ec42ff4d873173690cdce996
+	L14	          command: "LOOP_ROLE=scout @LOOP_PYTHON@ $HOME/.claude/hooks/readonly-guard.py"
+agents/loop-writer.md	80a83c8eeb3e04f53734bb054699188a80501b68b396c75205e6f4dbcec6dad5	686ad4772d2749b16332ed534598451a1aa26ca5c71c5af76f0e764dbd5060a3
+	L14	          command: "@LOOP_PYTHON@ $HOME/.claude/hooks/writer-git-guard.py"
+	L20	          command: "@LOOP_PYTHON@ $HOME/.claude/hooks/writer-path-guard.py"
 bin/__pycache__/loop_conf.cpython-314.pyc	970d3a15a710459f3f9b58421b313f921f208848167c87ca9f7e1af4b3a5e7e0	OMITTED	compiled .pyc embeds its source path
 bin/__pycache__/loop_procs.cpython-314.pyc	28bdfcff59ada7e7ed2f9ae70c5b3356ee3e6c40b5be76b7dfa201bcdadb3fca	OMITTED	compiled .pyc embeds its source path
 bin/__pycache__/loop_redact.cpython-314.pyc	e9eb237cf045c092540834d4c9911edaa065a5b5c005e28258e80b7d8b6d3c65	OMITTED	compiled .pyc embeds its source path

@@ -1,0 +1,10 @@
+# K03-C6 rows: effort line in the frontmatter of each agent file.
+# Format: id :: kind :: expect :: arg
+# phrase rows: arg is file|text; the text must sit inside the frontmatter (between the opening and closing three-dash lines).
+# frontmatter row: judged on both trees, expected to pass on both.
+C6-leader-effort :: phrase :: found :: agents/loop-leader.md|effort: medium
+C6-scout-effort :: phrase :: found :: agents/loop-scout.md|effort: medium
+C6-writer-effort :: phrase :: found :: agents/loop-writer.md|effort: medium
+C6-reviewer-effort :: phrase :: found :: agents/loop-reviewer.md|effort: high
+C6-auditor-effort :: phrase :: found :: agents/loop-auditor.md|effort: high
+C6-frontmatter-shape :: frontmatter :: pass :: agents/loop-leader.md,agents/loop-scout.md,agents/loop-writer.md,agents/loop-reviewer.md,agents/loop-auditor.md

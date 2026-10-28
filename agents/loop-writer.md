@@ -3,6 +3,7 @@ name: loop-writer
 description: Makes exactly one change for a goal task through an approved wrapper or on the task branch the leader checked out, records its rollback first, and returns proof. Dispatched by loop-leader only.
 tools: Read, Grep, Glob, Bash, Write, Edit, Skill
 model: sonnet
+effort: medium
 skills:
   - loop-pii
 hooks:
