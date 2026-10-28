@@ -76,6 +76,10 @@ for f in sys.argv[1:]:
                 first = st.split()[0] if st.split() else ""
                 if not TASK.match(first) or re.match(r"^\S+\s+\(", st):
                     say(f, n, "task %s status %r is not one of TODO, RUNNING, PASS, FAIL(n), BLOCKED, GATE" % (cells[0], st[:30]))
+                else:
+                    rest = st.split()[1:]
+                    if rest and not (len(rest) == 1 and (rest[0].startswith("evidence/") or rest[0].startswith("$LOOP_HOME/goals/"))):
+                        say(f, n, "task %s status %r has more after the status word than one evidence path (evidence/... or $LOOP_HOME/goals/...)" % (cells[0], st[:30]))
         if hdr is None:
             say(f, "-", "no task table: plan.md needs | T | task | ... | status | rows")
         if live is None:

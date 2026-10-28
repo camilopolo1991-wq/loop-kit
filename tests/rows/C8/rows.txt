@@ -1,0 +1,10 @@
+# C8 rows: id :: kind :: expect :: status cell text
+# kind plan: a plan.md fixture whose one task row carries the cell; expect pass (exit 0) or fail (exit 1, output names task T01)
+c8-gate-prose       :: plan :: fail :: GATE writer done, judged later
+c8-pass-one-path    :: plan :: pass :: PASS evidence/T03/writer/rollback.txt
+c8-fail2-bare       :: plan :: pass :: FAIL(2)
+c8-pass-two-paths   :: plan :: fail :: PASS evidence/T03/writer/a.txt evidence/T03/writer/b.txt
+c8-pass-home-goals  :: plan :: pass :: PASS $LOOP_HOME/goals/FIXT-C8/evidence/T03/writer/a.txt
+c8-pass-bare        :: plan :: pass :: PASS
+c8-pass-other-word  :: plan :: fail :: PASS reviewed ok
+c8-fail2-spaced     :: plan :: fail :: FAIL (2)
