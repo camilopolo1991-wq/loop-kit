@@ -1,0 +1,9 @@
+# K03-C4 rows: one phrase per row. Fields: id :: kind :: expected :: file|phrase
+# Each phrase is from text added by card C4 and is absent from that file before C4.
+H1 :: phrase :: found :: templates/GOAL.md|## Standing rules
+R1 :: phrase :: found :: templates/GOAL.md|re-records the receipt and re-dispatches with the resume prompt without asking the owner
+R2 :: phrase :: found :: templates/GOAL.md|the card lands partial when the reviewer passed at least one of its rows
+R3 :: phrase :: found :: templates/GOAL.md|reported as NOISE or OWNER-NOISE with its path, and the goal continues
+R4 :: phrase :: found :: templates/GOAL.md|then a range scan from the previous head (hits 0)
+R5 :: phrase :: found :: templates/GOAL.md|passes --timeout <seconds> at every dispatch
+P1 :: phrase :: found :: templates/GOAL_PREAMBLE.md|Standing rules section is law for the leader and is never a reason to stop

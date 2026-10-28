@@ -40,6 +40,7 @@ The owner is usually right about his own system. Twice a fresh measurement contr
 - Do not write under another goal's directory while any leader runs.
 - Do not create a new goal directory while a reviewer window is open; the tripwire reads it as out-of-scope change and quarantines the review.
 - Re-count the dirty-path baseline before finishing and attribute any change.
+- The goal's Standing rules section is law for the leader and is never a reason to stop.
 
 ## GUARDS
 
