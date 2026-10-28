@@ -62,6 +62,6 @@ Apply the reviewer's bar to your `report.md` first. This does not change what th
 1. Every criterion shows PASS with evidence paths. Anything not proven is marked "shipped, not proven", with what would prove it.
 2. Update `STATE.md` (edit sections in place, under 150 lines). Run `loop-journal --check <GOAL-ID>` and `loop-card-lint plan.md report.md`: both exit 0, or the goal is not closed. Then journal `GOAL CLOSED`.
 3. At close, when the record repository has a docs/brain/ folder, write a done-note there, one fact per file, each with frontmatter.
-4. Write `report.md` (format in skill loop-record, 80 lines or fewer, VERDICT DONE or HELD, wall time measured from the journal's START and CLOSED timestamps, never estimated), run `loop-report <goal dir>`, commit, `loop-scan --range`, push the record branch.
+4. Write `report.md` (format in skill loop-record, 80 lines or fewer, VERDICT DONE or HELD, wall time is the sum the step-log tool's `--active` mode prints, never estimated), run `loop-report <goal dir>`, commit, `loop-scan --range`, push the record branch.
 5. Dispatch nothing else. The auditor pass (`loop-auditor`) is the orchestrator's move, not yours; it must not see your reasoning either.
 6. Delete the goal's scratch directory. The terminal prints only EMAILED, JOURNALED, STOPPED <reason>, and any gate text or exact command the owner must run.

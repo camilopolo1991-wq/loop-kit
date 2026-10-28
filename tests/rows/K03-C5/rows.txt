@@ -1,0 +1,16 @@
+# K03-C5 rows. Format: id :: kind :: expect :: arg
+# kind active: expect = exit code, then '|', then the expected stdout lines split on ' ;; ' (joined with LF, one LF after the last);
+#   the stdout bytes must equal that text exactly, so a CR in the output fails the row;
+#   arg = goal id, then '|', then the log fixture text with \n for newlines.
+#   Run as: bash <tree>/bin/loop-journal --active <goal> --file <fixture>
+# kind active_err: expect = exit code, then '|', then checks split on ' ;; ': nocr (output non-empty, no CR byte in stdout+stderr),
+#   notrace (no Traceback text), has:<text> (the text appears); arg as for active.
+# kind phrase: expect = present; arg = path under the tree, then '|', then the needle searched as bytes.
+C5a :: active :: 0|run 2026-01-05T10:00:00Z 2026-01-05T10:30:00Z 30.0 min cut ;; run 2026-01-05T12:00:00Z 2026-01-05T12:45:00Z 45.0 min ;; total 75.0 min :: ZZZ-77|- 2026-01-05T09:00:00Z ZZZ-70 START other goal\n- 2026-01-05T10:00:00Z ZZZ-77 START START fixture\n- 2026-01-05T10:10:00Z ZZZ-77 T01 DISPATCH scout\n- 2026-01-05T10:30:00Z ZZZ-77 T01 PASS\n- 2026-01-05T11:50:00Z ZZZ-70 T02 other goal late line\n- 2026-01-05T12:00:00Z ZZZ-77 START second run\n- 2026-01-05T12:45:00Z ZZZ-77 GOAL CLOSED fixture
+C5b :: active :: 0|run 2026-01-06T08:00:00Z 2026-01-06T08:12:30Z 12.5 min ;; total 12.5 min :: ZZZ-78|- 2026-01-06T08:00:00Z ZZZ-78 START only run\n- 2026-01-06T08:05:00Z ZZZ-78 T01 DONE\n- 2026-01-06T08:12:30Z ZZZ-78 GOAL HELD fixture
+C5c :: phrase :: present :: skills/loop-record/SKILL.md|Wall time is the sum printed by the step-log tool's `--active` mode (`loop-journal --active <GOAL-ID>`) and nothing else.
+C5d :: phrase :: present :: skills/loop-record/SKILL.md|pre-commit scan and range scan outputs are saved under the goal's `evidence/record/`, each file named by the commit sha, with control=fired on each. The report's Commits line names those files.
+C5e :: active :: 0|run 2026-01-07T09:00:00Z 2026-01-07T09:20:00Z 20.0 min cut ;; run 2026-01-07T10:00:00Z 2026-01-07T10:40:00Z 40.0 min ;; total 60.0 min :: ZZZ-79|- 2026-01-07T09:00:00Z ZZZ-79 GOAL START GOAL.md sha256 aaaa\n- 2026-01-07T09:20:00Z ZZZ-79 T01 PASS\n- 2026-01-07T10:00:00Z ZZZ-79 GOAL START GOAL.md sha256 bbbb\n- 2026-01-07T10:30:00Z ZZZ-79 T02 DONE\n- 2026-01-07T10:40:00Z ZZZ-79 GOAL CLOSED fixture\n- 2026-01-07T10:55:00Z ZZZ-79 T03 line after the stop
+C5g :: active_err :: 2|nocr ;; has:no START line :: ZZZ-80|- 2026-01-08T09:00:00Z ZZZ-81 START other goal only\n- 2026-01-08T09:10:00Z ZZZ-80 T01 PASS
+C5h :: active_err :: 2|notrace ;; has:malformed timestamp on line 3 :: ZZZ-82|- 2026-01-09T09:00:00Z ZZZ-82 START bad stamp run\n- 2026-01-09T09:05:00Z ZZZ-82 T01 DONE\n- 2026-13-99T99:99:99Z ZZZ-82 T02 DONE\n- 2026-01-09T09:30:00Z ZZZ-82 GOAL HELD fixture
+C5f :: phrase :: present :: agents/loop-leader.md|wall time is the sum the step-log tool's `--active` mode prints

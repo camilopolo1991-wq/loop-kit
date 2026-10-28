@@ -32,6 +32,7 @@ At goal start the leader checks that the record repo has a `.gitattributes` hold
 - Stage by path, never `git add -A`. Assert the staged file count matches what you intended to stage. Run `loop-scan` on the staged diff, and a hit stops the commit.
 - `git commit -F <file>`: subject `docs(record): <summary>`, 72 characters or fewer, with a `Goal: <GOAL-ID>` footer. `hooks/commit-msg` in this kit enforces the shape when installed into the repo; without it the auditor checks it after the fact.
 - Before the push: `loop-scan --range origin/<RECORD_BRANCH>..HEAD`. Then `git push origin <RECORD_BRANCH>`. Pushing is granted by default. Never push main.
+- Every record commit's pre-commit scan and range scan outputs are saved under the goal's `evidence/record/`, each file named by the commit sha, with control=fired on each. The report's Commits line names those files.
 
 ## Tickets
 A commit or a report that touches tickets names each ticket that changed, by id. A bulk import (many tickets at once) is reported as counts, not one line per id.
@@ -46,8 +47,8 @@ State: landed | shipped, not proven | done, per change, and what would move it.
 Gates waiting: for the owner, with a recommendation and cost.
 Proposed cards: one line each.
 Incidents: guard denials that mattered, anything printed that should not have been, or "none".
-Numbers: tasks, reviewer FAILs, writes, external calls, model calls spent, wall time. Wall time is measured: the first START line to the GOAL CLOSED or HELD line of this run, both timestamps quoted from `loop-journal --read`. Never estimated.
-Commits: shas; unpushed count after the push.
+Numbers: tasks, reviewer FAILs, writes, external calls, model calls spent, wall time. Wall time is the sum printed by the step-log tool's `--active` mode (`loop-journal --active <GOAL-ID>`) and nothing else. Never estimated.
+Commits: shas; unpushed count after the push; the files holding each commit's pre-commit scan and range scan outputs (see Commits and pushes).
 branches: total | stale over 14 days | deleted or archived this batch.
 deployments: only when a push from the record branch triggers a deploy on this machine; otherwise not applicable.
 ```

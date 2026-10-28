@@ -19,6 +19,17 @@
 #   line with no ROLLBACK line for the same task before the first of them. --file reads a log
 #   fixture instead of the journal, --plan a plan fixture instead of the goal's plan.md. Exit 2 when plan.md or the journal
 #   cannot be read. Exit 0 otherwise, with the counts printed.
+#
+# loop-journal --active <GOAL-ID> [--file PATH]
+#   K03-C5. Read-only. The one instrument for a goal's active time. --file reads a log fixture
+#   instead of the step log the tool resolves. Over the goal's lines in order, a run starts at each
+#   START line (step START, or step GOAL with text starting START) and spans to its first stop line
+#   (step GOAL, text starting HELD or CLOSED), inclusive, or, with no stop line (a cut run), to the
+#   goal's last line before the next START line or the end of the log. Lines after a stop line and
+#   before the next START are not counted. Every line it writes, error messages included, ends in LF only. A malformed timestamp on a counted goal line exits 2 with a one-line message naming the line number. Prints one line per run:
+#   "run <START timestamp> <last timestamp> <minutes, one decimal> min" with " cut" appended when the
+#   run has no stop line, then "total <sum> min", the sum of the printed minutes. Exit 0; exit 2 with
+#   a message when the log is unreadable or the goal has no START line; exit 64 on a usage error.
 set -euo pipefail
 BIN="$(dirname "$(readlink -f "$0")")"
 
@@ -53,6 +64,65 @@ resolve_jf() {
         "$PY" -c "import sys; sys.path.insert(0,'$BIN_NATIVE'); import loop_conf; print(loop_conf.load()['JOURNAL_FILE'])"
     fi
 }
+
+if [ "${1:-}" = "--active" ]; then
+    ACTIVE_USAGE="usage: loop-journal --active <GOAL-ID> [--file PATH]"
+    [ $# -ge 2 ] || { echo "$ACTIVE_USAGE"; exit 64; }
+    ACT_GID="$2"
+    ACT_FILE=""
+    shift 2
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --file) [ $# -ge 2 ] || { echo "$ACTIVE_USAGE"; exit 64; }
+                    ACT_FILE="$2"; shift 2;;
+            *) echo "$ACTIVE_USAGE"; exit 64;;
+        esac
+    done
+    if [ -n "$ACT_FILE" ]; then JF="$ACT_FILE"; else JF="$(resolve_jf)"; fi
+    exec "$PY" -c '
+import sys
+from datetime import datetime, timezone
+gid, jf = sys.argv[1:3]
+def emit(s, code=None):
+    sys.stdout.buffer.write((s + "\n").encode("utf-8", "replace"))
+    sys.stdout.buffer.flush()
+    if code is not None:
+        sys.exit(code)
+try:
+    jl = open(jf, encoding="utf-8", errors="replace", newline="").read().replace("\r", "").split("\n")
+except OSError:
+    emit("loop-journal --active %s: log unreadable at %s" % (gid, jf), 2)
+def ts(s):
+    return datetime.strptime(s, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+runs = []
+for n, l in enumerate(jl, 1):
+    t = l.split(None, 4)
+    if len(t) >= 4 and t[0] == "-" and t[2] == gid:
+        text = t[4] if len(t) > 4 else ""
+        is_start = t[3] == "START" or (t[3] == "GOAL" and text.startswith("START"))
+        if is_start or (runs and not runs[-1][2]):
+            try:
+                ts(t[1])
+            except ValueError:
+                emit("loop-journal --active %s: malformed timestamp on line %d of %s" % (gid, n, jf), 2)
+        if is_start:
+            runs.append([t[1], t[1], False])
+        elif runs and not runs[-1][2]:
+            runs[-1][1] = t[1]
+            if t[3] == "GOAL" and (text.startswith("HELD") or text.startswith("CLOSED")):
+                runs[-1][2] = True
+if not runs:
+    emit("loop-journal --active %s: no START line for this goal in %s" % (gid, jf), 2)
+total = 0.0
+out = []
+for a, b, stopped in runs:
+    m = round((ts(b) - ts(a)).total_seconds() / 60.0, 1)
+    total += m
+    out.append("run %s %s %.1f min%s\n" % (a, b, m, "" if stopped else " cut"))
+out.append("total %.1f min\n" % total)
+sys.stdout.buffer.write("".join(out).encode("utf-8"))
+' "$ACT_GID" "$JF"
+fi
 
 if [ "${1:-}" = "--check" ]; then
     [ $# -ge 2 ] || { echo "usage: loop-journal --check <GOAL-ID> [--file PATH] [--plan PATH]"; exit 64; }
