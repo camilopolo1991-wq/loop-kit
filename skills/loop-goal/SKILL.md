@@ -39,6 +39,7 @@ Goal status, the `status:` field in `## Live`: PLANNING, RUNNING, HELD, DONE. No
 ```
 TASK <GOAL-ID>/T<nn>: <one line>
 Preamble: $LOOP_HOME/templates/GOAL_PREAMBLE.md (Read it first; never pasted here)
+Traps: $LOOP_HOME/templates/TRAPS.md (Read it second when it exists)
 Load skill: <the surface skill on this machine, or "none (filesystem via loop-guard-run)">
 Surface: <workflow id and node name | tables | file paths | branch>
 Do: <exact, one change or one question>
@@ -55,6 +56,7 @@ Return: the role's 30-line format
 ```
 REVIEW <GOAL-ID>/T<nn>
 Preamble: $LOOP_HOME/templates/GOAL_PREAMBLE.md
+Traps: $LOOP_HOME/templates/TRAPS.md (Read it second when it exists)
 Load skill: <same surface skill>
 Criteria: <copied verbatim from the task card>
 Artefacts: <workflow id plus versionId before and after | table and query | commit sha | file paths | rows the criterion names, copied in>

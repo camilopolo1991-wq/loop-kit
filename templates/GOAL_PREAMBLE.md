@@ -2,7 +2,7 @@
 # Every GOAL includes this file by reference. Every task and review card names its path.
 # Roles READ it as their first action. Leaders never paste it into a card.
 # Machine-specific traps (schema quirks, tool quirks, hosts) go in $LOOP_HOME/templates/TRAPS.md,
-# which this file includes by reference at the end. This file stays generic.
+# which a card names. This file stays generic.
 
 ## HARD LINES. A breach is an INCIDENT: journal it immediately
 
@@ -53,4 +53,4 @@ The owner is usually right about his own system. Twice a fresh measurement contr
 
 ## MACHINE TRAPS
 
-Read `$LOOP_HOME/templates/TRAPS.md` if it exists. It holds this machine's schema quirks, tool quirks and known-bad shapes, dated. An empty or missing file means none are recorded yet, not that none exist.
+The card names the traps file when this machine has one, and the role reads it second, after this file. It holds this machine's schema quirks, tool quirks and known-bad shapes, dated. An empty or missing file means none are recorded yet, not that none exist.

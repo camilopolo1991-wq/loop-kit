@@ -1,0 +1,8 @@
+# K03-C7 rows. Fields split on " :: " into id, kind, expect, arg.
+# phrase: expect is found or absent; arg is <file relative to the tree>|<phrase>; the two-character sequence backslash-n in a phrase stands for a line break.
+# cardlint: expect is <exit>|<text or ->; arg is unused. The runner writes the fixture card.md at run time.
+# Against the branch all four PASS. Against the main tree (a) to (c) FAIL and (d) PASS.
+a-preamble-read-instruction-gone :: phrase :: absent :: templates/GOAL_PREAMBLE.md|Read `$LOOP_HOME/templates/TRAPS.md` if it exists.
+b-task-card-traps-line :: phrase :: found :: skills/loop-goal/SKILL.md|TASK <GOAL-ID>/T<nn>: <one line>\nPreamble: $LOOP_HOME/templates/GOAL_PREAMBLE.md (Read it first; never pasted here)\nTraps: $LOOP_HOME/templates/TRAPS.md (Read it second when it exists)\n
+c-review-card-traps-line :: phrase :: found :: skills/loop-goal/SKILL.md|REVIEW <GOAL-ID>/T<nn>\nPreamble: $LOOP_HOME/templates/GOAL_PREAMBLE.md\nTraps: $LOOP_HOME/templates/TRAPS.md (Read it second when it exists)\n
+d-card-with-traps-line-lints-clean :: cardlint :: 0|- :: none
