@@ -1,8 +1,12 @@
 #!/usr/bin/env bash
-# install.sh <interpreter> [--with-tests] : install the loop kit from this repository into $HOME.
+# install.sh <interpreter> [--with-tests]  or  LOOP_PY=<interpreter> [LOOP_WITH_TESTS=1] install.sh : install the loop kit from this repository into $HOME.
 #
 #   bash install.sh /full/path/to/python
 #   bash install.sh /full/path/to/python --with-tests
+#
+# Second form, with no positional argument: the interpreter is taken from LOOP_PY and tests are
+# installed when LOOP_WITH_TESTS is 1. The environment is read only when no positional argument is given.
+#   LOOP_PY=/full/path/to/python LOOP_WITH_TESTS=1 bash install.sh
 #
 # Order, so a failure early leaves nothing behind:
 #   1. check the interpreter runs, and that this repository and $HOME are usable
@@ -29,18 +33,24 @@ SRC="$(cd "$(dirname "$0")" && pwd)"
 
 WITH_TESTS=0
 PYARG=""
-for a in "$@"; do
-  if [ "$a" = "--with-tests" ]; then
-    WITH_TESTS=1
-  elif [ -z "$PYARG" ]; then
-    PYARG="$a"
-  else
-    PYARG=""
-    break
-  fi
-done
+if [ "$#" -eq 0 ]; then
+  # environment form: read only when no positional argument is given
+  PYARG="${LOOP_PY:-}"
+  if [ "${LOOP_WITH_TESTS:-}" = "1" ]; then WITH_TESTS=1; fi
+else
+  for a in "$@"; do
+    if [ "$a" = "--with-tests" ]; then
+      WITH_TESTS=1
+    elif [ -z "$PYARG" ]; then
+      PYARG="$a"
+    else
+      PYARG=""
+      break
+    fi
+  done
+fi
 if [ -z "$PYARG" ]; then
-  echo "usage: bash install.sh <interpreter> [--with-tests]   (the full path of a python 3.8+ that runs)" >&2
+  echo "usage: bash install.sh <interpreter> [--with-tests]   or   LOOP_PY=<interpreter> [LOOP_WITH_TESTS=1] bash install.sh   (the full path of a python 3.8+ that runs)" >&2
   exit 2
 fi
 

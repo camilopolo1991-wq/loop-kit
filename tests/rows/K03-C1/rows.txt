@@ -1,0 +1,7 @@
+# K03-C1 rows. Format: id :: kind :: expect :: arg
+# envinstall: bash <tree>/install.sh with no argument, LOOP_PY set and LOOP_WITH_TESTS=1, into a fresh home; arg is the folder the home must hold after.
+# posinstall: bash <tree>/install.sh <interpreter>, into a second fresh home; expect is the exit code.
+# phrase: Python bytes search in <tree>/<file> for the phrase.
+a-env-form :: envinstall :: 0 :: .loop/tests
+b-positional-form :: posinstall :: 0 :: -
+c-readme-phrase :: phrase :: found :: README.md|LOOP_PY=/full/path/to/python LOOP_WITH_TESTS=1 bash install.sh

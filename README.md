@@ -83,6 +83,8 @@ You need bash, and a Python 3 interpreter that runs. Pass its full path. Only `l
 bash install.sh /full/path/to/python
 ```
 
+Environment form: `LOOP_PY=/full/path/to/python LOOP_WITH_TESTS=1 bash install.sh` with no positional argument installs the same way, because a shell hook that allows an interpreter and one script path, nothing more, cannot pass a flag.
+
 `install.sh` checks that the interpreter runs before it writes anything. If it does not, it exits non-zero and writes no `config.env`. If any destination file or a `config.env` already exists, it exits 4 and overwrites nothing. Otherwise it copies the kit into `$HOME` at this layout, replaces every `@LOOP_PYTHON@` token in the copied files with the interpreter, and writes `config.env` last. On Windows, a test install into another home needs `USERPROFILE` set to that home as well as `HOME`, because the kit's Python code resolves `~` with `os.path.expanduser`, which reads `USERPROFILE` there.
 
 | Repository | Installed at |
