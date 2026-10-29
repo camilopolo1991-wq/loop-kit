@@ -1,0 +1,12 @@
+# K04-C1 rows. Fields: id :: expected verdict (the behaviour the card adds, the same for every tree) :: the Bash command the hook judges.
+# {LH} stands for the fixture loop home (the rows home plus /.loop); the runner fills it in. The commands are only
+# judged by the hook, never run. The fixture goal id is FIXG-01.
+# r1 to r3 are allowed after the card, so a tree without the change (the main tree) denies them and prints FAIL.
+# r4 to r7 stay denied, so they print PASS on both trees.
+r1-journal-active-first :: allowed :: loop-journal --active
+r2-script-tilde-under-root :: allowed :: python ~/.loop/scratch/FIXG-01/work/step.py
+r3-redirect-work-r-folder :: allowed :: echo x > {LH}/scratch/FIXG-01/work/r-x/out.txt
+r4-redirect-goal-outside-evidence :: denied :: echo x > {LH}/goals/FIXG-01/notes.txt
+r5-write-verb-on-repo-path :: denied :: touch {LH}/record/docs/fixture.txt
+r6-redirect-work-not-r-folder :: denied :: echo x > {LH}/scratch/FIXG-01/work/x/out.txt
+r7-redirect-other-goal-r-folder :: denied :: echo x > {LH}/scratch/FIXG-02/work/r-x/out.txt

@@ -161,7 +161,7 @@ WRAPPER_WRITE = {
     'loop-ticket': lambda rest: bool(rest) and rest[0] in {'set', 'note', 'edit', 'field', 'start', 'new', 'import', 'migrate'},
     # P34. A read is --read or --check as the FIRST argument. The old test ('--read' anywhere)
     # denied --check, the auditor's instrument, and allowed a write whose line text held --read.
-    'loop-journal': lambda rest: not (bool(rest) and rest[0] in {'--read', '--check', '--dispatches'}),
+    'loop-journal': lambda rest: not (bool(rest) and rest[0] in {'--read', '--check', '--dispatches', '--active'}),
     'graphify': lambda rest: bool(rest) and rest[0] in {'extract', 'update', 'export', 'install', 'uninstall', 'hook', 'watch', 'add', 'merge-graphs', 'clone', 'global', 'cluster-only', 'label', 'save-result', 'reflect', 'prs'},
     'graphify-mcp': lambda rest: True,
 }
@@ -352,6 +352,17 @@ def resolve(toks, start, acc, depth=0):
         return
 
 
+def _expand_script_home(script):
+    """KIT-04 C1. A script path that starts with ~ or ~/ is resolved to the home (HOME, else
+    USERPROFILE) before it is matched against the roots, the way the shell would spell it.
+    A ~user form and a ~ anywhere but the start are left as they are and so match nothing."""
+    if script == '~' or script.startswith('~/') or script.startswith('~\\'):
+        home = os.environ.get('HOME') or os.environ.get('USERPROFILE') or ''
+        if home:
+            return home + script[1:]
+    return script
+
+
 def interpreter_reason(word, rest, seg):
     if word == '__inline__':
         return 'Read-only role: no inline shell scripts (sh -c, bash -c, eval). Run commands directly.'
@@ -367,6 +378,7 @@ def interpreter_reason(word, rest, seg):
         if '<<' in seg or ' - ' in (' ' + ' '.join(rest) + ' ') or not rest:
             return 'Read-only role: no interpreter script from stdin or heredoc. Write the script into evidence/ and run that file.'
         script = next((t for t in rest if not t.startswith('-')), '')
+        script = _expand_script_home(script)
         p = os.path.normpath(script)
         if not (EVIDENCE_RE.match(_canon(script)) or _canon(script).startswith(_canon(LOOP_HOME) + '/scratch/') or p.startswith('/usr/') or p.startswith('/opt/')):
             return 'Read-only role: interpreter scripts run only from evidence/, scratch/, /usr or /opt paths.'
@@ -663,7 +675,13 @@ def role_may_write(path):
     return not REVIEW_SUB_RE.search(p)
 
 
-def target_reason(raw_target):
+# KIT-04 C1. A redirect (not tee) may also land in the current goal's work folder,
+# LOOP_HOME/scratch/<goal>/work/, inside a direct subfolder named r-<anything>.
+WORK_R_RE = (re.compile(r'^' + re.escape(_canon(LOOP_HOME)) + r'/scratch/' + re.escape(LOOP_GOAL) + r'/work/r-[^/]+/[^/]+', _RF)
+             if LOOP_GOAL else None)
+
+
+def target_reason(raw_target, work_ok=False):
     tgt = strip_quotes(raw_target)
     if tgt in ('/dev/null', '&1', '&2', '/dev/stderr', '/dev/stdout'):
         return None
@@ -671,6 +689,8 @@ def target_reason(raw_target):
         return 'Read-only role: a redirect target with $ ` ~ { cannot be judged and is denied.'
     if not _is_abs(tgt):
         return 'Read-only role: redirect targets must be absolute paths under this goal\'s evidence/.'
+    if work_ok and WORK_R_RE is not None and WORK_R_RE.match(_canon(tgt)):
+        return None
     if not role_may_write(tgt):
         return REASON_EVIDENCE
     return None
@@ -679,7 +699,7 @@ def target_reason(raw_target):
 def redirect_reason(cmd):
     cmd = cmd.replace('\\\n', ' ')
     for m in REDIRECT_RE.finditer(cmd):
-        r = target_reason(m.group(1))
+        r = target_reason(m.group(1), work_ok=True)
         if r:
             return r
     return None
