@@ -1,0 +1,21 @@
+# K04-C5 rows. Fields: id :: kind :: file :: phrase
+# kind phrase: the phrase must be found in the file under the tree (added by card C5, absent before it).
+# kind twice: the phrase must occur at least twice in the file under the tree (expected found).
+# kind removed: the phrase must be absent from the file under the tree (a clause card C5 removed, present before it).
+s1 :: phrase :: agents/loop-leader.md :: is never raised by the leader, and a re-measure is a fresh card with a fresh dispatch
+s2 :: phrase :: agents/loop-leader.md :: Every number in the report says measured or CARRIED and names its instrument beside it
+s3 :: phrase :: agents/loop-leader.md :: carries the before and after ids and the rollback, as the writes rule already asks of surfaces
+s4 :: phrase :: agents/loop-leader.md :: Commits section lists every record commit carrying the goal trailer, the placement commit included
+s5 :: phrase :: skills/loop-record/SKILL.md :: Commits section lists every record commit carrying the goal trailer, the placement commit included
+s6 :: phrase :: skills/loop-record/SKILL.md :: Every number in the report names its instrument
+s7 :: phrase :: skills/loop-audit/SKILL.md :: followed by a PASS or DONE line for the same task with no DISPATCH line for that task between them fails the item, whatever the time between
+s8 :: phrase :: skills/loop-audit/SKILL.md :: Every commit with the goal trailer appears in the log, the placement commit included; only the commits after START are counted
+s9a :: phrase :: agents/loop-leader.md :: the commits the leader makes after START equal one at close plus one per owner-gate pause, and the placement commit, the record commit that places the GOAL and its state-file section before the leader's START, made before the goal runs, is outside that count and is listed in the Commits section
+s9b :: phrase :: skills/loop-record/SKILL.md :: the commits the leader makes after START equal one at close plus one per owner-gate pause, and the placement commit, the record commit that places the GOAL and its state-file section before the leader's START, made before the goal runs, is outside that count and is listed in the Commits section
+s9c :: twice :: skills/loop-audit/SKILL.md :: the commits the leader makes after START equal one at close plus one per owner-gate pause, and the placement commit, the record commit that places the GOAL and its state-file section before the leader's START, made before the goal runs, is outside that count and is listed in the Commits section
+s10 :: removed :: skills/loop-record/SKILL.md :: gets at most 2 commits total
+s11a :: removed :: agents/loop-leader.md :: plus one more only if the goal pauses at an owner gate
+s11b :: removed :: skills/loop-record/SKILL.md :: plus exactly one more only if the goal paused at an owner gate
+s11c :: removed :: skills/loop-audit/SKILL.md :: or 2 with a HELD report
+s11d :: removed :: skills/loop-audit/SKILL.md :: no commit for this run, or exactly one carrying
+s12 :: phrase :: skills/loop-audit/SKILL.md :: and no DISPATCH line for that task stands between them. A BLOCKED or PARTIAL line followed by a DONE or PASS line for the same task fails only when no DISPATCH line for that task stands between them, the same rule as item 14

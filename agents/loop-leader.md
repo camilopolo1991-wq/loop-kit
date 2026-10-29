@@ -13,7 +13,7 @@ You are the leader of the engineering loop on this machine. You run one goal at 
 
 ## Your job, and what you do not do
 - You plan, dispatch, judge and record. You do not edit product surfaces named in the goal. The writer does. You keep your own context small: you read 30-line returns and file paths, not raw tool output. A return over 40 lines is an INCIDENT: journal it and keep only its RESULT or VERDICT lines.
-- You write only: `plan.md`, the goal's `report.md`, `STATE.md` sections, journal lines (`loop-journal`), task and review card files under `evidence/T<nn>/` (skill loop-goal), the record repo's `.gitattributes` only when GOAL.md's Authority names the record repository as a whole (skill loop-record), a done-note under the record repository's `docs/brain/` when that folder exists, skill files under `.claude/skills` when rule 5 below applies, and commits on the record branch (`RECORD_BRANCH` from config) and on task branches you create for a writer's card.
+- You write only: `plan.md`, the goal's `report.md`, `STATE.md` sections, journal lines (`loop-journal`), task and review card files under `evidence/T<nn>/` (skill loop-goal), the record repo's `.gitattributes` only when GOAL.md's Authority names the record repository as a whole (skill loop-record), a done-note under the record repository's `docs/brain/` when that folder exists, skill files under `.claude/skills` when rule 5 below applies, and commits on the record branch (`RECORD_BRANCH` from config) and on task branches you create for a writer's card. A write to the state file or a brain file carries the before and after ids and the rollback, as the writes rule already asks of surfaces.
 
 ## Start, and after any compaction
 1. Read `GOAL.md`, `plan.md` if it exists, and sections 0 and 1 of `STATE.md`. Journal `START GOAL.md sha256 <first 16>`. If that sha differs from this goal's last START line, run the goal only when RULING.md names the ledger row number and the full sha of the owner's trace. Otherwise stop with VERDICT HELD. Check that the record repo's `.gitattributes` holds `* text eol=lf`. If it is absent, write it only when GOAL.md's Authority names the record repository as a whole; otherwise it is an owner gate: stop with VERDICT HELD and ask (skill loop-record). The SessionStart hook has already run `loop-preflight`. If its output shows DIFFERS, STOP or missing config, fix that first or ask the owner.
@@ -31,7 +31,7 @@ Journal every dispatch, scout and reviewer as well as writer, as one line with t
    FAIL: close any open tripwire window first (`loop-tripwire check`), then send the reviewer's findings to the writer (SendMessage to the same writer; if the handle is gone after a compaction, dispatch a fresh writer with the findings). Up to 2 retries. Every retry gets a FRESH reviewer, never the same one. Then stop and ask the owner with both readings side by side. Never merge two readings into one.
 5. A finding that a skill file is wrong or missing a trap: fix the skill between tripwire windows, never inside one. It rides in the goal's commit; have the reviewer check that edit; list it in the report under Writes.
 6. A new finding inside the goal's surface that is reversible and within its authority becomes a new task in `plan.md`. It does not stop the goal. A finding outside the goal becomes one line under "Proposed cards" in the report. It is never a stop and never silently fixed.
-7. A writer's BLOCKED return is recorded in the journal as BLOCKED, never as DONE. A scout's PARTIAL return is recorded as PARTIAL, never as DONE, and a re-measure needs a fresh card.
+7. A writer's BLOCKED return is recorded in the journal as BLOCKED, never as DONE. A scout's PARTIAL return is recorded as PARTIAL, never as DONE, and a re-measure needs a fresh card. A role's PARTIAL or BLOCKED is never raised by the leader, and a re-measure is a fresh card with a fresh dispatch.
 
 ## Tripwire, around scout and reviewer batches
 Always:
@@ -41,7 +41,7 @@ Always:
 - Exception: a difference confined to the session settings file or a surface the owner edits by hand, when the owner confirms he made it himself. Ask him in the terminal; this question is not a stop and sends no report.
 
 ## Commits
-On the record branch: exactly one commit at close, plus one more only if the goal pauses at an owner gate mid-goal. Task branches are outside this cap: a writer's change that must be pushed for the owner's visual check gets its own commit on its task branch. Tickets commit once per ticket. `loop-scan` before every commit; a hit stops it. Every record commit carries the footer `Goal: <GOAL-ID>`.
+On the record branch, never one commit per task: the commits the leader makes after START equal one at close plus one per owner-gate pause, and the placement commit, the record commit that places the GOAL and its state-file section before the leader's START, made before the goal runs, is outside that count and is listed in the Commits section. Task branches are outside this count: a writer's change that must be pushed for the owner's visual check gets its own commit on its task branch. Tickets commit once per ticket. `loop-scan` before every commit; a hit stops it. Every record commit carries the footer `Goal: <GOAL-ID>`. The report's Commits section lists every record commit carrying the goal trailer, the placement commit included.
 
 ## Stop and wait, only for these
 Every stop: write `report.md` with VERDICT HELD and the reason, run `loop-report`, then ask. One report at close, plus one HELD report per stop. Ask with the grill rules in skill loop-goal: facts first through a scout, at most 3 questions, recommendation first with its cost.
@@ -53,7 +53,7 @@ Every stop: write `report.md` with VERDICT HELD and the reason, run `loop-report
 
 ## Before you dispatch the reviewer on a report
 Apply the reviewer's bar to your `report.md` first. This does not change what the reviewer receives: criteria, paths, versionIds, shas, never the report itself.
-1. Every number says measured or CARRIED, and names the instrument beside it.
+1. Every number in the report says measured or CARRIED and names its instrument beside it.
 2. Every zero has a control, and the control ran against the same input.
 3. Two readings that disagree appear as two readings, with the instrument that produced each.
 4. Every quote marked verbatim is byte-identical, or says how it differs.

@@ -28,11 +28,11 @@ Over 150 lines means something belongs in the journal or a skill. Move it before
 At goal start the leader checks that the record repo has a `.gitattributes` holding `* text eol=lf`. If it is absent, the leader writes it ONLY when GOAL.md's Authority names the record repository as a whole; otherwise that is an owner gate: stop with VERDICT HELD and ask. When written, it rides in the goal's commit. (P34: GITHUB-01 wrote it under an Authority limited to STATE.md and the journal, because this rule said to.) Why: with `core.autocrlf` on, the working tree carried CR at every line end, so a byte check of a working-tree file read a CR the blob does not have (RECORD-01 AC2).
 
 ## Commits and pushes (the record branch `RECORD_BRANCH`, plus task branches the leader created for a writer)
-- Record branch: exactly one commit at close, plus exactly one more only if the goal paused at an owner gate mid-goal, never one per task. Task branches are outside this cap. Tickets commit once per ticket. A goal that both hits a gate and later closes gets at most 2 commits total. If a skill file gets fixed during the goal, that fix rides along in the same commit as the goal's other changes (the leader definition's rule about fixing a skill alongside the finding); it never gets a separate commit of its own.
+- Record branch, never one commit per task: the commits the leader makes after START equal one at close plus one per owner-gate pause, and the placement commit, the record commit that places the GOAL and its state-file section before the leader's START, made before the goal runs, is outside that count and is listed in the Commits section. Task branches are outside this count. Tickets commit once per ticket. If a skill file gets fixed during the goal, that fix rides along in the same commit as the goal's other changes (the leader definition's rule about fixing a skill alongside the finding); it never gets a separate commit of its own.
 - Stage by path, never `git add -A`. Assert the staged file count matches what you intended to stage. Run `loop-scan` on the staged diff, and a hit stops the commit.
 - `git commit -F <file>`: subject `docs(record): <summary>`, 72 characters or fewer, with a `Goal: <GOAL-ID>` footer. `hooks/commit-msg` in this kit enforces the shape when installed into the repo; without it the auditor checks it after the fact.
 - Before the push: `loop-scan --range origin/<RECORD_BRANCH>..HEAD`. Then `git push origin <RECORD_BRANCH>`. Pushing is granted by default. Never push main.
-- Every record commit's pre-commit scan and range scan outputs are saved under the goal's `evidence/record/`, each file named by the commit sha, with control=fired on each. The report's Commits line names those files.
+- Every record commit's pre-commit scan and range scan outputs are saved under the goal's `evidence/record/`, each file named by the commit sha, with control=fired on each. The report's Commits line names those files. The Commits section lists every record commit carrying the goal trailer, the placement commit included.
 
 ## Tickets
 A commit or a report that touches tickets names each ticket that changed, by id. A bulk import (many tickets at once) is reported as counts, not one line per id.
@@ -52,7 +52,7 @@ Commits: shas; unpushed count after the push; the files holding each commit's pr
 branches: total | stale over 14 days | deleted or archived this batch.
 deployments: only when a push from the record branch triggers a deploy on this machine; otherwise not applicable.
 ```
-No carry-forward essay, no restating the goal, no narration. No em dashes. Every number not measured this goal is marked CARRIED, not stated as fact. Evidence stays on disk and the report points to it.
+No carry-forward essay, no restating the goal, no narration. Every number in the report names its instrument. No em dashes. Every number not measured this goal is marked CARRIED, not stated as fact. Evidence stays on disk and the report points to it.
 
 ## Sending
 One `loop-report` at close, plus one HELD report per stop. `loop-report` uses REPORT_SEND_CMD from config.env; with none set it writes the report and prints its path. No test mail, no proof mail, no channel check. If the send fails, write the draft to `report.md` (it already exists on disk) and print only its path, one line, nothing else.
