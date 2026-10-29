@@ -1,0 +1,17 @@
+# K04-C3 rows. Format: id :: kind :: expect :: arg
+# kind active: expect = exit code, then '|', then the expected stdout lines split on ' ;; ' (joined with LF, one LF after the last);
+#   the stdout bytes must equal that text exactly; arg = goal id, then '|', then the log fixture text with \n for newlines.
+#   Run as: bash <tree>/bin/loop-journal --active <goal> --file <fixture>
+# kind active_err: expect = exit code, then '|', then checks split on ' ;; ': nocr, notrace, has:<text>; arg as for active.
+# kind badflag: expect = exit code, then '|', then checks split on ' ;; ': has:<text> (in stdout+stderr), same (the fixture
+#   named by JOURNAL_FILE keeps its byte count); arg as for active. Run as: bash <tree>/bin/loop-journal --bogus-flag <goal> T01 "x"
+# r1: the stop line carries CLOSED but not at the start of its text; a DONE COMMIT line follows it: no cut label (fails against a tree without the change).
+# r2: a malformed timestamp on a line after the stop line: exit 2 naming the line (exits 0 against a tree without the change).
+# r3: an unknown leading flag: exit 64, usage line, nothing appended (a tree without the change appends one line).
+# r4: the two-run fixture of K03-C5 (row C5a): two durations and their sum, on both trees.
+# r5: control for the premise: the stop line text STARTS with CLOSED, so even a tree without the change prints no cut label.
+r1 :: active :: 0|run 2026-02-02T09:00:00Z 2026-02-02T09:30:00Z 30.0 min ;; total 30.0 min :: ZZZ-91|- 2026-02-02T09:00:00Z ZZZ-91 START fixture\n- 2026-02-02T09:30:00Z ZZZ-91 GOAL DONE CLOSED fixture\n- 2026-02-02T09:40:00Z ZZZ-91 T09 DONE COMMIT fixture
+r2 :: active_err :: 2|notrace ;; nocr ;; has:malformed timestamp on line 4 :: ZZZ-92|- 2026-02-03T09:00:00Z ZZZ-92 START fixture\n- 2026-02-03T09:10:00Z ZZZ-92 T01 DONE\n- 2026-02-03T09:30:00Z ZZZ-92 GOAL CLOSED fixture\n- 2026-13-99T99:99:99Z ZZZ-92 T09 DONE COMMIT fixture
+r3 :: badflag :: 64|has:usage: ;; same :: ZZZ-93|- 2026-02-04T09:00:00Z ZZZ-93 START fixture\n- 2026-02-04T09:30:00Z ZZZ-93 GOAL CLOSED fixture
+r4 :: active :: 0|run 2026-01-05T10:00:00Z 2026-01-05T10:30:00Z 30.0 min cut ;; run 2026-01-05T12:00:00Z 2026-01-05T12:45:00Z 45.0 min ;; total 75.0 min :: ZZZ-77|- 2026-01-05T09:00:00Z ZZZ-70 START other goal\n- 2026-01-05T10:00:00Z ZZZ-77 START START fixture\n- 2026-01-05T10:10:00Z ZZZ-77 T01 DISPATCH scout\n- 2026-01-05T10:30:00Z ZZZ-77 T01 PASS\n- 2026-01-05T11:50:00Z ZZZ-70 T02 other goal late line\n- 2026-01-05T12:00:00Z ZZZ-77 START second run\n- 2026-01-05T12:45:00Z ZZZ-77 GOAL CLOSED fixture
+r5 :: active :: 0|run 2026-02-05T09:00:00Z 2026-02-05T09:30:00Z 30.0 min ;; total 30.0 min :: ZZZ-95|- 2026-02-05T09:00:00Z ZZZ-95 START fixture\n- 2026-02-05T09:30:00Z ZZZ-95 GOAL CLOSED DONE fixture\n- 2026-02-05T09:40:00Z ZZZ-95 T09 DONE COMMIT fixture
