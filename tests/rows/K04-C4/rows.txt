@@ -1,0 +1,4 @@
+# K04-C4 rows. Format: id :: kind :: relative file :: phrase (bytes searched in <tree>/file). Expected verdict: found on a tree with the change.
+r1 :: phrase :: templates/GOAL_PREAMBLE.md :: The user folder's name is a real name
+r2 :: phrase :: skills/loop-audit/SKILL.md :: a raw output that holds a literal home path is named as raw and never quoted
+r3 :: range :: bin/loop_scan.py :: the range form prints its repo field spelled from ~ and not with the literal home

@@ -68,6 +68,7 @@ f. One `loop-report` for the stop, and the question to the owner follows the gri
 
 ## Auditor (its own return and evidence/AUDIT/review/)
 1. Every path in the return and the evidence is spelled from ~ or $LOOP_HOME. FAIL on any path spelled from a drive letter or a user folder.
+2. The auditor's own outputs follow the same spelling: paths from ~, and a raw output that holds a literal home path is named as raw and never quoted.
 
 ## Orchestrator (when the auditor is given the Hermes unit ledger)
 1. Every unit in `state/units/` with a DONE or PASS verdict has a review receipt whose reviewer is not the unit itself.

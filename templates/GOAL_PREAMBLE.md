@@ -54,3 +54,5 @@ The owner is usually right about his own system. Twice a fresh measurement contr
 ## MACHINE TRAPS
 
 The card names the traps file when this machine has one, and the role reads it second, after this file. It holds this machine's schema quirks, tool quirks and known-bad shapes, dated. An empty or missing file means none are recorded yet, not that none exist.
+
+- **The user folder's name is a real name.** Every path in evidence prose, returns, committed text and the report is spelled from `~`, never from a drive letter or the user folder. A raw output that holds a literal home path is named as raw and never quoted.

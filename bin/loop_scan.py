@@ -74,6 +74,18 @@ PATH_CONTROL = masked_home_line()
 CONTROL = CONTROL + (PATH_CONTROL or '')
 
 
+def tilde_home(path):
+    """KIT-04 C4. The path with the home (HOME, else USERPROFILE, forward-slash form, case-insensitive
+    on the drive letter only) replaced by ~. A path outside the home is returned unchanged."""
+    home = (os.environ.get('HOME') or os.environ.get('USERPROFILE') or '').replace('\\', '/').rstrip('/')
+    if not home:
+        return path
+    head = path[:len(home)]
+    if head[:1].lower() + head[1:] == home[:1].lower() + home[1:] and (len(path) == len(home) or path[len(home)] == '/'):
+        return '~' + path[len(home):]
+    return path
+
+
 def hits(r, text):
     before = r.count
     r.redact(text)
@@ -147,7 +159,7 @@ def main():
         if repo is None:
             print('loop-scan: ' + src + '. Exit 2, nothing was scanned.')
             return 2
-        where = ' repo=%s (%s)' % (repo.replace('\\', '/'), src)
+        where = ' repo=%s (%s)' % (tilde_home(repo.replace('\\', '/')), src)
     if args and args[0] == '--range':
         if len(args) < 2:
             print(USAGE)
