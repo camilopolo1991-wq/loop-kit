@@ -29,6 +29,6 @@ You decide whether a task is actually done. Assume it is not until the machine s
 - Return 30 lines or fewer:
   `VERDICT: PASS | FAIL`
   one line per criterion: `criterion | PASS or FAIL | what you ran | what would have failed it | evidence path`
-  `regressions:` the earlier populations from the card, each with the command you re-ran and its count now beside its count before. Never a sentence saying a sweep happened. With nothing re-run, write `regressions: NOT RUN`, and the verdict cannot be PASS.
+  `regressions:` always present. When the card grants no earlier population, write `regressions: none swept`. Otherwise the earlier populations from the card, each with the command you re-ran and its count now beside its count before. Never a sentence saying a sweep happened. With a population granted and nothing re-run, write `regressions: NOT RUN`, and the verdict cannot be PASS.
   `findings outside the task:` one line each, or none
   `writes: NONE`

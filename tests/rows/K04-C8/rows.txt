@@ -1,0 +1,40 @@
+# K04-C8 rows: the reviewer's regressions line; one step-log reader shared by the card lint and the step-log tool;
+# PASS and DONE matched as whole words. Every tree is judged against the same expectations, so a tree without the
+# change prints FAIL on the rows the change adds.
+# Format: id :: kind :: expect :: arg
+#   phrase  expect found|absent  arg <file in the tree>|<line number>|<phrase>
+#   lint    plan with a task T02 whose status cell is PASS <evidence path>, run as loop-card-lint --log <log> <plan>
+#           expect <exit>|<text the output must hold, or - for none>   arg <evidence path>|<log lines, separated by \n>
+#   lintp   as lint, but the T02 status cell reads PASSED <evidence path> (both trees reject the cell itself)
+#   check   plan with T02 owned by a scout and marked PASS, run as loop-journal --check <goal> --file <log> --plan <plan>
+#           expect <exit>|<text>   arg <log lines>
+#   checkw  as check, but T02 is owned by a writer and its status cell is TODO. expect <exit>|<text>   arg <log lines>
+#   conf    a LOOP_HOME whose config.env cannot be decoded and no JOURNAL_FILE; loop-card-lint on a plan with a PASS
+#           row and loop-journal --check on the same plan, neither given a log file. expect <exit of both>|<text the
+#           first line of both must start with>. Passes only when both first lines are equal as bytes.
+#   child   the runners of the earlier cards, each run as a child with its own documented invocation
+#           expect 0   arg <folder>,<folder>
+# r1 is the reviewer's verdict format: a regressions line is always present.
+r1 :: phrase :: found :: agents/loop-reviewer.md|32|regressions: none swept
+# r2 and r2b: a log line that starts PASSED or DONEISH is not a PASS or DONE line.
+r2 :: lint :: 1|T02 :: evidence/T02/review|- 2026-01-01T00:00:00Z ZZZ-97 T02 PASSED fixture review done
+r2b :: lint :: 1|T02 :: evidence/T02/review|- 2026-01-01T00:00:00Z ZZZ-97 T02 DONEISH fixture review done
+# r2ctl: the controls. A real PASS line and a real DONE line are still found, so the rule can pass.
+r2ctl :: lint :: 0|- :: evidence/T02/review|- 2026-01-01T00:00:00Z ZZZ-97 T02 PASS fixture review done
+r2ctld :: lint :: 0|- :: evidence/T02/review|- 2026-01-01T00:00:00Z ZZZ-97 T02 DONE: fixture review done
+# r2p: a plan status cell that reads PASSED is rejected by the status rule on every tree.
+r2p :: lintp :: 1|T02 :: evidence/T02/review|- 2026-01-01T00:00:00Z ZZZ-97 T02 PASS fixture review done
+# r2j: the step-log tool matches a plan PASS cell to its log line the same way the lint does.
+r2j :: check :: 1|T02 :: - 2026-01-01T00:00:00Z ZZZ-97 T02 PASSED fixture review done
+r2jctl :: check :: 0|- :: - 2026-01-01T00:00:00Z ZZZ-97 T02 PASS fixture review done
+# r2w: the writer-ROLLBACK rule matches PASS and DONE as whole words too. T02 is a writer task, its status cell is TODO,
+# and its log has no ROLLBACK line: PASSED and DONEISH are no PASS or DONE line, so no writer PASS is counted.
+# The control, a real PASS line with no ROLLBACK, still trips the rule (writer PASS 1, exit 1).
+r2w :: checkw :: 0|writer PASS 0, :: - 2026-01-01T00:00:00Z ZZZ-97 T02 PASSED fixture review done
+r2wd :: checkw :: 0|writer PASS 0, :: - 2026-01-01T00:00:00Z ZZZ-97 T02 DONEISH fixture review done
+r2wctl :: checkw :: 1|writer PASS 1, :: - 2026-01-01T00:00:00Z ZZZ-97 T02 PASS fixture review done
+r2wctld :: checkw :: 1|writer PASS 1, :: - 2026-01-01T00:00:00Z ZZZ-97 T02 DONE: fixture review done
+# r3: a loop_conf error reads the same, byte for byte, in both tools.
+r3 :: conf :: 2|step log: loop_conf :: -
+# r4: the earlier card-lint and step-log rows still pass.
+r4 :: child :: 0 :: K03-C2,K03-C8

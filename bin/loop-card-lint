@@ -11,14 +11,17 @@
 #               --log PATH (accepted anywhere among the arguments; a log fixture) makes the plan lint
 #               check each task row whose status first word is PASS against the step log:
 #                 (i)  the log must hold a line for that goal id and task id whose text starts with PASS or
-#                      DONE ("- <timestamp> <GOAL-ID> <step> <text>"); otherwise the row fails, naming the task.
+#                      DONE as a whole word, so PASSED and DONEISH do not count ("- <timestamp> <GOAL-ID>
+#                      <step> <text>"); otherwise the row fails, naming the task.
 #                 (ii) the status cell evidence path must hold no path segment named writer (a writer's own
 #                      folder is not the reviewer evidence a PASS rests on); otherwise the row fails, naming
 #                      the task, whether or not the log has a line.
 #               The goal id is read from the goal: field of the ## Live line. The step log is the --log file
 #               when given, otherwise what the step-log tool (loop-journal) resolves: JOURNAL_FILE in the
 #               environment, else the loop_conf JOURNAL_FILE value. The log is read only when a plan holds a
-#               PASS row. A log that cannot be read exits 2 with a message naming it.
+#               PASS row. A log that cannot be read exits 2 with a message naming it. K04-C8. The log is
+#               resolved and read by bin/loop_steplog.py, the module loop-journal shares, so a loop_conf
+#               error is worded the same in both tools.
 #   report.md : the first line reads `VERDICT: DONE` or `VERDICT: HELD`, nothing after it in parentheses.
 # Card and report linting ignore --log.
 # Exit 0 clean, 1 a rule broke (each named), 2 usage or unreadable or unknown file kind or unreadable log.
@@ -49,6 +52,8 @@ esac
 export LOOP_CARD_LINT_BIN="$BIN_NATIVE"
 exec "$PY" -c '
 import os, re, sys
+sys.path.insert(0, os.environ.get("LOOP_CARD_LINT_BIN", ""))
+import loop_steplog as sl
 args = sys.argv[1:]; files = []; logpath = None; i = 0
 while i < len(args):
     if args[i] == "--log":
@@ -64,25 +69,16 @@ def logrows():
     global LOGROWS
     if LOGROWS is not None:
         return LOGROWS
-    jf = logpath
-    if jf is None:
-        jf = os.environ.get("JOURNAL_FILE", "")
-        if not jf:
-            try:
-                sys.path.insert(0, os.environ.get("LOOP_CARD_LINT_BIN", ""))
-                import loop_conf
-                jf = loop_conf.load().get("JOURNAL_FILE", "")
-            except Exception:
-                jf = ""
+    # K04-C8. Resolved and read by the module the step-log tool (loop-journal) shares: a --log file and the
+    # live log resolve the same way, and a loop_conf error reads the same in both tools.
     try:
-        text = open(jf, encoding="utf-8", errors="replace").read().splitlines()
+        jf = sl.resolve(logpath)
+    except sl.ConfError as e:
+        sl.emit(sl.conf_line(e)); sys.exit(2)
+    try:
+        LOGROWS = [(r[1], r[2], r[3]) for r in sl.read_rows(jf)]
     except (OSError, ValueError):
         print("loop-card-lint: step log unreadable (%s)" % (jf or "no JOURNAL_FILE configured")); sys.exit(2)
-    LOGROWS = []
-    for l in text:
-        t = l.split(None, 4)
-        if len(t) >= 4 and t[0] == "-":
-            LOGROWS.append((t[2], t[3], t[4] if len(t) > 4 else ""))
     return LOGROWS
 ROUTE = re.compile(r"(?i)(\bplan\.md\b|\bSTATE\.md\b|\bJOURNAL\.md\b|\bloop-journal\b|\bthe journal\b)")
 EXEMPT = ("criteria:", "done when:")
@@ -148,7 +144,7 @@ for f in files:
             gid = gm.group(1) if gm else ""
             rows = logrows()
             for n, tid, rest in passrows:
-                if not any(r[0] == gid and r[1] == tid and (r[2].startswith("PASS") or r[2].startswith("DONE")) for r in rows):
+                if not any(r[0] == gid and r[1] == tid and sl.is_pass_or_done(r[2]) for r in rows):
                     say(f, n, "task %s is PASS but the step log has no PASS or DONE line for goal %s and task %s" % (tid, gid or "(none)", tid))
                 if rest and "writer" in re.split(r"[\\/]+", rest[0]):
                     say(f, n, "task %s is PASS with a writer folder as its evidence path %r; a PASS rests on reviewer or leader evidence" % (tid, rest[0][:60]))
