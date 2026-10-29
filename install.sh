@@ -12,8 +12,12 @@
 #   1. check the interpreter runs, and that this repository and $HOME are usable
 #   2. refuse if any destination file or config.env already exists (nothing is overwritten)
 #   3. copy the kit at the layout below
-#   4. replace every @LOOP_PYTHON@ token in the copied files with the interpreter
-#   5. write config.env last, so a half-finished install never has one
+#   4. replace every @LOOP_PYTHON@ token in the copied files with the interpreter, and $HOME on the hook
+#      command lines of the installed agent files with the literal home (C:/... form), and, when LOOP_OWNER is
+#      set and non-empty, the OWNER_HANDLE token in the installed files with that value (otherwise it stays
+#      and one line says it is set by hand)
+#   5. write config.env last: the content goes to a temporary file in .loop, and the rename into place is
+#      the final step after the success lines, so a half-finished install never has one
 #
 # Layout (repository -> $HOME):
 #   agents/     -> .claude/agents/
@@ -120,29 +124,65 @@ done <"$LIST"
 echo "copied $TOTAL file(s)"
 
 # 4. fill the interpreter token, in the copied files only
+# Besides the token, on the hook command lines of the installed agent files the $HOME spelling is replaced
+# by the literal home this install goes into (drive-letter forward-slash form, C:/... on Windows), so an
+# installed agent file has no $HOME on any hook line. Other lines and other files keep $HOME as written.
+if command -v cygpath >/dev/null 2>&1; then
+  HOMELIT="$(cygpath -m "$HOME")"
+else
+  HOMELIT="$(printf '%s' "$HOME" | tr '\\' '/')"
+fi
+if [ -z "$HOMELIT" ]; then
+  echo "install.sh: could not spell HOME as a literal path" >&2
+  exit 5
+fi
 FILL='
 import sys
 tok = b"@LOOP_PYTHON@"
 val = sys.argv[1].encode()
-hits = files = 0
+home = sys.argv[2].encode()
+owner = sys.argv[3].encode()
+otok = b"OWNER_HANDLE"
+hits = files = lines = ohits = 0
 for line in sys.stdin.read().split("\n"):
     p = line.strip("\r")
     if not p:
         continue
     data = open(p, "rb").read()
-    if tok in data:
-        open(p, "wb").write(data.replace(tok, val))
+    new = data.replace(tok, val)
+    if owner and otok in new:
+        ohits += new.count(otok)
+        new = new.replace(otok, owner)
+    if p.startswith(".claude/agents/"):
+        out = []
+        front = 0
+        for ln in new.split(b"\n"):
+            if ln.strip(b"\r") == b"---":
+                front += 1
+            # hook command lines are the frontmatter entries that start with command:, never a prose line
+            if front == 1 and ln.lstrip().startswith(b"command:") and b"$HOME" in ln:
+                ln = ln.replace(b"$HOME", home)
+                lines += 1
+            out.append(ln)
+        new = b"\n".join(out)
+    if new != data:
+        open(p, "wb").write(new)
         hits += data.count(tok)
         files += 1
-print("filled %d token(s) in %d file(s)" % (hits, files))
+print("filled %d token(s) in %d file(s), %d hook line(s) given the literal home, %d owner handle token(s)" % (hits, files, lines, ohits))
 '
-( cd "$HOME" && cut -f2 "$LIST" | "$PY" -c "$FILL" "$PY" ) || { echo "install.sh: filling the interpreter token failed" >&2; exit 5; }
+( cd "$HOME" && cut -f2 "$LIST" | "$PY" -c "$FILL" "$PY" "$HOMELIT" "${LOOP_OWNER:-}" ) || { echo "install.sh: filling the interpreter token failed" >&2; exit 5; }
+if [ -z "${LOOP_OWNER:-}" ]; then
+  echo "LOOP_OWNER is not set: the owner handle (the OWNER_HANDLE token) is set by hand in the installed files."
+fi
 
 # 5. the home's own directories and its config, last
 mkdir -p "$HOME/.loop/goals" "$HOME/.loop/scratch" "$HOME/.loop/record/docs" || { echo "install.sh: could not make the .loop directories" >&2; exit 5; }
 if [ -f "$HOME/.loop/templates/STATE.md" ] && [ ! -e "$HOME/.loop/record/docs/STATE.md" ]; then
   cp "$HOME/.loop/templates/STATE.md" "$HOME/.loop/record/docs/STATE.md" || exit 5
 fi
+TMPCFG="$HOME/.loop/config.env.tmp.$$"
+trap 'rm -f "$LIST" "$TMPCFG"' EXIT
 {
   echo "# config.env for this home, written by install.sh. No secrets belong in this file."
   echo "# Paths may start with ~; the loop tools expand it. Environment variables of the same name win."
@@ -154,9 +194,11 @@ fi
   echo "MAX_LEADERS=1"
   echo "SURFACES="
   echo "REPORT_SEND_CMD="
-} >"$CONFIG" || { echo "install.sh: could not write config.env" >&2; exit 5; }
+} >"$TMPCFG" || { echo "install.sh: could not write the temporary config file" >&2; exit 5; }
 
 echo "installed. config.env written for this home."
 echo "next: put .loop/bin on PATH, make .loop/record a git repository on branch record,"
 echo "      register hooks/pretool-guard.py in settings.json (see README.md)."
+# the rename is the final step: config.env exists only once every line above has run
+mv "$TMPCFG" "$CONFIG" || { echo "install.sh: could not move config.env into place" >&2; exit 5; }
 exit 0
