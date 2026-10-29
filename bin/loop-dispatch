@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+# loop-dispatch: bash stub. The python payload is loop_dispatch.py beside this file.
+#
+# It starts one loop leader for a goal: loop-dispatch <GOAL-ID> [--timeout SEC] [--dry-run] [--no-poll].
+# LOOP_PY is resolved the way loop-scan resolves it: the environment first, then config.env
+# under the loop home. There is deliberately NO fallback to python3 or python on PATH.
+set -uo pipefail
+BIN="$(dirname "$(readlink -f "$0")")"
+case "$(uname -s 2>/dev/null)" in
+  MINGW*|MSYS*|CYGWIN*) BIN_NATIVE="$(cygpath -m "$BIN" 2>/dev/null || printf '%s' "$BIN")";;
+  *) BIN_NATIVE="$BIN";;
+esac
+LOOP_HOME_D="${LOOP_HOME:-$HOME/.loop}"
+if [ -z "${LOOP_PY:-}" ] && [ -f "$LOOP_HOME_D/config.env" ]; then
+  LOOP_PY="$(sed -n 's/^[[:space:]]*LOOP_PY=//p' "$LOOP_HOME_D/config.env" | tail -1)"
+  LOOP_PY="${LOOP_PY%%#*}"
+  LOOP_PY="$(printf '%s' "$LOOP_PY" | sed 's/[[:space:]]*$//')"
+fi
+PY="${LOOP_PY:-}"
+if [ -z "$PY" ] || ! "$PY" -c 'import sys' >/dev/null 2>&1; then
+  echo "loop-dispatch: LOOP_PY does not resolve to a working python interpreter." >&2
+  echo "loop-dispatch: set LOOP_PY in the environment, or as LOOP_PY= in $LOOP_HOME_D/config.env." >&2
+  echo "loop-dispatch: there is no fallback to python3 on PATH, by design." >&2
+  exit 3
+fi
+exec "$PY" "$BIN_NATIVE/loop_dispatch.py" "$@"

@@ -75,6 +75,14 @@ That count covers the whole kit: agents, hooks, skills, templates and these tool
 
 The redactor (`loop_redact.py`) masks secrets and every entry of `names.txt` in output. That list is owner-held and is not in this repository.
 
+## Starting a leader: bin/loop-dispatch
+
+`bin/loop-dispatch` is the one way to start a leader. It is a bash stub that runs `bin/loop_dispatch.py` with the interpreter in `LOOP_PY`. Call it with a goal id: `loop-dispatch <GOAL-ID> [--timeout SEC] [--dry-run] [--no-poll]`. Every path comes from `LOOP_HOME` (the environment, otherwise `.loop` in your home), and the claude binary comes from `LOOP_CLAUDE_BIN`, then `CLAUDE_BIN` in `config.env`, then `PATH`. A pin that is not an existing file is refused. It checks the goal file, the leader count against `MAX_LEADERS` and the free disk before it launches, and `--dry-run` prints the resolved command and launches nothing.
+
+- **The timeout rule.** `--timeout` wins when given. Without it the timeout is the wall time in the GOAL's `Budget:` line (`wall time <n> min`) as `n*60+600` seconds, so the leader gets ten minutes beyond what the goal budgeted. A GOAL with no such line gets 7200 seconds, whatever `LEADER_TIMEOUT` holds. The ceiling is enforced by a GNU `timeout` that the dispatcher proves is GNU before it uses it; `TIMEOUT_BIN` in `config.env` names it when `PATH` does not.
+- **Absent gates proceed, and say so.** The goal lint (a tool under `$LOOP_HOME/scripts`) and the recall receipt (a file at `$LOOP_HOME/cache/recall-receipts.json`) are optional, because this kit ships neither. When one is absent the dispatcher does not refuse: it prints a `note` line that names the gate as OFF and why, and prints no `ok` line for it. When one is present it is enforced: a lint that fails, or a receipt that is missing, stale or not rc 0 for the goal, refuses with exit 2.
+- **The .rc file.** The leader runs under a small supervisor. When the leader ends, the supervisor writes its exit code to a file beside the run log, named like the run log with `.rc` added: `$LOOP_HOME/dispatch/<GOAL>.<ts>.log` gets `<GOAL>.<ts>.log.rc`. The code is that of the `timeout` wrapper, so it is the leader's own, or 124 when the wall time ran out. `--no-poll` returns at once and the file still appears when the leader ends. Without `--no-poll` the dispatcher watches the leader for 60 seconds and exits 5 if it ends in that time.
+
 ## Install
 
 You need bash, and a Python 3 interpreter that runs. Pass its full path. Only `loop-preflight` has a fallback: when `LOOP_PY` is unset or does not run, it tries `python3` and then `python` from `PATH`. Every other tool in `bin/` stops with an error and does not fall back.

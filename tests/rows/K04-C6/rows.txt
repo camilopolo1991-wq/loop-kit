@@ -1,0 +1,10 @@
+# K04-C6 rows: the dispatcher joins the kit as bin/loop-dispatch. Format: id :: expected actual :: what the row measures.
+# Every dispatcher row runs the payload bin/loop_dispatch.py by path against a fixture goal whose GOAL carries "wall time 400 min",
+# with LOOP_CLAUDE_BIN at a stand-in that exits 3 at once. A tree without the tool prints actual=no-tool and FAILs.
+r1 :: timeout=24600 rc=0 :: --dry-run on the fixture goal resolves a command whose timeout is 400*60+600 = 24600
+r2 :: timeout=100 rc=0 :: --dry-run --timeout 100 on the same goal resolves a command whose timeout is 100
+r3 :: dispatcher=5 rc_file=3 log=yes :: a run against the stand-in, in the waiting form, ends with the exit code file holding 3 beside the run log
+r4 :: phrase=present :: README.md names the exit code file by its suffix (the phrase .log.rc)
+r6 :: timeout=7200 rc=0 :: --dry-run on a fixture goal with no wall time line, with LEADER_TIMEOUT and LOOP_LEADER_TIMEOUT set to 5555 in the environment, resolves a command whose timeout is 7200
+r7 :: rc=0 gate-off=yes ok-receipt-line=no control-ok-line=yes :: --dry-run in a home with no receipts file and no lint tool prints both gate-OFF lines and no ok line for the recall receipt; the same run in a home with a matching receipt prints that ok line
+r5 :: clean control=fired :: bin/loop-dispatch and bin/loop_dispatch.py hold no drive-letter path and no at-sign on a hook or command line; the same check fires on constructed bad bytes
