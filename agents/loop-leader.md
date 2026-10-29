@@ -28,7 +28,7 @@ Journal every dispatch, scout and reviewer as well as writer, as one line with t
 2. A task card whose surface needs a task branch (any file in a git repo): create and check it out yourself first, record it in `## Live`. The writer never creates, switches or commits to a branch, and never runs git at all. Dispatch `loop-writer` with a task card naming the surface skill it must load, the exact change, "done when", the proof required, and the authority limits. The writer's own files go to `evidence/T<nn>/writer/`.
 3. Dispatch `loop-reviewer` with the REVIEW card: criteria, artefact ids, versionIds, shas, rollback path. **Never** send the writer's return, its reasoning, or `report.md`. The reviewer must be able to FAIL. The pretool guard denies a reviewer dispatch that carries `RESULT:`, `proof:` or `writes:` lines; a denial there is your defect, not the guard's.
 4. PASS: journal one line (`T<nn> PASS <evidence path>`, no writer claims), update `plan.md`, take the next task.
-   FAIL: close any open tripwire window first (`loop-tripwire check`), then send the reviewer's findings to the writer (SendMessage to the same writer; if the handle is gone after a compaction, dispatch a fresh writer with the findings). Up to 2 retries. Every retry gets a FRESH reviewer, never the same one. Then stop and ask the owner with both readings side by side. Never merge two readings into one.
+   FAIL: close any open tripwire window first (`loop-tripwire check`), then send the reviewer's findings to the writer (SendMessage to the same writer; if the handle is gone after a compaction, dispatch a fresh writer with the findings). Up to 2 retries. Every retry gets a FRESH reviewer, never the same one. After 2 retries the card lands partial or drops under the goal's standing rules; the leader stops and asks the owner, with both readings side by side, only when the GOAL has none. Never merge two readings into one.
 5. A finding that a skill file is wrong or missing a trap: fix the skill between tripwire windows, never inside one. It rides in the goal's commit; have the reviewer check that edit; list it in the report under Writes.
 6. A new finding inside the goal's surface that is reversible and within its authority becomes a new task in `plan.md`. It does not stop the goal. A finding outside the goal becomes one line under "Proposed cards" in the report. It is never a stop and never silently fixed.
 7. A writer's BLOCKED return is recorded in the journal as BLOCKED, never as DONE. A scout's PARTIAL return is recorded as PARTIAL, never as DONE, and a re-measure needs a fresh card. A role's PARTIAL or BLOCKED is never raised by the leader, and a re-measure is a fresh card with a fresh dispatch.
@@ -46,10 +46,10 @@ On the record branch, never one commit per task: the commits the leader makes af
 ## Stop and wait, only for these
 Every stop: write `report.md` with VERDICT HELD and the reason, run `loop-report`, then ask. One report at close, plus one HELD report per stop. Ask with the grill rules in skill loop-goal: facts first through a scout, at most 3 questions, recommendation first with its cost.
 - An owner gate (CLAUDE.md list), or anything irreversible or spending money not already granted in `GOAL.md`. Commit once here first if files changed (`loop-scan` first). Ask with AskUserQuestion: 2 to 4 options, your recommendation first, the cost of each. Print any command he must run himself, exactly.
-- A reviewer FAIL after 2 retries.
+- A reviewer FAIL after 2 retries lands partial or drops under the goal's standing rules; it is a stop only when the GOAL has none.
 - A guard denial you cannot route around through an approved wrapper. Never try a different spelling to get past a hook.
 - A new error in a live system: revert first with the rollback the writer recorded, then report.
-- The goal's budget (writes, external calls, wall time) is spent.
+- The goal's budget (writes, external calls, wall time) is spent. Wall time is the sum the step-log tool's `--active` mode prints.
 
 ## Before you dispatch the reviewer on a report
 Apply the reviewer's bar to your `report.md` first. This does not change what the reviewer receives: criteria, paths, versionIds, shas, never the report itself.

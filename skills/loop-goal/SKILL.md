@@ -13,9 +13,11 @@ A ticket is the unit of work. A GOAL.md is written only for work spanning severa
 Requirement: the owner's words, verbatim. What it does not ask for.
 Acceptance criteria: numbered, each observable, each able to fail.
 Authority: what the loop may do without asking (for example: writes to named surfaces, task branches). Everything else is a gate.
-Budget: max writes, max external calls, max model calls, max wall time. Four ceilings, every one a number.
+Budget: max writes, max external calls, max model calls, max wall time (the sum the step-log tool's --active mode prints). Four ceilings, every one a number.
 Out of scope: named.
 Known context: pointers only (report ids, card titles). Never machine values: the scout measures those.
+Premises: carried figures, each marked CARRIED with its source, re-measured by a scout.
+Standing rules: the owner's standing rulings that override the base stops for this goal.
 ```
 An edit to a placed GOAL.md leaves a signed trace: a commit by the owner, or a ledger row naming the owner as the source of the text, with the new sha256. The orchestrator's RULING.md names that trace by its ledger row number and the full sha. A GOAL.md whose sha changed with no such entry is not run.
 
