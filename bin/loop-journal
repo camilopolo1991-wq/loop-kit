@@ -35,6 +35,14 @@
 #   against HOME, compared after separators are normalised). Any deeper or other prefix fails. A ROLLBACK line naming no
 #   path (no word after ROLLBACK, or a word with no slash) is not judged.
 #
+#   K05-C3. Also exit 1 for each DISPATCH line of the goal whose role word is scout or reviewer that does not lie after a
+#   TRIPWIRE OPEN line and before the next TRIPWIRE CLOSE line of the same goal (file order; the FAIL line names the line number
+#   in the log file; writer DISPATCH lines are not judged), and for each PASS line of the goal for a task step (T<nn>) whose text
+#   names no path under evidence/ (a word starting evidence/, or a path under goals/<the goal>/evidence/ by the C2 path rule).
+#   The PASS rule judges every such PASS line of a goal whose lines in the log hold at least one DISPATCH line (of any step, any
+#   position), a PASS line for a task never dispatched included; a goal with no DISPATCH line at all (the K03-C8 fixtures) is not
+#   judged by it.
+#
 # loop-journal --active <GOAL-ID> [--file PATH]
 #   K03-C5. Read-only. The one instrument for a goal's active time. --file reads a log fixture
 #   instead of the step log the tool resolves. Over the goal's lines in order, a run starts at each
@@ -230,15 +238,37 @@ for k, r in enumerate(jl):
         continue
     if not path_ok(parts[1]):
         badpath.append("line %d: the ROLLBACK line for %s names a path outside the goal evidence folders" % (nums[k], r[2]))
+dispbad = []
+openwin = False
+for k, r in enumerate(jl):
+    if r[1] != gid:
+        continue
+    if r[3].startswith("TRIPWIRE OPEN"):
+        openwin = True
+    elif r[3].startswith("TRIPWIRE CLOSE"):
+        openwin = False
+    else:
+        dm = re.match(r"DISPATCH\s+(scout|reviewer)(?:\s|$)", r[3])
+        if dm and not openwin:
+            dispbad.append("line %d: the DISPATCH %s line for %s does not lie between a TRIPWIRE OPEN line and the next TRIPWIRE CLOSE line" % (nums[k], dm.group(1), r[2]))
+passbad = []
+hasdisp = any(r[1] == gid and re.match(r"DISPATCH\s", r[3]) for r in jl)
+for k, r in enumerate(jl):
+    if r[1] != gid or not re.match(r"T\d+$", r[2]):
+        continue
+    if re.match(r"PASS\b", r[3]) is None or not hasdisp:
+        continue
+    if not any(path_ok(w) for w in r[3].split()[1:] if "/" in w.strip("\x22\x60").replace("\\", "/")):
+        passbad.append("line %d: the PASS line for %s names no path under evidence/" % (nums[k], r[2]))
 nolog = []
 for tid in passtasks:
     if not any(r[1] == tid and sl.is_pass_or_done(r[2]) for r in rows):
         nolog.append("%s is PASS in the plan but the journal has no PASS or DONE line for goal %s and task %s" % (tid, gid, tid))
 print("loop-journal --check %s: %d journal lines, writer tasks %d (%s), writer PASS %d, missing ROLLBACK %d, PASS tasks %d, missing PASS or DONE %d"
       % (gid, len(rows), len(writers), " ".join(writers) or "none", passed, len(bad), len(passtasks), len(nolog)))
-for b in bad + nolog + badpath:
+for b in bad + nolog + badpath + dispbad + passbad:
     print("  FAIL " + b)
-sys.exit(1 if (bad or nolog or badpath) else 0)
+sys.exit(1 if (bad or nolog or badpath or dispbad or passbad) else 0)
 ' "$2" "$JF" "$PLAN" "$BIN_NATIVE"
 fi
 

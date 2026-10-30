@@ -1,0 +1,34 @@
+# K05-C3 rows: the leader text carries the layout's statements on DISPATCH lines, commit message files and PASS lines, and the
+# step-log check fails a scout's or reviewer's DISPATCH line outside a tripwire window and a task PASS line that names no evidence path.
+# Format: id :: kind :: expected :: argument
+# phrase: argument is <file under the tree>|<phrase> ;; <phrase>; expected is found (every phrase is in the file under LOOP_TREE).
+# log: argument is <goal id>|<line> @@ <line>; a line is <timestamp> <step> <text>, written to the fixture step log as "- <line>" with the goal id
+#   after the timestamp. A fixture plan holds one scout task. The runner runs bash <tree>/bin/loop-journal --check <goal> --file <log> --plan <plan>;
+#   expected is <exit>|<check> ;; <check> (has:<text> in the output, nofail for no FAIL in the output).
+# Every tree is judged against the same expectations, so a tree without the change prints FAIL on every phrase row and on every log row that
+# expects exit 1 (d1, d3, p1, p3, p6); d2, d4, d5, p2, p4, p5 and p7 expect exit 0 and pass on both trees.
+# Leader text, one phrase row per statement.
+l1 :: phrase :: found :: agents/loop-leader.md|Append a DISPATCH line only after the card file has been written and the card lint on it exited 0 ;; and the dispatched text is the card file byte for byte.
+l2 :: phrase :: found :: agents/loop-leader.md|A scout's or reviewer's DISPATCH line is appended after its window's `TRIPWIRE OPEN` line, never before it.
+l3 :: phrase :: found :: agents/loop-leader.md|A commit message file is written outside a window.
+l4 :: phrase :: found :: agents/loop-leader.md|A PASS line for a task is appended only after the outputs the task's done when names are saved under the task's evidence folder.
+# Audit leader items 4 and 1.
+a4 :: phrase :: found :: skills/loop-audit/SKILL.md|FAIL also on a scout's or reviewer's DISPATCH line that does not lie between a `TRIPWIRE OPEN` line and the next `TRIPWIRE CLOSE` line of the same goal ;; only in a goal whose lines in the log hold at least one DISPATCH line, a PASS line for a task never dispatched included
+a1 :: phrase :: found :: skills/loop-audit/SKILL.md|A PASS line that precedes its outputs is a FAIL
+# DISPATCH order: a reviewer DISPATCH eight seconds before its OPEN line, inside the window, a scout after the CLOSE, a writer outside any window.
+d1 :: log :: 1|has:FAIL line 1: ;; has:DISPATCH reviewer :: K05-FIX|2026-01-01T00:00:00Z T01 DISPATCH reviewer evidence/T01/review/card.md @@ 2026-01-01T00:00:08Z W1 TRIPWIRE OPEN @@ 2026-01-01T00:00:40Z W1 TRIPWIRE CLOSE exit 0
+d2 :: log :: 0|nofail :: K05-FIX|2026-01-01T00:00:00Z W1 TRIPWIRE OPEN @@ 2026-01-01T00:00:08Z T01 DISPATCH reviewer evidence/T01/review/card.md @@ 2026-01-01T00:00:40Z W1 TRIPWIRE CLOSE exit 0
+d3 :: log :: 1|has:FAIL line 3: ;; has:DISPATCH scout :: K05-FIX|2026-01-01T00:00:00Z W1 TRIPWIRE OPEN @@ 2026-01-01T00:00:40Z W1 TRIPWIRE CLOSE exit 0 @@ 2026-01-01T00:01:00Z T01 DISPATCH scout evidence/T01/card.md
+d4 :: log :: 0|nofail :: K05-FIX|2026-01-01T00:00:00Z T01 DISPATCH writer evidence/T01/writer/card.md
+d5 :: log :: 0|nofail :: K05-FIX|2026-01-01T00:00:00Z W1 TRIPWIRE OPEN @@ 2026-01-01T00:00:40Z W1 TRIPWIRE CLOSE exit 0 @@ 2026-01-01T00:01:00Z W2 TRIPWIRE OPEN @@ 2026-01-01T00:01:05Z T02 DISPATCH scout evidence/T02/card.md @@ 2026-01-01T00:02:00Z W2 TRIPWIRE CLOSE exit 0
+# PASS evidence path (the PASS rule judges every task PASS line of a goal whose lines hold at least one DISPATCH line, so the K03-C8 fixtures,
+# which have PASS lines and no DISPATCH line at all, are not judged): none named, one named, a path outside the goal evidence folders, a non-task
+# step, a home-spelled path under the goal, a PASS line for a task never dispatched in a goal that dispatched another task (p6, judged), and a
+# goal with no DISPATCH line at all (p7, not judged).
+p1 :: log :: 1|has:FAIL line 2: ;; has:PASS line for T01 :: K05-FIX|2026-01-01T00:00:00Z T01 DISPATCH writer evidence/T01/writer/card.md @@ 2026-01-01T00:01:00Z T01 PASS the reviewer found nothing
+p2 :: log :: 0|nofail :: K05-FIX|2026-01-01T00:00:00Z T01 DISPATCH writer evidence/T01/writer/card.md @@ 2026-01-01T00:01:00Z T01 PASS evidence/T01/review/verdict.md
+p3 :: log :: 1|has:FAIL line 2: ;; has:PASS line for T01 :: K05-FIX|2026-01-01T00:00:00Z T01 DISPATCH writer evidence/T01/writer/card.md @@ 2026-01-01T00:01:00Z T01 PASS ~/loop-kit/tools/notes.md
+p4 :: log :: 0|nofail :: K05-FIX|2026-01-01T00:00:00Z T01 DISPATCH writer evidence/T01/writer/card.md @@ 2026-01-01T00:01:00Z GOAL PASS all criteria met
+p5 :: log :: 0|nofail :: K05-FIX|2026-01-01T00:00:00Z T01 DISPATCH writer evidence/T01/writer/card.md @@ 2026-01-01T00:01:00Z T01 PASS ~/.loop/goals/K05-FIX/evidence/T01/review/verdict.md
+p6 :: log :: 1|has:FAIL line 2: ;; has:PASS line for T01 :: K05-FIX|2026-01-01T00:00:00Z T02 DISPATCH writer evidence/T02/writer/card.md @@ 2026-01-01T00:01:00Z T01 PASS looked
+p7 :: log :: 0|nofail :: K05-FIX|2026-01-01T00:00:00Z T01 PASS looked
