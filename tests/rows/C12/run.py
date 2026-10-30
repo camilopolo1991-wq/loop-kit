@@ -95,6 +95,14 @@ def run_phrase(tree, expect, arg):
 
 
 def main():
+    if len(sys.argv) == 1:
+        tree_e = os.environ.get('LOOP_TREE')
+        home_e = os.environ.get('LOOP_ROWS_HOME')
+        work_e = os.environ.get('LOOP_WORK')
+        if not tree_e or not home_e or not work_e:
+            print('usage: run.py <tree> <home> <work>   or   LOOP_TREE=<tree> LOOP_ROWS_HOME=<home> LOOP_WORK=<work> run.py')
+            return 64
+        sys.argv[1:] = [tree_e, home_e, work_e]
     if len(sys.argv) != 4:
         print('usage: run.py <tree> <home> <work>')
         return 2

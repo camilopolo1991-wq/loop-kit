@@ -1,0 +1,19 @@
+# id :: kind :: expect :: arg   (S01-C2: local rules for agents; every tree is judged against these same rows)
+present-agents :: present :: file :: AGENTS.md
+present-bin :: present :: file :: bin/DESCRIPTION.md
+present-skills :: present :: file :: skills/DESCRIPTION.md
+present-rows :: present :: file :: tests/rows/DESCRIPTION.md
+present-docs :: present :: file :: docs/DESCRIPTION.md
+headings-order-and-length :: headings :: four headings in order, under 120 lines :: AGENTS.md
+verify-paths-exist :: verifypaths :: every command line under Verify names a path under bin/ or tests/ that exists :: AGENTS.md
+verify-holds-the-commands :: verifyshape :: runner template, scanner on a range, card lint on the example card, skill lint on skills/ :: AGENTS.md
+description-one-line-period :: descs :: each file is one line ending in a period :: bin/DESCRIPTION.md|skills/DESCRIPTION.md|tests/rows/DESCRIPTION.md|docs/DESCRIPTION.md
+folders-named-under-where :: topfolders :: every top-level folder is named under Where things are :: AGENTS.md
+runner-forms-match-the-runners :: forms :: every listed folder's run.py reads LOOP_TREE, and each folder on the Positional form line also reads its tree from the arguments :: AGENTS.md
+verify-env-line-has-all-assignments :: envline :: one environment-form line holds HOME, USERPROFILE, LOOP_HOME, LOOP_TREE, LOOP_ROWS_HOME, LOOP_WORK, LOOP_PY, LOOP_NAMES_FILE and PYTHONDONTWRITEBYTECODE=1 :: AGENTS.md
+c3-runs-in-the-environment-form :: runone :: C3 run from the tree in the environment form ends with rows= and fail=0 :: C3
+moves-together-pairs :: pairs :: the four pairs are named :: AGENTS.md
+cost-rule :: cost :: the cost rule names every line of the file and of every skill :: AGENTS.md
+row-folders-list-matches-tree :: rowlist :: the Row folders line equals the folders under tests/rows :: AGENTS.md
+committed-text-has-no-home-path :: nohome :: no drive-letter or user-folder path in the five files :: AGENTS.md|bin/DESCRIPTION.md|skills/DESCRIPTION.md|tests/rows/DESCRIPTION.md|docs/DESCRIPTION.md
+manifest-lists-the-installed-descriptions :: manifest :: MANIFEST.txt lists bin/DESCRIPTION.md and skills/DESCRIPTION.md with the file's sha256 in both hash columns :: bin/DESCRIPTION.md|skills/DESCRIPTION.md
