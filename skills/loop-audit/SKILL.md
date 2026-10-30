@@ -46,8 +46,8 @@ f. One `loop-report` for the stop, and the question to the owner follows the gri
 
 ## Writer (RESULT block, rollback, versionIds or shas, evidence/T<nn>/writer/ by its listed paths only)
 1. `writes:` names a before and after id (versionId pair, sha pair, row count pair). FAIL if the live system now shows neither the after state nor an explained later change.
-2. The journal shows the ROLLBACK line BEFORE the write line for the same artefact. FAIL if reversed or missing. `loop-journal --check <GOAL-ID>` exit 0 is the instrument, and its output is quoted.
-3. The rollback file at the named path exists, is valid and non-empty. FAIL if absent or size 0. Only the wrapper that printed the path counts as "the wrapper recorded it".
+2. The journal shows the ROLLBACK line BEFORE the write line for the same artefact, and that line names the writer's `rollback.txt` under the evidence folder, never the surface it protects. FAIL if reversed, missing or naming a path under a worktree, a scratch folder or a repository. `loop-journal --check <GOAL-ID>` exit 0 is the instrument, and its output is quoted.
+3. The rollback file at the named path exists, is valid and non-empty, and its modification time is earlier than the first edit of the surface (the first write the writer's transcript or the surface file's history shows). FAIL if absent, size 0, or modified after the first edit. Only the wrapper that printed the path counts as "the wrapper recorded it".
 4. For a SQL or file write: a snapshot or inverse statement exists in evidence whose scope matches the change. FAIL if the block cites a wrapper rollback for a surface whose wrapper does not write one.
 5. Every `proof:` line names an evidence path that exists and is non-empty.
 6. A truth table or test shows at least one case that fails on the old state and passes on the new, run against the live state after the write. FAIL if run against the file the writer sent.

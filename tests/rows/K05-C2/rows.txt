@@ -1,0 +1,31 @@
+# K05-C2 rows: the writer's rollback is a file, and the step-log check judges it.
+# Format: id :: kind :: expected :: argument
+# phrase: argument is <file under the tree>|<phrase> ;; <phrase>; expected is found (every phrase is in the file under LOOP_TREE).
+# check: argument is <goal id>|<path the fixture ROLLBACK line names>; the runner writes a plan and a step-log fixture from this text
+#   and runs bash <tree>/bin/loop-journal --check <goal> --file <log> --plan <plan>; expected is <exit>|<check> ;; <check> (has:<text> in the output).
+# Every tree is judged against the same expectations, so a tree without the change prints FAIL on every phrase row and on every
+# check row that expects exit 1 (r4 to r8, r11, r13); r3, r9 and r10 expect exit 0 and pass on both trees.
+# Writer sentence, one phrase row per clause.
+r1 :: phrase :: found :: agents/loop-writer.md|`rollback.txt` under the task's writer folder
+r1b :: phrase :: found :: agents/loop-writer.md|is written before the first edit
+r1c :: phrase :: found :: agents/loop-writer.md|holds the restore command and the sha256 of every file the task will touch as measured before the edit
+r1d :: phrase :: found :: agents/loop-writer.md|the ROLLBACK step-log line names that file and its sha256, never the surface it protects
+# One rollback record (F6): the second place for snapshots is gone.
+r12 :: phrase :: found :: agents/loop-writer.md|names inside it the snapshot it needs ;; There is one rollback record, `rollback.txt`.
+# Audit writer items 3 and 2, one phrase row each, each phrase from the new wording only.
+r2 :: phrase :: found :: skills/loop-audit/SKILL.md|its modification time is earlier than the first edit of the surface
+r2b :: phrase :: found :: skills/loop-audit/SKILL.md|that line names the writer's `rollback.txt` under the evidence folder, never the surface it protects
+# Path rows.
+r3 :: check :: 0|has:missing ROLLBACK 0 ;; nofail :: K05-FIX|evidence/T03/writer/rollback.txt
+r4 :: check :: 1|has:FAIL line 1: ;; has:names a path outside the goal evidence folders :: K05-FIX|~/.loop/scratch/KIT-05/wt-branch/work/rollback.txt
+r5 :: check :: 1|has:FAIL line 1: ;; has:names a path outside the goal evidence folders :: K05-FIX|~/loop-kit/tools/rollback.txt
+r6 :: check :: 1|has:FAIL line 1: ;; has:names a path outside the goal evidence folders :: K05-FIX|~/loop-kit/evidence/T01/writer/rollback.txt
+r7 :: check :: 1|has:FAIL line 1: ;; has:names a path outside the goal evidence folders :: K05-FIX|~/.loop/goals/K05-FIX/evidence/T01/../../plan.md
+r8 :: check :: 1|has:FAIL line 1: ;; has:names a path outside the goal evidence folders :: K05-FIX|~/.loop/goals/OTHER-9/evidence/T01/writer/rollback.txt
+r9 :: check :: 0|has:missing ROLLBACK 0 ;; nofail :: K05-FIX|~/.loop/goals/K05-FIX/evidence/T03/writer/rollback.txt
+r10 :: check :: 0|has:missing ROLLBACK 0 ;; nofail :: K05-FIX|~\.loop\goals\K05-FIX\evidence\T03\writer\rollback.txt
+r11 :: check :: 1|has:FAIL line 1: ;; has:names a path outside the goal evidence folders :: K05-FIX|~/.loop/scratch/K05-FIX/goals/K05-FIX/evidence/T03/writer/rollback.txt
+# F7: a folder named .loop deeper in a worktree is not the loop home.
+r13 :: check :: 1|has:FAIL line 1: ;; has:names a path outside the goal evidence folders :: K05-FIX|~/.loop/scratch/KIT-05/wt-branch/.loop/goals/K05-FIX/evidence/T03/writer/rollback.txt
+# F9: the wrapper's printed path goes into rollback.txt and the ROLLBACK line still names rollback.txt.
+r15 :: phrase :: found :: agents/loop-writer.md|you write the printed rollback path into `rollback.txt` and the ROLLBACK line still names `rollback.txt`

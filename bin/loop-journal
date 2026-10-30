@@ -26,6 +26,15 @@
 #   and the card lint agree. K04-C8. Both read the log through bin/loop_steplog.py, and the PASS or DONE match
 #   for a plan PASS cell is a whole word there (PASSED and DONEISH do not count). The summary line ends with ", PASS tasks N, missing PASS or DONE M".
 #
+#   K05-C2. Also exit 1 for each ROLLBACK line of the goal whose named path (the word after ROLLBACK, when it holds a
+#   slash) is outside the goal's evidence folders, which is any path under a worktree, a scratch folder or a repository;
+#   the FAIL line names the line number in the log file. The writer's rollback is a file under evidence/T<nn>/writer/.
+#   The rule is positive. The path is normalised (both separators, ../ resolved, ~ kept as a word) and passes only when it
+#   is a relative path starting evidence/, or lies under goals/<the line's own goal>/evidence/ with nothing before goals/
+#   but exactly the loop home (empty, ~/.loop, $LOOP_HOME, or the LOOP_HOME of the environment with a leading ~ expanded
+#   against HOME, compared after separators are normalised). Any deeper or other prefix fails. A ROLLBACK line naming no
+#   path (no word after ROLLBACK, or a word with no slash) is not judged.
+#
 # loop-journal --active <GOAL-ID> [--file PATH]
 #   K03-C5. Read-only. The one instrument for a goal's active time. --file reads a log fixture
 #   instead of the step log the tool resolves. Over the goal's lines in order, a run starts at each
@@ -151,7 +160,7 @@ if [ "${1:-}" = "--check" ]; then
     if [ -n "$CHECK_FILE" ]; then JF="$CHECK_FILE"; else resolve_jf; fi
     if [ -n "$CHECK_PLAN" ]; then PLAN="$CHECK_PLAN"; else PLAN="$LOOP_HOME_D/goals/$2/plan.md"; fi
     exec "$PY" -c '
-import re, sys
+import os, posixpath, re, sys
 gid, jf, plan, binp = sys.argv[1:5]
 sys.path.insert(0, binp)
 import loop_steplog as sl
@@ -187,15 +196,49 @@ for w in writers:
     passed += 1
     if not any(r[1] == w and r[2].startswith("ROLLBACK") for r in rows[:p]):
         bad.append("%s %s at %s has no ROLLBACK line before it" % (w, rows[p][2][:4], rows[p][0]))
+badpath = []
+lh = os.environ.get("LOOP_HOME", "").replace("\\", "/").rstrip("/")
+hm = os.environ.get("HOME", "").replace("\\", "/").rstrip("/")
+if lh == "~" or lh.startswith("~/"):
+    lh = hm + lh[1:]
+lh = posixpath.normpath(lh).lower() if lh else ""
+def path_ok(word):
+    q = posixpath.normpath(word.strip("\x22\x60").replace("\\", "/"))
+    if q.startswith("evidence/"):
+        return True
+    m = re.search(r"(^|/)goals/" + re.escape(gid) + r"/evidence/.", q)
+    if m is None:
+        return False
+    pre = q[:m.start()]
+    return pre in ("", "~/.loop", "$LOOP_HOME", "${LOOP_HOME}") or (lh != "" and pre.lower() == lh)
+# Line numbers: the shared reader returns only the lines that look like step lines, in file order, and no line numbers.
+# The same predicate over the file lines pairs each shared row with its line number (a row index when the counts differ).
+try:
+    flines = open(jf, encoding="utf-8", errors="replace").read().splitlines()
+except OSError:
+    flines = []
+nums = [i for i, l in enumerate(flines, 1) if len(l.split(None, 4)) >= 4 and l.split(None, 1)[0] == "-"]
+if len(nums) != len(jl):
+    nums = list(range(1, len(jl) + 1))
+for k, r in enumerate(jl):
+    if r[1] != gid or not r[3].startswith("ROLLBACK"):
+        continue
+    parts = r[3].split()
+    if len(parts) < 2:
+        continue
+    if "/" not in parts[1].strip("\x22\x60").replace("\\", "/"):
+        continue
+    if not path_ok(parts[1]):
+        badpath.append("line %d: the ROLLBACK line for %s names a path outside the goal evidence folders" % (nums[k], r[2]))
 nolog = []
 for tid in passtasks:
     if not any(r[1] == tid and sl.is_pass_or_done(r[2]) for r in rows):
         nolog.append("%s is PASS in the plan but the journal has no PASS or DONE line for goal %s and task %s" % (tid, gid, tid))
 print("loop-journal --check %s: %d journal lines, writer tasks %d (%s), writer PASS %d, missing ROLLBACK %d, PASS tasks %d, missing PASS or DONE %d"
       % (gid, len(rows), len(writers), " ".join(writers) or "none", passed, len(bad), len(passtasks), len(nolog)))
-for b in bad + nolog:
+for b in bad + nolog + badpath:
     print("  FAIL " + b)
-sys.exit(1 if (bad or nolog) else 0)
+sys.exit(1 if (bad or nolog or badpath) else 0)
 ' "$2" "$JF" "$PLAN" "$BIN_NATIVE"
 fi
 
