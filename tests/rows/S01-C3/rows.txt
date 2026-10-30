@@ -1,0 +1,8 @@
+# id :: kind :: expect :: arg   (S01-C3: the status page; every tree is judged against these same rows)
+present-status :: present :: file :: docs/STATUS.md
+sha-lines-name-a-commit-under-the-tree :: shalines :: every "measured at commit" line names forty hex digits that resolve to a commit under the tree, with at least six such lines :: docs/STATUS.md
+six-kit-figures-equal-the-measure :: figures :: MANIFEST.txt lines, bin files, hooks files, skills, row folders and commits on main as stated equal the values measured on the tree :: docs/STATUS.md
+readme-blocks-moved-byte-for-byte :: moved :: every fenced block starting with a dollar sign and a space in README.md at 55ca365af5c43c479753c2277b01d7f8b58a7c2e (read with a git show) appears in docs/STATUS.md as the same lines in the same order :: docs/STATUS.md|55ca365af5c43c479753c2277b01d7f8b58a7c2e
+readme-has-no-dollar-block :: nodollar :: no fenced block whose first line starts with a dollar sign and a space :: README.md
+readme-has-no-first-goal-heading :: noheading :: no heading holding the words The first goal :: README.md|The first goal
+readme-install-count-line-stays :: hasline :: the install count line is present once :: README.md|That count covers the whole kit: agents, hooks, skills, templates and these tools.
