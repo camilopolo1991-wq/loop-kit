@@ -1,0 +1,46 @@
+# S01-C1 rows: id :: kind :: expect :: arg
+# kit: the tool on a folder of the tree (arg is the path under the tree). fx: the tool on a fixture skills folder run.py writes under LOOP_WORK (arg is the fixture id).
+# env: the folder comes from LOOP_SKILLS_DIR and no argument. argwins: arg|envarg, the argument folder and a different LOOP_SKILLS_DIR. none, two, nodir: usage rows.
+# nopy: LOOP_PY names no interpreter; the stub exits 3 (a fourth exit beside 0, 1 and 64) and says so. tagsync: the lint's TAG_WORDS equal the tag literals in bin/loop_redact.py.
+# Tag reading: a tag is a leak only next to a path separator (S1-leak-tag), a tag in prose is not (S1-leak-prose); the kit's loop-audit names tags in prose and S1-kit holds it at exit 0.
+# install: the tree installed into a fresh home under LOOP_WORK by the environment form; both tool files in the home bin equal the tree's by sha256.
+# expect keys: rc, skills, broken, lines, bytes (of the first skill line), rules (names joined by +, or none). Every tree is judged against the same expectations.
+S1-kit :: kit :: rc=0,skills=7,broken=0,rules=none :: skills
+S1-good :: fx :: rc=0,skills=1,broken=0,rules=none :: good
+S1-name :: fx :: rc=1,skills=1,broken=1,rules=name :: name
+S1-name-chars :: fx :: rc=1,skills=1,broken=1,rules=name-chars :: namechars
+S1-description :: fx :: rc=1,skills=1,broken=1,rules=description :: nodesc
+S1-desc-oneline :: fx :: rc=1,skills=1,broken=1,rules=desc-oneline :: desconeline
+S1-desc-length :: fx :: rc=1,skills=1,broken=1,rules=desc-length :: desc1024
+S1-desc-under :: fx :: rc=0,skills=1,broken=0,rules=none :: desc1023
+S1-lines :: fx :: rc=1,skills=1,broken=1,lines=200,rules=size-lines :: lines200
+S1-lines-under :: fx :: rc=0,skills=1,broken=0,lines=199,rules=none :: lines199
+S1-bytes :: fx :: rc=1,skills=1,broken=1,bytes=20000,rules=size-bytes :: bytes20000
+S1-bytes-under :: fx :: rc=0,skills=1,broken=0,bytes=19999,rules=none :: bytes19999
+S1-refs-depth :: fx :: rc=1,skills=1,broken=1,rules=refs-depth :: refsdepth
+S1-refs-files :: fx :: rc=1,skills=1,broken=1,rules=refs-files :: refsfiles
+S1-refs-flat :: fx :: rc=0,skills=1,broken=0,rules=none :: refsflat
+S1-refs-contents :: fx :: rc=1,skills=1,broken=1,rules=refs-contents :: refs101
+S1-refs-100 :: fx :: rc=0,skills=1,broken=0,rules=none :: refs100
+S1-refs-contents-ok :: fx :: rc=0,skills=1,broken=0,rules=none :: refs101ok
+S1-cross :: fx :: rc=1,skills=1,broken=1,rules=cross-skill :: cross
+S1-cross-own :: fx :: rc=0,skills=1,broken=0,rules=none :: crossown
+S1-leak-users :: fx :: rc=1,skills=1,broken=1,rules=leak :: leakusers
+S1-leak-home :: fx :: rc=1,skills=1,broken=1,rules=leak :: leakhome
+S1-leak-drive :: fx :: rc=1,skills=1,broken=1,rules=leak :: leakdrive
+S1-leak-drive-back :: fx :: rc=1,skills=1,broken=1,rules=leak :: leakdriveback
+S1-leak-tag :: fx :: rc=1,skills=1,broken=1,rules=leak :: leaktag
+S1-leak-ref :: fx :: rc=1,skills=1,broken=1,rules=leak :: leakref
+S1-leak-control :: fx :: rc=1,skills=1,broken=1,rules=leak :: leakcontrol
+S1-leak-prose :: fx :: rc=0,skills=1,broken=0,rules=none :: leakprose
+S1-leak-near :: fx :: rc=0,skills=1,broken=0,rules=none :: leaknear
+S1-env :: env :: rc=1,skills=1,broken=1,rules=name :: name
+S1-arg-wins :: argwins :: rc=0,skills=1,broken=0,rules=none :: good|name
+S1-usage-none :: none :: rc=64 :: -
+S1-usage-two :: two :: rc=64 :: -
+S1-usage-nodir :: nodir :: rc=64 :: absent
+S1-nested :: fx :: rc=1,skills=2,broken=1,rules=name :: nested
+S1-nested-ok :: fx :: rc=0,skills=2,broken=0,rules=none :: nestedok
+S1-tags-sync :: tagsync :: found :: -
+S1-nopy :: nopy :: rc=3 :: nopy
+S1-installed :: install :: found :: -
