@@ -37,6 +37,20 @@ CONTROL = ('x-n8n-api-key: abcdefghijklmnop12345\n'  # loop-scan:control
 
 
 NAME_TAG = '[NAME]'  # the tag loop_redact.Redactor puts where a name was
+REMOTE_TAG = '[GIT_REMOTE]'  # the tag loop_redact.PATTERNS put where a github remote was
+
+
+def tag_path_re():
+    """KIT-05 C8. A redactor tag (the name tag or the remote tag) adjacent to a path separator,
+    on either side. Each tag is counted once. A home-shaped path holding the name tag is the
+    path category's; main() counts a tag only on a line the path category did not match."""
+    alts = '|'.join(re.escape(t) for t in (NAME_TAG, REMOTE_TAG))
+    return re.compile(r'(?:(?<=[/\\])(?:%s)|(?:%s)(?=[/\\]))' % (alts, alts))
+
+
+def tag_control_line():
+    """The tag control line, built at run time from the tags and joined to separators here."""
+    return 'masked ' + 'a' + '/' + NAME_TAG + '/x ' + 'b' + '/' + REMOTE_TAG + '/y\n'
 
 
 def home_parent_parts():
@@ -146,6 +160,10 @@ def main():
     if path_re is None or not path_re.search(CONTROL):
         print('loop-scan: PATH CONTROL DID NOT FIRE - scanner broken')
         return 3
+    tag_re = tag_path_re()
+    if len(tag_re.findall(tag_control_line())) != 2:
+        print('loop-scan: TAG CONTROL DID NOT FIRE - scanner broken')
+        return 3
     name_control ='n/a (no names file)'
     if r.names_re is not None:
         name_control = 'fired' if r.names_re.search(' ' + r.names_list[-1] + ' ') else 'NOT FIRED'
@@ -190,6 +208,11 @@ def main():
             if p:
                 r._bump('path', p)
                 n += p
+        if not (path_re is not None and p):
+            t = len(tag_re.findall(line))
+            if t:
+                r._bump('tag', t)
+                n += t
         if n:
             locs.append(f'{f}:{i}')
     print(f'loop-scan: control=fired name_control={name_control} lines={len(units)} control_lines_skipped={skipped} hits={r.count} ' +

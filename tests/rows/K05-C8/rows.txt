@@ -1,0 +1,10 @@
+# K05-C8 rows: id :: kind :: expect :: arg
+# scan rows: expect is rc/hits/tag/path counts of the tree's own loop-scan on a fixture built by run.py (tags built at run time).
+# phrase rows: expect found; arg is file|phrase searched in the tree.
+# Every tree is judged against the same expectations, so a tree without the change prints FAIL on the tag rows.
+C8-name-in-path :: scan :: rc=1,hits=1,tag=1,path=0,at=2 :: nametag
+C8-remote-in-path :: scan :: rc=1,hits=1,tag=1,path=0,at=2 :: remotetag
+C8-home-shaped :: scan :: rc=1,hits=1,tag=0,path=1,at=2 :: homepath
+C8-control-line :: scan :: rc=0,hits=0,tag=0,path=0,skipped=1 :: controlline
+C8-prose :: scan :: rc=0,hits=0,tag=0,path=0 :: prose
+C8-audit-phrase :: phrase :: found :: skills/loop-audit/SKILL.md|under the category tag

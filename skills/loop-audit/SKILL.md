@@ -39,7 +39,7 @@ f. One `loop-report` for the stop, and the question to the owner follows the gri
 2. Every fact line has four fields; the evidence path exists and is non-empty.
 3. Every number names the command that produced it, and that command can output that number.
 4. Every zero has a control that found known hits on the same instrument and the same input.
-5. No identity columns: grep the evidence for `@`, phone shapes, `select *`, `row_to_json`, `[NAME]`, `[SECRET]`. Any hit FAILS (a `[NAME]` tag proves a name reached output).
+5. No identity columns: grep the evidence for `@`, phone shapes, `select *`, `row_to_json`, `[NAME]`, `[SECRET]`. Any hit FAILS (a `[NAME]` tag proves a name reached output). A `[NAME]` or `[GIT_REMOTE]` tag inside a path (the tag next to a path separator) is a hit under the category tag, which loop-scan counts under the category tag in its per-category counts; a home-shaped path holding `[NAME]` is counted under path, not tag.
 6. `writes: NONE` and the window's tripwire check is exit 0; no file under evidence outside `T<nn>/`.
 7. First tool call in the transcript is Skill or Read of the preamble, never a command.
 8. A guard denial is reported as a finding and never followed by a semantically equal command.
