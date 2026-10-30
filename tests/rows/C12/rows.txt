@@ -11,4 +11,4 @@ c12-hash-selftest  :: filehash  :: d2260b3331ce6642fb2d62cd38002f33f55803bad27bb
 c12-hash-preflight :: filehash  :: 79f602500d2b28bfdf5c243bc51274418d2353cabe01587e7dbafb5fe00b2a24 :: bin/loop-preflight
 c12-selftest       :: selftest  :: names  :: case16-noise-file-at-top-NOISE-exit-0|case17-control-non-noise-file-at-top-CAUGHT
 c12-preflight      :: preflight :: writable :: writable
-c12-phrase-readme  :: phrase    :: found  :: README.md|TRIPWIRE_NOISE
+c12-phrase-readme  :: phrase    :: found  :: docs/STATUS.md|TRIPWIRE_NOISE

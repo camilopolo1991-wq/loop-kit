@@ -6,4 +6,4 @@ r1-env-install-no-home-var-on-hook-lines :: hooks :: exit 0, no hook line with t
 r2-success-line-before-config-env :: standin :: exit 0, success line printed, config.env absent :: a stand-in copy of the script with the final rename replaced by a stop; a script with no rename line fails
 r3-second-install-exits-4 :: reinstall :: exit 4, config.env bytes unchanged :: install again into the first ~ home of r1
 r4-owner-handle-filled :: owner :: exit 0, no OWNER_HANDLE token left in the installed loop-leader.md :: fresh ~ home with LOOP_OWNER set to the one word of the names file the runner reads at run time (the word is never written here); the source loop-leader.md holds the token
-r5-readme-names-loop-owner :: phrase :: found :: README.md|LOOP_OWNER
+r5-readme-names-loop-owner :: phrase :: found :: docs/adr/ADR-005.md|LOOP_OWNER

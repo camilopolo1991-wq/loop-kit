@@ -2,7 +2,7 @@
 
 Every figure of the kit is stated here and nowhere else. Each is the figure, the command that measured it, and one line reading "measured at commit <sha> on <date>". Commands are run from the repository root. Paths outside the repository are written relative to `$HOME`.
 
-The commit named on those lines is the head of the task branch before the commit that holds this file. The count of row folders includes the folder of that commit, S01-C4, so it is one more than the head holds.
+The commit named on those lines is the head of the task branch before the commit that holds this file. The count of row folders includes the folder of that commit, S01-C7, so it is one more than the head holds.
 
 ## The kit
 
@@ -46,7 +46,7 @@ Row folders under tests/rows/:
 
 ```
 $ find tests/rows -mindepth 1 -maxdepth 1 -type d | wc -l
-37
+38
 ```
 
 measured at commit 14bf1d0dc9a44bc006e141ac09c71441b7cae13f on 2026-10-30

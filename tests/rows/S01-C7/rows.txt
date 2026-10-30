@@ -1,0 +1,21 @@
+# id :: kind :: expected :: argument   (readme rows apply the named checker to README.md of the tree and expect holds; control rows apply it to a constructed bad text and expect rejected; every tree is judged against the same rows)
+sentence-one-period :: readme :: holds :: sentence
+block-two-install-commands :: readme :: holds :: block
+table-rows-and-last-cell :: readme :: holds :: table
+start-here-three-files-in-order :: readme :: holds :: starthere
+figure-equals-manifest-count :: readme :: holds :: figure
+under-eighty-lines :: readme :: holds :: lines
+repository-table-matches-install-sh :: readme :: holds :: repotable
+no-other-figure :: readme :: holds :: nofigure
+no-dollar-block :: readme :: holds :: nodollar
+no-home-path :: readme :: holds :: nohome
+control-sentence :: control :: rejected :: sentence
+control-block :: control :: rejected :: block
+control-table :: control :: rejected :: table
+control-start-here :: control :: rejected :: starthere
+control-figure :: control :: rejected :: figure
+control-lines :: control :: rejected :: lines
+control-repository-table :: control :: rejected :: repotable
+control-no-other-figure :: control :: rejected :: nofigure
+control-no-dollar-block :: control :: rejected :: nodollar
+control-no-home-path :: control :: rejected :: nohome
