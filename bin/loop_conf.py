@@ -60,6 +60,16 @@ def expand_tilde(v):
     return re.sub(r'(^|:)~(?=$|[/\\:])', lambda m: m.group(1) + home, v)
 
 
+_LIST_SEP = re.compile(r':(?![/\\])')
+
+
+def split_list(v):
+    """Split a colon-separated list value into its non-empty elements. The one splitter for
+    every list key (WRITABLE_TREES today). A separator is a colon not followed by a slash or a
+    backslash, so a drive-letter entry (C:/work, C:\\work) stays whole."""
+    return [x for x in _LIST_SEP.split(v or '') if x]
+
+
 def load():
     c = dict(DEFAULTS)
     path = os.path.join(expand_tilde(os.environ.get('LOOP_HOME', DEFAULTS['LOOP_HOME'])), 'config.env')

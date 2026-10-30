@@ -188,7 +188,9 @@ def get_roots():
         'usr_local_bin': r('USR_LOCAL_BIN', '/usr/local/bin'),
         'root_toplevel': r('ROOT_TOPLEVEL', HOME),
         'evidence_root': r('EVIDENCE_ROOT', LH + '/goals'),
-        'git_search_bases': [b for b in r('GIT_SEARCH_BASES', os.environ.get('WRITABLE_TREES', '')).split(':') if b],
+        # WRITABLE_TREES is read through loop_conf like every other key (the environment wins when set,
+        # config.env otherwise) and split by the module's one splitter, so a drive-letter entry stays whole.
+        'git_search_bases': loop_conf.split_list(r('GIT_SEARCH_BASES', loop_conf.load().get('WRITABLE_TREES', ''))),
         # Name patterns at the top of the home whose changes are reported as NOISE, not differences
         # (the Windows registry transaction logs change on their own). From loop_conf TRIPWIRE_NOISE.
         'noise_patterns': r('NOISE', loop_conf.load().get('TRIPWIRE_NOISE', '')).split(),

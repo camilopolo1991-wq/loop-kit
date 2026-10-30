@@ -5,8 +5,8 @@
 #   and the count of cases failing with WinError 2 are printed as information and do not decide the row.
 # preflight: run "bash <tree>/bin/loop-preflight" with LOOP_HOME at <home>/.loop; expect = a line starting with that word.
 # phrase: a Python bytes search under <tree> for "file|phrase".
-c12-hash-conf      :: filehash  :: 6f22c9c6eff88cd04f2eefbc97d36eca8afe5e09001baf494e734c3210d58e1c :: bin/loop_conf.py
-c12-hash-tripwire  :: filehash  :: 33489d967522135660363cb44ccd3d89136ae7322158db629f7101b626b5197a :: bin/loop_tripwire.py
+c12-hash-conf      :: filehash  :: fbdc8a981216e433798cc1c02fdfb4aa7fef50fe58b462942cfefd539aa3af99 :: bin/loop_conf.py
+c12-hash-tripwire  :: filehash  :: ad8d08efc7b444c3673498135c32b9166f1b822b9aecd9545759fe45e0fda70c :: bin/loop_tripwire.py
 c12-hash-selftest  :: filehash  :: d2260b3331ce6642fb2d62cd38002f33f55803bad27bb014b24650d1bfefcb10 :: bin/tripwire_selftest.py
 c12-hash-preflight :: filehash  :: 79f602500d2b28bfdf5c243bc51274418d2353cabe01587e7dbafb5fe00b2a24 :: bin/loop-preflight
 c12-selftest       :: selftest  :: names  :: case16-noise-file-at-top-NOISE-exit-0|case17-control-non-noise-file-at-top-CAUGHT

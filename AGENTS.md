@@ -17,7 +17,7 @@ Every row runner takes no argument and reads its environment. The rows home is H
 
     HOME=<home> USERPROFILE=<home> LOOP_HOME=<home>/.loop LOOP_TREE=<tree> LOOP_ROWS_HOME=<home> LOOP_WORK=<work> LOOP_PY=<python> LOOP_NAMES_FILE=<names> PYTHONDONTWRITEBYTECODE=1 <python> tests/rows/<folder>/run.py
 
-Row folders: C1 C10 C12 C2 C3 C4 C5 C6 C8 K03-C1 K03-C2 K03-C3 K03-C4 K03-C5 K03-C6 K03-C7 K03-C8 K04-C1 K04-C2 K04-C3 K04-C4 K04-C5 K04-C6 K04-C7 K04-C8 K05-C1 K05-C2 K05-C3 K05-C4 K05-C5 K05-C8 S01-C1 S01-C2 S01-C3 S01-C5
+Row folders: C1 C10 C12 C2 C3 C4 C5 C6 C8 K03-C1 K03-C2 K03-C3 K03-C4 K03-C5 K03-C6 K03-C7 K03-C8 K04-C1 K04-C2 K04-C3 K04-C4 K04-C5 K04-C6 K04-C7 K04-C8 K05-C1 K05-C2 K05-C3 K05-C4 K05-C5 K05-C8 S01-C1 S01-C2 S01-C3 S01-C5 S01-C8
 
 Nine of them also take the tree, the home and the work folder as three arguments after the runner path, in that order, with the same fills:
 

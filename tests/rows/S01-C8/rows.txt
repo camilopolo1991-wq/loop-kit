@@ -1,0 +1,11 @@
+# id :: kind :: expect :: arg   (S01-C8: the tripwire's path list; every tree is judged against these same rows)
+# bases     : expect = the git search bases the tripwire module reads, joined by |; arg = the value of WRITABLE_TREES set in the child's environment.
+# basesconf : expect = the same; arg = the text of a fixture config.env under LOOP_WORK; WRITABLE_TREES is unset in the child's environment.
+# split     : expect = the elements the configuration module's splitter returns, joined by |; arg = the input.
+# All names below are synthetic fixtures.
+bases-two-drive-letter-trees-from-the-environment :: bases :: C:/fx8/tree-a|D:/fx8/tree-b :: C:/fx8/tree-a:D:/fx8/tree-b
+bases-unset-in-the-environment-read-from-config-env :: basesconf :: C:/fx8/tree-c|D:/fx8/tree-d :: WRITABLE_TREES=C:/fx8/tree-c:D:/fx8/tree-d
+splitter-leaves-a-forward-slash-drive-letter-entry-whole :: split :: C:/fx8/one :: C:/fx8/one
+splitter-leaves-a-backslash-drive-letter-entry-whole :: split :: D:\fx8\two :: D:\fx8\two
+splitter-splits-a-plain-colon-list :: split :: alpha|beta|gamma :: alpha:beta:gamma
+splitter-splits-a-mixed-list :: split :: /fx8/p|C:/fx8/q|rel :: /fx8/p:C:/fx8/q:rel
