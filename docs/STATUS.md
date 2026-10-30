@@ -46,7 +46,7 @@ Row folders under tests/rows/:
 
 ```
 $ find tests/rows -mindepth 1 -maxdepth 1 -type d | wc -l
-34
+35
 ```
 
 measured at commit 14bf1d0dc9a44bc006e141ac09c71441b7cae13f on 2026-10-30

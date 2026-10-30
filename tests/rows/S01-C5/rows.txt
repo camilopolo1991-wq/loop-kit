@@ -1,0 +1,15 @@
+# id :: kind :: expect :: arg   (S01-C5: the decisions; every tree is judged against these same rows)
+present-adr-001 :: present :: file :: docs/adr/ADR-001.md
+present-adr-002 :: present :: file :: docs/adr/ADR-002.md
+present-adr-003 :: present :: file :: docs/adr/ADR-003.md
+present-adr-004 :: present :: file :: docs/adr/ADR-004.md
+present-adr-005 :: present :: file :: docs/adr/ADR-005.md
+present-adr-006 :: present :: file :: docs/adr/ADR-006.md
+present-out-of-scope-honcho :: present :: file :: docs/out-of-scope/honcho.md
+present-out-of-scope-interpreter-fallback :: present :: file :: docs/out-of-scope/interpreter-fallback.md
+present-out-of-scope-settings-edit-at-install :: present :: file :: docs/out-of-scope/settings-edit-at-install.md
+present-out-of-scope-names-refresh :: present :: file :: docs/out-of-scope/names-refresh.md
+adr-five-headings-in-order :: headings :: each ADR holds exactly the headings Context, Decision, Deliberately not, Consequences, Verification, in that order :: docs/adr/ADR-001.md|docs/adr/ADR-002.md|docs/adr/ADR-003.md|docs/adr/ADR-004.md|docs/adr/ADR-005.md|docs/adr/ADR-006.md
+adr-verification-first-line-names-a-file :: verifyfile :: the first fenced line under Verification starts with a file under bin/, hooks/ or tests/rows/ that exists in the tree :: docs/adr/ADR-001.md|docs/adr/ADR-002.md|docs/adr/ADR-003.md|docs/adr/ADR-004.md|docs/adr/ADR-005.md|docs/adr/ADR-006.md
+out-of-scope-names-date-and-goal :: datedgoal :: each file holds a Date decided line with a year-month, a Goal that decided line with a goal id, and no line reading "not recorded in the kit" :: docs/out-of-scope/honcho.md|docs/out-of-scope/interpreter-fallback.md|docs/out-of-scope/settings-edit-at-install.md|docs/out-of-scope/names-refresh.md
+out-of-scope-under-fifteen-lines :: underlines :: each file is under fifteen lines :: docs/out-of-scope/honcho.md|docs/out-of-scope/interpreter-fallback.md|docs/out-of-scope/settings-edit-at-install.md|docs/out-of-scope/names-refresh.md
