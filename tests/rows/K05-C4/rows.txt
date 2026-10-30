@@ -1,0 +1,34 @@
+# K05-C4 rows. Fields: id :: kind :: expect :: arg   (split on " :: " at most 3 times)
+# Every tree is judged against the same expectations, so a tree without the change prints FAIL on the rows it adds.
+# kind linephrase: arg is rel|line prefix|phrase; some line of the file starting with the prefix holds the phrase.
+# kind phrase: arg is rel|phrase; the phrase is found in the file.
+# kind bytes: arg is the sentence, then ' ;; ' and the places as rel|line prefix; byte-exact, nothing removed from the
+#   file: the line is the raw bytes up to LF, the sentence is located by its first eight words, the cut runs to the first
+#   full stop (not included), and each cut must equal the sentence bytes of the row text.
+# kind bytesctl: the same arg; the runner writes four fixture files in LOOP_WORK, one byte changed in place 3, runs the
+#   same comparison and passes only when it fails at place 3 alone.
+# kind absent: arg is items rel|phrase joined by ' ;; '; expect=absent, every phrase absent from its file.
+# kind absentprint: as absent for the tree under test, and the sibling main tree's result is printed and not judged.
+# absentprint header: each of the three GOAL-named old clauses (one-more-only, equal-1-or-2, same-minute) was already
+#   absent on wt-main when this card ran, in the clause texts searched here; the row guards against their return.
+cA1 :: linephrase :: found :: agents/loop-leader.md|On the record branch, never one commit per task|the record commits of a goal are its placement commit, one per hold and one per close, each carrying the trailer and its two scan files under evidence/record/, the placement commit's files saved by whoever makes it
+cA2 :: linephrase :: found :: skills/loop-record/SKILL.md|- Record branch, never one commit per task|the record commits of a goal are its placement commit, one per hold and one per close, each carrying the trailer and its two scan files under evidence/record/, the placement commit's files saved by whoever makes it
+cA3 :: linephrase :: found :: skills/loop-audit/SKILL.md|8. Record branch log|the record commits of a goal are its placement commit, one per hold and one per close, each carrying the trailer and its two scan files under evidence/record/, the placement commit's files saved by whoever makes it
+cA4 :: linephrase :: found :: skills/loop-audit/SKILL.md|c. Record branch|the record commits of a goal are its placement commit, one per hold and one per close, each carrying the trailer and its two scan files under evidence/record/, the placement commit's files saved by whoever makes it
+cB1 :: bytes :: found :: the record commits of a goal are its placement commit, one per hold and one per close, each carrying the trailer and its two scan files under evidence/record/, the placement commit's files saved by whoever makes it ;; agents/loop-leader.md|On the record branch, never one commit per task ;; skills/loop-record/SKILL.md|- Record branch, never one commit per task ;; skills/loop-audit/SKILL.md|8. Record branch log ;; skills/loop-audit/SKILL.md|c. Record branch
+cB2 :: bytesctl :: found :: the record commits of a goal are its placement commit, one per hold and one per close, each carrying the trailer and its two scan files under evidence/record/, the placement commit's files saved by whoever makes it ;; agents/loop-leader.md|On the record branch, never one commit per task ;; skills/loop-record/SKILL.md|- Record branch, never one commit per task ;; skills/loop-audit/SKILL.md|8. Record branch log ;; skills/loop-audit/SKILL.md|c. Record branch
+cC1 :: linephrase :: found :: skills/loop-audit/SKILL.md|12. Journal vs the writer's returns|a BLOCKED or PARTIAL line for a task followed by a PASS or DONE line for the same task with no DISPATCH line for that task between them
+cC2 :: linephrase :: found :: skills/loop-audit/SKILL.md|14. Journal vs the scout and writer returns|a BLOCKED or PARTIAL line for a task followed by a PASS or DONE line for the same task with no DISPATCH line for that task between them
+cD1 :: phrase :: found :: agents/loop-leader.md|The report's section is named Commits.
+cD2 :: phrase :: found :: skills/loop-record/SKILL.md|The report's section is named Commits.
+cD3 :: phrase :: found :: skills/loop-audit/SKILL.md|The report's section is named Commits.
+cE1 :: phrase :: found :: agents/loop-leader.md|Every number in the report names its instrument: writer runs are the count of writer DISPATCH lines in the step log, reviewer FAILs the count of FAIL lines, pushes the count of PUSH lines, wall time the sum line the step-log tool's --active prints, quoted; two readings of one number are both kept with their instruments
+cE2 :: phrase :: found :: skills/loop-record/SKILL.md|Every number in the report names its instrument: writer runs are the count of writer DISPATCH lines in the step log, reviewer FAILs the count of FAIL lines, pushes the count of PUSH lines, wall time the sum line the step-log tool's --active prints, quoted; two readings of one number are both kept with their instruments
+cE3 :: phrase :: found :: skills/loop-audit/SKILL.md|Every number in the report names its instrument: writer runs are the count of writer DISPATCH lines in the step log, reviewer FAILs the count of FAIL lines, pushes the count of PUSH lines, wall time the sum line the step-log tool's --active prints, quoted; two readings of one number are both kept with their instruments
+cR1 :: absent :: absent :: agents/loop-leader.md|equal one at close plus one per owner-gate pause
+cR2 :: absent :: absent :: skills/loop-record/SKILL.md|equal one at close plus one per owner-gate pause
+cR3 :: absent :: absent :: skills/loop-audit/SKILL.md|equal one at close plus one per owner-gate pause
+cR4 :: absent :: absent :: skills/loop-audit/SKILL.md|only the commits after START are counted
+cX1 :: absentprint :: absent :: agents/loop-leader.md|plus one more only if the goal pauses at an owner gate ;; skills/loop-record/SKILL.md|plus exactly one more only if the goal paused at an owner gate
+cX2 :: absentprint :: absent :: skills/loop-audit/SKILL.md|or 2 with a HELD report ;; skills/loop-record/SKILL.md|gets at most 2 commits total ;; skills/loop-audit/SKILL.md|no commit for this run, or exactly one carrying ;; skills/loop-audit/SKILL.md|equal 1 or 2
+cX3 :: absentprint :: absent :: agents/loop-leader.md|same minute ;; skills/loop-record/SKILL.md|same minute ;; skills/loop-audit/SKILL.md|same minute ;; agents/loop-leader.md|same-minute ;; skills/loop-record/SKILL.md|same-minute ;; skills/loop-audit/SKILL.md|same-minute

@@ -4,6 +4,6 @@ C10-02 :: phrase :: found :: agents/loop-leader.md|BLOCKED return is recorded in
 C10-03 :: phrase :: found :: skills/loop-goal/SKILL.md|RULING.md cites the ledger row number and the full sha
 C10-04 :: phrase :: found :: agents/loop-auditor.md|Every path in your output is spelled from ~ or $LOOP_HOME
 C10-05 :: phrase :: found :: skills/loop-audit/SKILL.md|left no done-note file with frontmatter
-C10-06 :: phrase :: found :: skills/loop-audit/SKILL.md|has a DONE or PASS journal line for the same task
+C10-06 :: phrase :: found :: skills/loop-audit/SKILL.md|FAIL on a BLOCKED or PARTIAL line for a task followed by a PASS or DONE line for the same task
 C10-07 :: phrase :: found :: skills/loop-audit/SKILL.md|does not cite the ledger row number and the full sha
 C10-08 :: phrase :: found :: skills/loop-audit/SKILL.md|1. Every path in the return and the evidence is spelled from ~ or $LOOP_HOME
