@@ -1,0 +1,16 @@
+# K05-C1 rows: install.sh upgrades a home it already installed. Fields: id :: kind :: expected :: what
+# Every row is judged the same on every tree. The base bundle is always the sibling wt-main of the tree under test.
+# The fixture home of r1 is installed from the base bundle, its leader file gets a made-up handle, one bin file is edited,
+# one hooks file is edited and one templates file is removed; then the tree's install.sh runs in the upgrade form.
+r1 :: upgrade :: exit 0, closing counts and one line per file as computed from the tree :: first upgrade of the fixture home with LOOP_BACKUP_DIR under LOOP_WORK
+r2 :: config :: config.env and the names list byte for byte after an upgrade that exited 0 :: nothing but kit files change
+r3 :: bytes :: every file under bin, templates, skills, agents equals the tree text with the three fills, the made-up handle kept :: includes the file the home lacked
+r4 :: backup :: the backup folder holds exactly the replaced files, each with its before hash :: same relative path as under ~
+r5 :: hooks :: the hooks files unchanged after an upgrade that exited 0 and counted them skipped :: the edited hooks file stays edited
+r6 :: again :: second upgrade into a new backup folder exits 0 and prints replaced 0, added 0 :: nothing left to do
+r7 :: hooksflag :: with LOOP_UPGRADE_HOOKS=1 the hooks files equal the tree text, the edited one is backed up and replaced :: hooks skipped 0
+r8 :: noconfig :: a home with no config.env exits 5 with a line saying there is nothing to upgrade and writes nothing :: LOOP_UPGRADE set
+r9 :: plain :: a plain second install of an installed home still exits 4 and leaves config.env alone :: passes on every tree
+r10 :: nobackup :: LOOP_BACKUP_DIR unset is refused with a non-zero exit, a line naming LOOP_BACKUP_DIR, and the home unchanged :: before any write
+r11 :: fullbackup :: LOOP_BACKUP_DIR not empty is refused the same way and its content is untouched :: before any write
+r12 :: handle :: LOOP_OWNER_HANDLE set wins over the handle in the existing file :: every non-hooks file equals the tree text with that value

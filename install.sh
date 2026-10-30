@@ -28,19 +28,41 @@
 #   tests/      -> .loop/tests/   only with --with-tests (the docker shim that `loop-tripwire selftest`
 #                                 finds at bin/../tests); without the flag no tests directory is made
 #
-# Exit codes: 0 installed, 2 usage or unusable repository or HOME, 3 interpreter does not run,
-# 4 something is already installed there, 5 a copy or fill step failed.
+# Upgrade mode, environment form only (no positional argument): LOOP_UPGRADE=1 and LOOP_BACKUP_DIR=<absent or empty
+# folder> against a home whose .loop holds config.env. Every file it is about to replace is first copied into
+# LOOP_BACKUP_DIR under the same relative path; then every kit file under bin, templates, skills and agents is replaced
+# with the bundle's text and the same three fills (OWNER_HANDLE: LOOP_OWNER_HANDLE when set, otherwise the word the
+# existing file holds where the bundle line holds the token), and a bundle file the home lacks is added. config.env, the
+# names list and everything else stay as they are. The hooks directory is touched only when LOOP_UPGRADE_HOOKS is also
+# 1. One line per file replaced or added, with its sha256 before and after, then one line with four counts (replaced,
+# added, unchanged, hooks skipped). Run again, it replaces 0 and adds 0. Without LOOP_UPGRADE an installed home still
+# exits 4. A home with no config.env exits 5 (nothing to upgrade). A LOOP_BACKUP_DIR that is unset or not empty is
+# refused with exit 2 before any write.
+#
+# Exit codes: 0 installed (or upgraded), 2 usage or unusable repository or HOME or backup folder, 3 interpreter does not
+# run, 4 something is already installed there, 5 a copy or fill step failed, or an upgrade found no config.env.
 # This script never edits settings.json or CLAUDE.md, never pushes, and does not touch git.
 set -u
 
 SRC="$(cd "$(dirname "$0")" && pwd)"
 
+# spell a path as a drive-letter forward-slash literal (C:/... on Windows)
+spell() {
+  if command -v cygpath >/dev/null 2>&1; then
+    cygpath -m "$1"
+  else
+    printf '%s' "$1" | tr '\\' '/'
+  fi
+}
+
 WITH_TESTS=0
+UPGRADE=0
 PYARG=""
 if [ "$#" -eq 0 ]; then
   # environment form: read only when no positional argument is given
   PYARG="${LOOP_PY:-}"
   if [ "${LOOP_WITH_TESTS:-}" = "1" ]; then WITH_TESTS=1; fi
+  if [ "${LOOP_UPGRADE:-}" = "1" ]; then UPGRADE=1; fi
 else
   for a in "$@"; do
     if [ "$a" = "--with-tests" ]; then
@@ -90,9 +112,28 @@ done
 MAP="agents:.claude/agents hooks:.claude/hooks skills:.claude/skills bin:.loop/bin templates:.loop/templates"
 if [ "$WITH_TESTS" -eq 1 ]; then MAP="$MAP tests:.loop/tests"; fi
 CONFIG="$HOME/.loop/config.env"
-if [ -e "$CONFIG" ]; then
+if [ "$UPGRADE" -eq 0 ] && [ -e "$CONFIG" ]; then
   echo "install.sh: .loop/config.env already exists under HOME. This home is already installed; nothing was written." >&2
   exit 4
+fi
+if [ "$UPGRADE" -eq 1 ]; then
+  if [ ! -e "$CONFIG" ]; then
+    echo "install.sh: LOOP_UPGRADE is set but .loop/config.env does not exist under HOME; there is nothing to upgrade. Nothing was written." >&2
+    exit 5
+  fi
+  BK="$(printf '%s' "${LOOP_BACKUP_DIR:-}" | tr '\\' '/')"
+  if [ -z "$BK" ]; then
+    echo "install.sh: LOOP_UPGRADE needs LOOP_BACKUP_DIR set to an absent or empty folder; it is unset. Refused; nothing was written." >&2
+    exit 2
+  fi
+  case "$BK" in
+    /*|[A-Za-z]:/*) ;;
+    *) BK="$(pwd)/$BK";;
+  esac
+  if [ -e "$BK" ] && { [ ! -d "$BK" ] || [ -n "$(ls -A "$BK" 2>/dev/null)" ]; }; then
+    echo "install.sh: LOOP_BACKUP_DIR is not an empty folder. Refused; nothing was written." >&2
+    exit 2
+  fi
 fi
 LIST="$(mktemp)" || { echo "install.sh: cannot make a temporary file. Nothing was written." >&2; exit 2; }
 trap 'rm -f "$LIST"' EXIT
@@ -108,6 +149,120 @@ if [ "$TOTAL" -eq 0 ]; then
   echo "install.sh: found no files to copy. Nothing was written." >&2
   exit 2
 fi
+
+# 2b. upgrade mode: replace, add, back up, report; the plain install below is not reached
+if [ "$UPGRADE" -eq 1 ]; then
+  HOMELIT="$(spell "$HOME")"
+  SRCLIT="$(spell "$SRC")"
+  BKLIT="$(spell "$BK")"
+  if [ -z "$HOMELIT" ] || [ -z "$SRCLIT" ] || [ -z "$BKLIT" ]; then
+    echo "install.sh: could not spell a path as a literal path. Nothing was written." >&2
+    exit 5
+  fi
+  UPG='
+import hashlib, os, re, shutil, sys
+src, home, py, bk, uph, owner = sys.argv[1:7]
+tok = b"@LOOP_PYTHON@"
+otok = b"OWNER_HANDLE"
+pyb, hb, ob = py.encode(), home.encode(), owner.encode()
+uph = (uph == "1")
+
+def sha(b):
+    return hashlib.sha256(b).hexdigest()
+
+def keep(new, old):
+    # where a bundle line holds the owner token, take the word that stands at the same place in the existing file
+    oldlines = [l.rstrip(b"\r") for l in old.split(b"\n")]
+    out = []
+    for ln in new.split(b"\n"):
+        if otok in ln:
+            body = ln.rstrip(b"\r")
+            eol = ln[len(body):]
+            parts = body.split(otok)
+            rx = re.escape(parts[0]) + b"(?P<h>\\S+?)"
+            for p in parts[1:-1]:
+                rx += re.escape(p) + b"(?P=h)"
+            rx += re.escape(parts[-1]) + b"$"
+            cr = re.compile(b"^" + rx)
+            for ol in oldlines:
+                m = cr.match(ol)
+                if m:
+                    h = m.group("h")
+                    if h != otok:
+                        ln = body.replace(otok, h) + eol
+                    break
+        out.append(ln)
+    return b"\n".join(out)
+
+def fill(to, data, old):
+    new = data.replace(tok, pyb)
+    if to.startswith(".claude/agents/"):
+        out = []
+        front = 0
+        for ln in new.split(b"\n"):
+            if ln.strip(b"\r") == b"---":
+                front += 1
+            if front == 1 and ln.lstrip().startswith(b"command:") and b"$HOME" in ln:
+                ln = ln.replace(b"$HOME", hb)
+            out.append(ln)
+        new = b"\n".join(out)
+    if otok in new:
+        if ob:
+            new = new.replace(otok, ob)
+        elif old is not None:
+            new = keep(new, old)
+    return new
+
+plan = []
+skipped = unchanged = 0
+for line in sys.stdin.read().split("\n"):
+    line = line.strip("\r")
+    if not line:
+        continue
+    frm, to = line.split("\t")
+    if to.startswith(".claude/hooks/") and not uph:
+        skipped += 1
+        continue
+    data = open(src + "/" + frm, "rb").read()
+    dest = home + "/" + to
+    old = open(dest, "rb").read() if os.path.isfile(dest) else None
+    new = fill(to, data, old)
+    if old is None:
+        plan.append(("added", frm, to, None, new))
+    elif old == new:
+        unchanged += 1
+    else:
+        plan.append(("replaced", frm, to, old, new))
+# every before-copy first, each read back, then the writes
+for kind, frm, to, old, new in plan:
+    if kind == "replaced":
+        b = bk + "/" + to
+        os.makedirs(os.path.dirname(b), exist_ok=True)
+        with open(b, "wb") as fh:
+            fh.write(old)
+        if open(b, "rb").read() != old:
+            print("install.sh: the backup copy of " + to + " does not match; nothing was replaced", file=sys.stderr)
+            sys.exit(5)
+nrep = nadd = 0
+for kind, frm, to, old, new in plan:
+    dest = home + "/" + to
+    if kind == "added":
+        os.makedirs(os.path.dirname(dest), exist_ok=True)
+        with open(dest, "wb") as fh:
+            fh.write(new)
+        shutil.copymode(src + "/" + frm, dest)
+        nadd += 1
+    else:
+        with open(dest, "wb") as fh:
+            fh.write(new)
+        nrep += 1
+    print("%s %s sha256 before %s after %s" % (kind, to, sha(old) if old is not None else "-", sha(new)))
+print("upgrade: replaced %d, added %d, unchanged %d, hooks skipped %d" % (nrep, nadd, unchanged, skipped))
+'
+  cut -f1,2 "$LIST" | "$PY" -c "$UPG" "$SRCLIT" "$HOMELIT" "$PY" "$BKLIT" "${LOOP_UPGRADE_HOOKS:-}" "${LOOP_OWNER_HANDLE:-}" || { echo "install.sh: the upgrade failed" >&2; exit 5; }
+  exit 0
+fi
+
 CLASH=0
 while IFS="$(printf '\t')" read -r from to; do
   if [ -e "$HOME/$to" ]; then CLASH=$((CLASH + 1)); fi
@@ -127,11 +282,7 @@ echo "copied $TOTAL file(s)"
 # Besides the token, on the hook command lines of the installed agent files the $HOME spelling is replaced
 # by the literal home this install goes into (drive-letter forward-slash form, C:/... on Windows), so an
 # installed agent file has no $HOME on any hook line. Other lines and other files keep $HOME as written.
-if command -v cygpath >/dev/null 2>&1; then
-  HOMELIT="$(cygpath -m "$HOME")"
-else
-  HOMELIT="$(printf '%s' "$HOME" | tr '\\' '/')"
-fi
+HOMELIT="$(spell "$HOME")"
 if [ -z "$HOMELIT" ]; then
   echo "install.sh: could not spell HOME as a literal path" >&2
   exit 5
