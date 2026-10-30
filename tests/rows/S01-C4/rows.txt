@@ -1,0 +1,7 @@
+# id :: kind :: expected :: argument   (order rows: the file, then the items in order, separated by ' ;; ')
+P1 :: present :: present :: docs/guides/install.md
+P2 :: present :: present :: docs/guides/first-goal.md
+D1 :: drift :: exit=0 unnamed=0 :: bin hooks and keys of the tree
+D2 :: control :: exit=1 planted=yes :: loop-planted-s01c4
+G1 :: order :: ordered :: docs/guides/install.md ;; bash install.sh /full/path/to/python ;; LOOP_PY=/full/path/to/python LOOP_WITH_TESTS=1 bash install.sh ;; LOOP_UPGRADE=1 LOOP_BACKUP_DIR=<absent or empty folder> ;; must be an absent or empty folder ;; List the backup folder first ;; Copy each file in the backup folder back to its relative path under the home
+G2 :: order :: ordered :: docs/guides/first-goal.md ;; templates/GOAL.md ;; $LOOP_HOME/goals/<GOAL-ID>/GOAL.md ;; loop-dispatch <GOAL-ID> --timeout <seconds> ;; Stop 1: an owner gate ;; Stop 2: a reviewer FAIL after two retries ;; Stop 3: the budget ;; $LOOP_HOME/goals/<GOAL-ID>/report.md ;; loop-auditor

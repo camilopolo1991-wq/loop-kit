@@ -17,7 +17,7 @@ Every row runner takes no argument and reads its environment. The rows home is H
 
     HOME=<home> USERPROFILE=<home> LOOP_HOME=<home>/.loop LOOP_TREE=<tree> LOOP_ROWS_HOME=<home> LOOP_WORK=<work> LOOP_PY=<python> LOOP_NAMES_FILE=<names> PYTHONDONTWRITEBYTECODE=1 <python> tests/rows/<folder>/run.py
 
-Row folders: C1 C10 C12 C2 C3 C4 C5 C6 C8 K03-C1 K03-C2 K03-C3 K03-C4 K03-C5 K03-C6 K03-C7 K03-C8 K04-C1 K04-C2 K04-C3 K04-C4 K04-C5 K04-C6 K04-C7 K04-C8 K05-C1 K05-C2 K05-C3 K05-C4 K05-C5 K05-C8 S01-C1 S01-C2 S01-C3 S01-C5 S01-C8
+Row folders: C1 C10 C12 C2 C3 C4 C5 C6 C8 K03-C1 K03-C2 K03-C3 K03-C4 K03-C5 K03-C6 K03-C7 K03-C8 K04-C1 K04-C2 K04-C3 K04-C4 K04-C5 K04-C6 K04-C7 K04-C8 K05-C1 K05-C2 K05-C3 K05-C4 K05-C5 K05-C8 S01-C1 S01-C2 S01-C3 S01-C4 S01-C5 S01-C8
 
 Nine of them also take the tree, the home and the work folder as three arguments after the runner path, in that order, with the same fills:
 
@@ -28,6 +28,12 @@ The scanner on a range, before a push, then the two lints:
     bash bin/loop-scan --range origin/<RECORD_BRANCH>..HEAD
     bash bin/loop-card-lint examples/example-card.md
     bash bin/loop-skill-lint skills/
+
+Names the drift test looks for: tests/rows/S01-C4/run.py fails when a name below is missing from docs/STATUS.md, docs/guides/, this file or the README. A command file under bin/ is a file that is not a .py module, not under __pycache__ and not DESCRIPTION.md. Each name is on a line of its own here, with what it is.
+
+- Command files: loop-card-lint (lints cards and plans), loop-dispatch (starts a leader), loop-guard-run (runs one shell command), loop-journal (appends a journal line), loop-names-refresh (retired), loop-preflight (start-of-session facts), loop-redact-check (redactor control), loop-report (delivers a report), loop-scan (secret and name scan), loop-settings-merge (merges kit settings), loop-skill-lint (lints skills), loop-ticket (writes tickets), loop-ticket-migrate (ticket format converter), loop-tripwire (window check).
+- Hooks files under hooks/: pretool-guard.py (the shell guard), readonly-guard.py (read-only roles), writer-git-guard.py (git denied to the writer), writer-path-guard.py (writer paths).
+- Keys of the DEFAULTS table in bin/loop_conf.py are listed in docs/STATUS.md.
 
 ## Files that move together
 

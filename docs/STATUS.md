@@ -2,7 +2,7 @@
 
 Every figure of the kit is stated here and nowhere else. Each is the figure, the command that measured it, and one line reading "measured at commit <sha> on <date>". Commands are run from the repository root. Paths outside the repository are written relative to `$HOME`.
 
-The commit named on those lines is the head of the task branch before the commit that holds this file. The count of row folders includes the folder of that commit, S01-C3, so it is one more than the head holds.
+The commit named on those lines is the head of the task branch before the commit that holds this file. The count of row folders includes the folder of that commit, S01-C4, so it is one more than the head holds.
 
 ## The kit
 
@@ -46,7 +46,7 @@ Row folders under tests/rows/:
 
 ```
 $ find tests/rows -mindepth 1 -maxdepth 1 -type d | wc -l
-36
+37
 ```
 
 measured at commit 14bf1d0dc9a44bc006e141ac09c71441b7cae13f on 2026-10-30
@@ -59,6 +59,25 @@ $ git rev-list --count main
 ```
 
 measured at commit 14bf1d0dc9a44bc006e141ac09c71441b7cae13f on 2026-10-30
+
+## Configuration keys
+
+The keys of the DEFAULTS table in bin/loop_conf.py, each read from `$HOME/.loop/config.env`. tests/rows/S01-C4/run.py fails when one is not named in this file, docs/guides/, AGENTS.md or the README.
+
+- LOOP_HOME: the loop home, `~/.loop` by default.
+- ENGINE_RECORD_DIR: the worktree of the record branch.
+- RECORD_BRANCH: the branch inside that worktree which carries state, journal and exports.
+- STATE_FILE: the state document, `docs/STATE.md` of the record worktree by default.
+- JOURNAL_FILE: the append-only journal, `docs/JOURNAL.md` of the record worktree by default.
+- EXPORT_DIR: the exports folder, `exports` of the record worktree by default.
+- WRAPPERS: the space-separated wrappers the roles run commands through.
+- WRITABLE_TREES: the colon-separated git worktrees the leader may create task branches in.
+- MAX_LEADERS: how many leaders run at once, 1 by default.
+- SURFACES: the space-separated surface wrappers installed here, empty for none.
+- TRIPWIRE_NOISE: the name patterns at the top of the home whose changes the tripwire reports as noise.
+- REPORT_SEND_CMD: the command that sends a report; empty leaves the report on disk.
+- REPORT_MAX_LINES: the line limit of a report, 80 by default.
+- STATE_MAX_LINES: the line limit of the state document, 150 by default.
 
 ## Figures carried from the README
 
