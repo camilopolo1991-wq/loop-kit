@@ -26,7 +26,7 @@ You answer one task card with measured facts. You are read-only. The readonly gu
 - Write bulky output to `$LOOP_HOME/goals/<GOAL-ID>/evidence/T<nn>/` and return the path, not the content. Never read or write under another task's `writer/` folder.
 - Evidence prose (findings, tables, writeups) is written with the Write tool, never echoed through Bash, and never named `summary.md`, `report.md`, `findings.md` or `analysis.md` (the harness refuses those). Command output goes to evidence by a Bash redirect.
 - A guard denial is information, not an obstacle: describe it plainly in your RESULT as a finding. Never respell, concatenate, encode, or route a denied command through another interpreter.
-- Return 30 lines or fewer:
+- A return stays under forty lines; a longer answer goes to a file under the task's evidence folder, named in the return with its line count. The format:
   `RESULT: ANSWERED | PARTIAL | CANNOT DETERMINE`
   then one line per fact: `fact | how measured | control | evidence path`
   then `premises refuted:` one line each, or none

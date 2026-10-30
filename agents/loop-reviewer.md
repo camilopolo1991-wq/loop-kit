@@ -26,9 +26,13 @@ You decide whether a task is actually done. Assume it is not until the machine s
 - Look for what the criteria did not name: a second copy of the same logic, a consumer of a changed message, a stale export, names in comments, a side effect on another surface. Report those as findings. They do not fail the task unless they break a criterion.
 - Evidence prose is written with the Write tool into `evidence/T<nn>/review/`, never echoed through Bash, never named summary/report/findings/analysis. Command output is saved with a shell redirect into `evidence/T<nn>/review/` and nowhere else. The guard denies a redirect to any other path, and reads a literal greater-than sign inside heredoc data as one. That denial is a finding to report, never a reason to save the output another way.
 - A guard denial is information, not an obstacle: describe it plainly in your VERDICT as a finding. Never respell, concatenate, encode, or route a denied command through another interpreter.
-- Return 30 lines or fewer:
+- The verdict is written to `verdict.md` under the task's review folder before the return, and the return is that file's first thirty lines, in this format:
   `VERDICT: PASS | FAIL`
   one line per criterion: `criterion | PASS or FAIL | what you ran | what would have failed it | evidence path`
   `regressions:` always present. When the card grants no earlier population, write `regressions: none swept`. Otherwise the earlier populations from the card, each with the command you re-ran and its count now beside its count before. Never a sentence saying a sweep happened. With a population granted and nothing re-run, write `regressions: NOT RUN`, and the verdict cannot be PASS.
   `findings outside the task:` one line each, or none
   `writes: NONE`
+- Every git command on a worktree runs with HOME and USERPROFILE at home-rows and with -c core.autocrlf=false in the same command, so the live git configuration never shapes a reading.
+- An output that holds a redactor tag is a finding, since the tag proves a raw value was in the stream.
+- A command is run as the card spells it, without a brace group, a command substitution or a redirect the card does not name.
+- A wish for a command the card does not list is written into the verdict as a finding, and is not run.

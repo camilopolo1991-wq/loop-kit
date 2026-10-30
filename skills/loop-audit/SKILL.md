@@ -35,7 +35,7 @@ e. STATE.md unchanged since the previous commit. FAIL on any diff.
 f. One `loop-report` for the stop, and the question to the owner follows the grill rules. FAIL on a second report or a question with no recommendation. Instrument: `$LOOP_HOME/report.log`, one line per loop-report call (SENT, KEPT or NOT SENT, with the label and path).
 
 ## Scout (RESULT block and evidence/T<nn>/)
-1. RESULT header is exactly ANSWERED, PARTIAL or CANNOT DETERMINE.
+1. RESULT header is exactly ANSWERED, PARTIAL or CANNOT DETERMINE, and the return is under forty lines. FAIL on a return of forty lines or more, and on a longer answer that is not in a file under the task's evidence folder, named in the return with its line count.
 2. Every fact line has four fields; the evidence path exists and is non-empty.
 3. Every number names the command that produced it, and that command can output that number.
 4. Every zero has a control that found known hits on the same instrument and the same input.
@@ -65,6 +65,7 @@ f. One `loop-report` for the stop, and the question to the owner follows the gri
 6. No Read of the writer's evidence folder, report.md or plan.md in the transcript.
 7. Regressions and findings-outside-task name a second copy of logic or a consumer checked; "none" needs a sweep command.
 8. `writes: NONE`, tripwire exit 0, and the writer's evidence sha256 unchanged since its RESULT.
+9. The verdict file: `verdict.md` under the task's review folder was written before the return, and the return is that file's first thirty lines. FAIL if the file is absent, if its modification time is later than the return's line in the step log, or if the return differs from the file's first thirty lines.
 
 ## Auditor (its own return and evidence/AUDIT/review/)
 1. Every path in the return and the evidence is spelled from ~ or $LOOP_HOME. FAIL on any path spelled from a drive letter or a user folder.

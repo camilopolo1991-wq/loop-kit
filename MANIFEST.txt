@@ -2,9 +2,9 @@ agents/loop-auditor.md	984a6728947d6f336a3f0df93f047ab4ec0392c0d70ef02abb62f97b9
 	L15	          command: "LOOP_ROLE=reviewer @LOOP_PYTHON@ $HOME/.claude/hooks/readonly-guard.py"
 agents/loop-leader.md	f2e477ba71ff31d144ef2b2d29b12ae2990bef0003dd4dfa3688249aa32f62d4	5d036b2283305e83e3fab7b3def17dca8d662b2a312c3218e3ae85aed52613fc
 	L12	You are the leader of the engineering loop on this machine. You run one goal at a time from `$LOOP_HOME/goals/<GOAL-ID>/GOAL.md` until every acceptance criterion passes, or until a stop condition says wait. `$LOOP_HOME` comes from `$LOOP_HOME/config.env` (default `~/.loop`). The owner is OWNER_HANDLE; "the owner" below means him.
-agents/loop-reviewer.md	d01ba9e808c8b3814bee6477bc3d1175cb5a871b3cc761c529d5122fb860fde3	2cd0fc9019520b07cc9c34e610571ac007e91ebe29dcf970cb1a297c62cd5769
+agents/loop-reviewer.md	d01ba9e808c8b3814bee6477bc3d1175cb5a871b3cc761c529d5122fb860fde3	069127946361d842599f4564347ddb4fd5829b048915a8d373fe69fa788e8733
 	L14	          command: "LOOP_ROLE=reviewer @LOOP_PYTHON@ $HOME/.claude/hooks/readonly-guard.py"
-agents/loop-scout.md	0e6570d753599d2d4b103fcf77b58eba33276966317d37a7237f7bf3f45f89ab	d7490530f9859d67b4bdac8617eef3cff21c2073ec42ff4d873173690cdce996
+agents/loop-scout.md	0e6570d753599d2d4b103fcf77b58eba33276966317d37a7237f7bf3f45f89ab	ba4eb7804b9cddce26389b8e4ea955fcfb0f6dd3ca39aa1417d9e21b0d5ac2ea
 	L14	          command: "LOOP_ROLE=scout @LOOP_PYTHON@ $HOME/.claude/hooks/readonly-guard.py"
 agents/loop-writer.md	80a83c8eeb3e04f53734bb054699188a80501b68b396c75205e6f4dbcec6dad5	29a4ff4f89d6b95754e60ce12fff3e9e58fa20855ed5278bd0a0967a7c692291
 	L14	          command: "@LOOP_PYTHON@ $HOME/.claude/hooks/writer-git-guard.py"
@@ -49,7 +49,7 @@ hooks/pretool-guard.py	c87e489ab17e8ebd7176706a37aac6d69e9860e4ce1fd3fa3bccdaee5
 hooks/readonly-guard.py	b5a6d45a46950901aff502a032edf5423e3a42d5f0849ff9b5cda749b83d28be	fa61b55c7fec7c38cb576824be2327d4eee3c3d55fd2ab985a9b3b06faa5b82b
 hooks/writer-git-guard.py	032404f3244f569c1a69eef38100bfe5f30026303409d93723d1e88cad974a7e	d13b07cfb8bf62a922d2833d24927f1a378cb5246b6477f5b163552343f25df6
 hooks/writer-path-guard.py	10245aa716c18c92508cc2ddc2d3e899e21ea181b25ef511d913e705cacffc17	10245aa716c18c92508cc2ddc2d3e899e21ea181b25ef511d913e705cacffc17
-skills/loop-audit/SKILL.md	deddb4c6d26e8bd60a83c3bcb767f8a5494193f00e6b8ee6ccd10447057dc39d	e45631a26f993f577f71cb385fc965f3877e4bc532bc0b10df257f5577b3783e
+skills/loop-audit/SKILL.md	deddb4c6d26e8bd60a83c3bcb767f8a5494193f00e6b8ee6ccd10447057dc39d	08d5fcc953e24b40c3f806047214e8e01af09ed797fcb4f32f59457266f1a5db
 skills/loop-git/SKILL.md	341f362770e1f223432c89c81dddcbd3631a84d07dafcd75ee8152b1c12b1f53	341f362770e1f223432c89c81dddcbd3631a84d07dafcd75ee8152b1c12b1f53
 skills/loop-goal/SKILL.md	756234750e6c218323b7a9ae11c227fab644da5b61cd152e11c57c4066193ce7	ee919e3ecb29af2813b8c56a93183d5327781cca9b8fa9a4e5464b3284d64bc2
 skills/loop-grill/SKILL.md	f6d35ae7b3e3d087d0be913cad43624e78dc148b98580f589a8d86b2461d871a	f6d35ae7b3e3d087d0be913cad43624e78dc148b98580f589a8d86b2461d871a

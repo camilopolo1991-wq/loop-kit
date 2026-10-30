@@ -1,0 +1,12 @@
+# K05-C5 rows. Format: id :: kind :: expect :: arg
+#   phrase      arg <file in the tree>|<phrase>                      the phrase is in the file
+#   linephrase  arg <file in the tree>|<line prefix>|<phrase>         a line starting with the prefix holds the phrase
+# Every tree is judged against the same expectations (found), so a tree without the change prints FAIL.
+cR1 :: phrase :: found :: agents/loop-reviewer.md|The verdict is written to `verdict.md` under the task's review folder before the return, and the return is that file's first thirty lines
+cR2 :: phrase :: found :: agents/loop-reviewer.md|Every git command on a worktree runs with HOME and USERPROFILE at home-rows and with -c core.autocrlf=false in the same command
+cR3 :: phrase :: found :: agents/loop-reviewer.md|An output that holds a redactor tag is a finding, since the tag proves a raw value was in the stream.
+cR4 :: phrase :: found :: agents/loop-reviewer.md|A command is run as the card spells it, without a brace group, a command substitution or a redirect the card does not name.
+cR5 :: phrase :: found :: agents/loop-reviewer.md|A wish for a command the card does not list is written into the verdict as a finding, and is not run.
+cS1 :: phrase :: found :: agents/loop-scout.md|A return stays under forty lines; a longer answer goes to a file under the task's evidence folder, named in the return with its line count.
+cA1 :: linephrase :: found :: skills/loop-audit/SKILL.md|9. The verdict file|`verdict.md` under the task's review folder was written before the return, and the return is that file's first thirty lines
+cA2 :: linephrase :: found :: skills/loop-audit/SKILL.md|1. RESULT header|the return is under forty lines. FAIL on a return of forty lines or more, and on a longer answer that is not in a file under the task's evidence folder, named in the return with its line count
