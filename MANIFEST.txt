@@ -2,7 +2,7 @@ agents/loop-auditor.md	984a6728947d6f336a3f0df93f047ab4ec0392c0d70ef02abb62f97b9
 	L15	          command: "LOOP_ROLE=reviewer @LOOP_PYTHON@ $HOME/.claude/hooks/readonly-guard.py"
 agents/loop-leader.md	f2e477ba71ff31d144ef2b2d29b12ae2990bef0003dd4dfa3688249aa32f62d4	5d036b2283305e83e3fab7b3def17dca8d662b2a312c3218e3ae85aed52613fc
 	L12	You are the leader of the engineering loop on this machine. You run one goal at a time from `$LOOP_HOME/goals/<GOAL-ID>/GOAL.md` until every acceptance criterion passes, or until a stop condition says wait. `$LOOP_HOME` comes from `$LOOP_HOME/config.env` (default `~/.loop`). The owner is OWNER_HANDLE; "the owner" below means him.
-agents/loop-reviewer.md	d01ba9e808c8b3814bee6477bc3d1175cb5a871b3cc761c529d5122fb860fde3	069127946361d842599f4564347ddb4fd5829b048915a8d373fe69fa788e8733
+agents/loop-reviewer.md	d01ba9e808c8b3814bee6477bc3d1175cb5a871b3cc761c529d5122fb860fde3	be0868262299167709ce21a350b39b404335fd00cd22882a1db960b17818326f
 	L14	          command: "LOOP_ROLE=reviewer @LOOP_PYTHON@ $HOME/.claude/hooks/readonly-guard.py"
 agents/loop-scout.md	0e6570d753599d2d4b103fcf77b58eba33276966317d37a7237f7bf3f45f89ab	ba4eb7804b9cddce26389b8e4ea955fcfb0f6dd3ca39aa1417d9e21b0d5ac2ea
 	L14	          command: "LOOP_ROLE=scout @LOOP_PYTHON@ $HOME/.claude/hooks/readonly-guard.py"
