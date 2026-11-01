@@ -1,13 +1,10 @@
 #!/usr/bin/env python3
 """S01-C2 rows runner: AGENTS.md at the root and one-line DESCRIPTION.md files in the folders this goal writes.
 
-Usage: run.py   (no positional argument; reads the environment)
-
 Environment: LOOP_TREE (the tree under test; every tree is judged against the same rows in rows.txt, so a tree without
 the files prints FAIL on the rows that need them), LOOP_ROWS_HOME (the home any child would get, with LOOP_HOME at that
 home plus /.loop; this runner reads files only and starts no child), LOOP_WORK (a work folder, created when absent;
 fixtures would be written there), LOOP_PY and LOOP_NAMES_FILE (accepted, unused here).
-Exits 64 with a usage line when a positional argument is given or when LOOP_TREE, LOOP_ROWS_HOME or LOOP_WORK is unset.
 The runner removes at its start only what its own manifest file (s01c2-manifest.txt in LOOP_WORK) lists from an earlier
 run. One row runs the C3 runner of the tree under test in the environment form as a child, with a work folder and a copy
 of the synthetic names list under LOOP_WORK, both listed in that manifest. The top-level folders are read from the tree itself
@@ -15,82 +12,19 @@ of the synthetic names list under LOOP_WORK, both listed in that manifest. The t
 sha256 of MANIFEST.txt and of the runner's own two files, then rows=N pass=N fail=N. Nothing is spawned in the
 background, nothing is killed, no timeout is set.
 """
-import hashlib
+import ast
 import os
 import re
 import sys
+sys.dont_write_bytecode = True
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from _lib import (clean_earlier, env_dirs, fwd, info_sha, load_rows, make_env, read_bytes, read_lines, register,
+    row_present, shafull, tally)
 
 USAGE = 'usage: LOOP_TREE=<tree> LOOP_ROWS_HOME=<home> LOOP_WORK=<work> LOOP_PY=<python> LOOP_NAMES_FILE=<file> python run.py (no positional argument)'
 MANIFEST = 's01c2-manifest.txt'
 HEADINGS = ['## Where things are', '## Verify', '## Files that move together', '## Cost']
 MAX_LINES = 120
-
-
-def fwd(p):
-    return os.path.abspath(p).replace('\\', '/')
-
-
-def shafull(b):
-    return hashlib.sha256(b).hexdigest()
-
-
-def load_rows(path):
-    rows = []
-    with open(path, encoding='utf-8') as fh:
-        for line in fh:
-            line = line.rstrip('\n')
-            if not line.strip() or line.lstrip().startswith('#'):
-                continue
-            rows.append([x.strip() for x in line.split(' :: ', 3)])
-    return rows
-
-
-def read_bytes(p):
-    try:
-        with open(p, 'rb') as fh:
-            return fh.read()
-    except OSError:
-        return None
-
-
-def read_lines(ctx, rel):
-    b = read_bytes(ctx['tree'] + '/' + rel)
-    return None if b is None else b.decode('utf-8', 'replace').replace('\r\n', '\n').split('\n')
-
-
-def remove_path(p):
-    if os.path.isdir(p):
-        for root, dirs, files in os.walk(p, topdown=False):
-            for f in files:
-                fp = os.path.join(root, f)
-                os.chmod(fp, 0o600)
-                os.remove(fp)
-            for d in dirs:
-                os.rmdir(os.path.join(root, d))
-        os.rmdir(p)
-    elif os.path.exists(p):
-        os.chmod(p, 0o600)
-        os.remove(p)
-
-
-def add_to_manifest(ctx, p):
-    with open(ctx['work'] + '/' + MANIFEST, 'a', encoding='utf-8') as fh:
-        fh.write(p + '\n')
-
-
-def clean_earlier(work):
-    mf = work + '/' + MANIFEST
-    data = read_bytes(mf)
-    if data is None:
-        return 0
-    n = 0
-    for p in data.decode('utf-8', 'replace').split('\n'):
-        p = p.strip()
-        if p and fwd(p).startswith(work + '/') and fwd(p) != work + '/' + MANIFEST and os.path.exists(p):
-            remove_path(p)
-            n += 1
-    os.remove(mf)
-    return n
 
 
 def section(lines, name):
@@ -116,13 +50,6 @@ def listed_row_folders(lines):
         if ln.startswith('Row folders: '):
             return ln[len('Row folders: '):].split()
     return None
-
-
-def row_present(ctx, expect, arg):
-    b = read_bytes(ctx['tree'] + '/' + arg)
-    if b is None:
-        return False, 'expected=%s present actual=absent' % arg
-    return len(b) > 0, 'expected=%s present and not empty actual=%d bytes sha256=%s' % (arg, len(b), shafull(b))
 
 
 def row_headings(ctx, expect, arg):
@@ -242,10 +169,29 @@ def row_rowlist(ctx, expect, arg):
         expect, len(listed), len(actual), ','.join(sorted(set(listed) - set(actual))), ','.join(sorted(set(actual) - set(listed))))
 
 
+def called_readers(text, lib):
+    """(reads LOOP_TREE, reads sys.argv[1]): whether the runner source text really calls (an ast Call on a name it imports
+    from _lib) a function of the library source lib that reads LOOP_TREE, and one that reads sys.argv[1]. A name that
+    only appears in a comment or a string is not a call."""
+    try:
+        tree, ltree = ast.parse(text), ast.parse(lib)
+    except SyntaxError:
+        return False, False
+    imported = {a.asname or a.name: a.name for n in ast.walk(tree) if isinstance(n, ast.ImportFrom) and n.module == '_lib'
+                for a in n.names}
+    called = {imported[n.func.id] for n in ast.walk(tree) if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)
+              and n.func.id in imported}
+    fns = [f for f in ltree.body if isinstance(f, ast.FunctionDef) and f.name in called]
+    env = any(isinstance(c, ast.Constant) and c.value == 'LOOP_TREE' for f in fns for c in ast.walk(f))
+    arg = any(isinstance(s, ast.Subscript) and ast.get_source_segment(lib, s) == 'sys.argv[1]' for f in fns for s in ast.walk(f))
+    return env, arg
+
+
 def row_forms(ctx, expect, arg):
     """Every folder on the Row folders line has a run.py that reads LOOP_TREE (the environment form), and every folder
     on the Positional form line also reads its tree from the argument list. The needles are built from parts so this
-    file holds neither one whole."""
+    file holds neither one whole. A runner may read the tree through the library functions env_dirs and dirs_or_args
+    (tests/rows/_lib.py then holds the read)."""
     lines = read_lines(ctx, arg)
     if lines is None:
         return False, 'expected=%s actual=file absent' % expect
@@ -257,12 +203,15 @@ def row_forms(ctx, expect, arg):
         return False, 'expected=%s actual=the Row folders line is absent or the Positional form line is absent or repeated' % expect
     posf = found[0]
     wrong = []
+    lib = read_bytes(ctx['tree'] + '/tests/rows/_lib.py')
+    libtext = '' if lib is None else lib.decode('utf-8', 'replace')
     for f in allf:
         b = read_bytes(ctx['tree'] + '/tests/rows/' + f + '/run.py')
         text = '' if b is None else b.decode('utf-8', 'replace')
-        if b is None or env_needle not in text:
+        via_env, via_arg = called_readers(text, libtext)
+        if b is None or not (env_needle in text or via_env):
             wrong.append('%s(no LOOP_TREE read)' % f)
-        elif f in posf and pos_needle not in text:
+        elif f in posf and not (pos_needle in text or via_arg):
             wrong.append('%s(listed positional, no argument read)' % f)
     subset = bool(posf) and set(posf) <= set(allf)
     return not wrong and subset, 'expected=%s actual=%d folders, %d also positional, misplaced %d %s, positional within folders %s' % (
@@ -303,13 +252,11 @@ def row_runone(ctx, expect, arg):
     if nb is not None:
         with open(names_dst, 'wb') as fh:
             fh.write(nb)
-        add_to_manifest(ctx, names_dst)
+        register(ctx['work'], MANIFEST, names_dst)
     runwork = ctx['work'] + '/run-' + arg
-    add_to_manifest(ctx, runwork)
-    env = dict(os.environ)
-    env.update({'HOME': ctx['home'], 'USERPROFILE': ctx['home'], 'LOOP_HOME': ctx['home'] + '/.loop', 'LOOP_TREE': ctx['tree'],
-                'LOOP_ROWS_HOME': ctx['home'], 'LOOP_WORK': runwork, 'PYTHONDONTWRITEBYTECODE': '1'})
-    env.pop('LOOP_GOAL', None)
+    register(ctx['work'], MANIFEST, runwork)
+    env = make_env(ctx['home'], {'LOOP_TREE': ctx['tree'], 'LOOP_ROWS_HOME': ctx['home'], 'LOOP_WORK': runwork},
+                   ('LOOP_GOAL',))
     py = fwd(os.environ.get('LOOP_PY') or sys.executable)
     cp = subprocess.run([py, ctx['tree'] + '/' + rel], capture_output=True, text=True, encoding='utf-8', errors='replace',
                         env=env, cwd=ctx['work'])
@@ -377,41 +324,14 @@ KINDS = {'present': row_present, 'headings': row_headings, 'verifypaths': row_ve
 
 
 def main():
-    if len(sys.argv) > 1:
-        print(USAGE)
-        return 64
-    tree_e = os.environ.get('LOOP_TREE')
-    home_e = os.environ.get('LOOP_ROWS_HOME')
-    work_e = os.environ.get('LOOP_WORK')
-    if not tree_e or not home_e or not work_e:
-        print(USAGE)
-        return 64
-    tree, work = fwd(tree_e), fwd(work_e)
-    os.makedirs(work, exist_ok=True)
-    cleaned = clean_earlier(work)
-    print('cleaned %d path(s) listed by an earlier run' % cleaned)
-    ctx = {'tree': tree, 'work': work, 'home': fwd(home_e)}
+    tree, home, work = env_dirs(USAGE)
+    clean_earlier(work, MANIFEST, True)
+    ctx = {'tree': tree, 'work': work, 'home': home}
     here = os.path.dirname(os.path.abspath(__file__))
-    for label, p in (('tree MANIFEST.txt', tree + '/MANIFEST.txt'), ('tests/rows/S01-C2/run.py', here + '/run.py'),
-                     ('tests/rows/S01-C2/rows.txt', here + '/rows.txt')):
-        b = read_bytes(p)
-        print('info sha256 %s %s' % (label, shafull(b) if b is not None else 'absent'))
+    info_sha((('tree MANIFEST.txt', tree + '/MANIFEST.txt'), ('tests/rows/S01-C2/run.py', here + '/run.py'),
+                     ('tests/rows/S01-C2/rows.txt', here + '/rows.txt')))
     rows = load_rows(os.path.join(here, 'rows.txt'))
-    passed = failed = 0
-    for rid, kind, expect, arg in rows:
-        fn = KINDS.get(kind)
-        if fn is None:
-            ok, detail = False, 'unknown kind ' + kind
-        else:
-            try:
-                ok, detail = fn(ctx, expect, arg)
-            except Exception as exc:
-                ok, detail = False, 'expected=row runs actual=error %s' % type(exc).__name__
-        passed += ok
-        failed += (not ok)
-        print('%s %s %s' % ('PASS' if ok else 'FAIL', rid, detail))
-    print('rows=%d pass=%d fail=%d' % (len(rows), passed, failed))
-    return 1 if failed else 0
+    return tally(rows, KINDS, (ctx,), True, False)
 
 
 if __name__ == '__main__':

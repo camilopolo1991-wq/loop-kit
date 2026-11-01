@@ -1,12 +1,9 @@
 #!/usr/bin/env python3
 """S01-C7 rows runner: the README is short and holds what the card C7 names.
 
-Usage: run.py   (no positional argument; reads the environment)
-
 Environment: LOOP_TREE (the tree under test), LOOP_ROWS_HOME (the rows home; HOME, USERPROFILE and LOOP_HOME of any child
 would be this home and this home plus /.loop, and this runner starts no child), LOOP_WORK (a work folder, created when
 absent), LOOP_PY and LOOP_NAMES_FILE (accepted, unused here).
-Exits 64 with a usage line when a positional argument is given or when LOOP_TREE, LOOP_ROWS_HOME or LOOP_WORK is unset.
 
 Each README row applies one checker to README.md of the tree and prints PASS when the verdict equals the expected one
 ('holds'). Each control row writes a constructed bad README text under LOOP_WORK and applies the same checker to it; its
@@ -14,10 +11,12 @@ expected verdict is 'rejected', so a checker that cannot fail makes its control 
 listed in s01c7-manifest.txt in LOOP_WORK; the next run removes only what that file lists. Prints PASS or FAIL per row, an
 info line with the sha256 of the runner's own two files, then rows=N pass=N fail=N. Nothing is spawned and nothing is killed.
 """
-import hashlib
 import os
 import re
 import sys
+sys.dont_write_bytecode = True
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from _lib import Score, clean_earlier, env_dirs, info_sha, load_rows, read_bytes, register, write_text
 
 USAGE = 'usage: LOOP_TREE=<tree> LOOP_ROWS_HOME=<home> LOOP_WORK=<work> LOOP_PY=<python> LOOP_NAMES_FILE=<file> python run.py (no positional argument)'
 MANIFEST = 's01c7-manifest.txt'
@@ -27,71 +26,9 @@ START_FILES = ['AGENTS.md', 'docs/guides/install.md', 'docs/STATUS.md']
 KIT_FOLDERS = ['agents', 'hooks', 'skills', 'bin', 'templates', 'tests']
 
 
-def fwd(p):
-    return os.path.abspath(p).replace('\\', '/')
-
-
-def shafull(b):
-    return hashlib.sha256(b).hexdigest()
-
-
-def read_bytes(p):
-    try:
-        with open(p, 'rb') as fh:
-            return fh.read()
-    except OSError:
-        return None
-
-
 def read_text(p):
     b = read_bytes(p)
     return b.decode('utf-8', 'replace').replace('\r\n', '\n') if b is not None else None
-
-
-def load_rows(path):
-    rows = []
-    with open(path, encoding='utf-8') as fh:
-        for line in fh:
-            line = line.rstrip('\n')
-            if not line.strip() or line.lstrip().startswith('#'):
-                continue
-            rows.append([x.strip() for x in line.split(' :: ', 3)])
-    return rows
-
-
-def remove_path(p):
-    if os.path.isdir(p):
-        for root, dirs, files in os.walk(p, topdown=False):
-            for f in files:
-                fp = os.path.join(root, f)
-                os.chmod(fp, 0o600)
-                os.remove(fp)
-            for d in dirs:
-                os.rmdir(os.path.join(root, d))
-        os.rmdir(p)
-    elif os.path.exists(p):
-        os.chmod(p, 0o600)
-        os.remove(p)
-
-
-def clean_earlier(work):
-    mf = work + '/' + MANIFEST
-    data = read_bytes(mf)
-    if data is None:
-        return 0
-    n = 0
-    for p in data.decode('utf-8', 'replace').split('\n'):
-        p = p.strip()
-        if p and fwd(p).startswith(work + '/') and fwd(p) != work + '/' + MANIFEST and os.path.exists(p):
-            remove_path(p)
-            n += 1
-    os.remove(mf)
-    return n
-
-
-def add_to_manifest(ctx, p):
-    with open(ctx['work'] + '/' + MANIFEST, 'a', encoding='utf-8') as fh:
-        fh.write(p + '\n')
 
 
 # ---- helpers over the README text ----
@@ -316,10 +253,9 @@ def row_readme(ctx, expect, arg):
 def row_control(ctx, expect, arg):
     d = ctx['work'] + '/' + CONTROL_DIR
     os.makedirs(d, exist_ok=True)
-    add_to_manifest(ctx, d)
+    register(ctx['work'], MANIFEST, d)
     p = d + '/' + arg + '.md'
-    with open(p, 'w', encoding='utf-8', newline='\n') as fh:
-        fh.write(BAD[arg])
+    write_text(p, BAD[arg])
     ok, detail = CHECKERS[arg](ctx, read_text(p))
     got = 'accepted' if ok else 'rejected'
     return got == expect, 'expected=%s actual=%s %s' % (expect, got, detail)
@@ -329,26 +265,13 @@ KINDS = {'readme': row_readme, 'control': row_control}
 
 
 def main():
-    if len(sys.argv) > 1:
-        print(USAGE)
-        return 64
-    tree_e = os.environ.get('LOOP_TREE')
-    home_e = os.environ.get('LOOP_ROWS_HOME')
-    work_e = os.environ.get('LOOP_WORK')
-    if not tree_e or not home_e or not work_e:
-        print(USAGE)
-        return 64
-    tree, work = fwd(tree_e), fwd(work_e)
-    os.makedirs(work, exist_ok=True)
-    cleaned = clean_earlier(work)
-    print('cleaned %d path(s) listed by an earlier run' % cleaned)
-    ctx = {'tree': tree, 'work': work, 'home': fwd(home_e)}
+    tree, home, work = env_dirs(USAGE)
+    clean_earlier(work, MANIFEST, True)
+    ctx = {'tree': tree, 'work': work, 'home': home}
     here = os.path.dirname(os.path.abspath(__file__))
-    for label, p in (('tests/rows/S01-C7/run.py', here + '/run.py'), ('tests/rows/S01-C7/rows.txt', here + '/rows.txt')):
-        b = read_bytes(p)
-        print('info sha256 %s %s' % (label, shafull(b) if b is not None else 'absent'))
+    info_sha((('tests/rows/S01-C7/run.py', here + '/run.py'), ('tests/rows/S01-C7/rows.txt', here + '/rows.txt')))
     rows = load_rows(os.path.join(here, 'rows.txt'))
-    passed = failed = 0
+    score = Score()
     for rid, kind, expect, arg in rows:
         fn = KINDS.get(kind)
         if fn is None or arg not in CHECKERS:
@@ -358,11 +281,8 @@ def main():
                 ok, detail = fn(ctx, expect, arg)
             except Exception as exc:
                 ok, detail = False, 'expected=row runs actual=error %s' % type(exc).__name__
-        passed += ok
-        failed += (not ok)
-        print('%s %s %s' % ('PASS' if ok else 'FAIL', rid, detail))
-    print('rows=%d pass=%d fail=%d' % (len(rows), passed, failed))
-    return 1 if failed else 0
+        score.row(ok, rid, '%s' % (detail))
+    return score.done(rows)
 
 
 if __name__ == '__main__':

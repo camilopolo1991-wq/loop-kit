@@ -26,18 +26,23 @@ Prints PASS or FAIL per row with expected and actual (the sha256 of the text whe
 rows=N pass=P fail=F. Writes nothing outside LOOP_WORK, spawns nothing in the background, kills nothing.
 """
 import ast
-import hashlib
 import json
 import os
 import re
 import shutil
 import subprocess
 import sys
+sys.dont_write_bytecode = True
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from _lib import (clean_earlier, emit, env_dirs, fwd, load_rows, make_env, read_bytes, register, shafull, shatext,
+    write_text)
 
 USAGE = ('usage: LOOP_TREE=<tree> LOOP_ROWS_HOME=<home> LOOP_WORK=<work> [LOOP_PY=<python>] python run.py '
          '(no positional argument)')
 GOAL = 'FIXTURE-K06C1'
 MANIFEST = 'k06c1-manifest.txt'
+CHILD_DROP = ('LOOP_GUARD_MODE', 'LOOP_WITH_TESTS', 'LOOP_OWNER', 'LOOP_OWNER_HANDLE', 'LOOP_UPGRADE',
+              'LOOP_UPGRADE_HOOKS', 'LOOP_BACKUP_DIR')
 HOOK_FILES = {'pre': 'pretool-guard.py', 'ro': 'readonly-guard.py', 'wg': 'writer-git-guard.py',
               'wp': 'writer-path-guard.py'}
 CONTROL_ROW = 'ro-deny-bash-rm-exe'
@@ -45,82 +50,9 @@ CONTROL_FROM = b"'.exe'"
 CONTROL_TO = b"'.exX'"
 
 
-def fwd(p):
-    return os.path.abspath(p).replace('\\', '/')
-
-
-def shafull(b):
-    return hashlib.sha256(b).hexdigest()
-
-
-def shatext(s):
-    return hashlib.sha256(s.encode('utf-8', 'replace')).hexdigest()
-
-
-def read_bytes(p):
-    try:
-        with open(p, 'rb') as fh:
-            return fh.read()
-    except OSError:
-        return None
-
-
-def remove_path(p):
-    if os.path.isdir(p):
-        for root, dirs, files in os.walk(p, topdown=False):
-            for f in files:
-                fp = os.path.join(root, f)
-                os.chmod(fp, 0o600)
-                os.remove(fp)
-            for d in dirs:
-                os.rmdir(os.path.join(root, d))
-        os.rmdir(p)
-    elif os.path.exists(p):
-        os.chmod(p, 0o600)
-        os.remove(p)
-
-
-def clean_earlier(work):
-    """Remove only what an earlier run of this runner wrote, as listed in its own manifest file."""
-    mf = work + '/' + MANIFEST
-    data = read_bytes(mf)
-    if data is None:
-        return 0
-    n = 0
-    for p in data.decode('utf-8', 'replace').split('\n'):
-        p = p.strip()
-        if p and fwd(p).startswith(work + '/') and fwd(p) != mf and os.path.exists(p):
-            remove_path(p)
-            n += 1
-    os.remove(mf)
-    return n
-
-
-def register(ctx, p):
-    with open(ctx['work'] + '/' + MANIFEST, 'a', encoding='utf-8') as fh:
-        fh.write(p + '\n')
-
-
-def load_rows(path):
-    rows = []
-    with open(path, encoding='utf-8') as fh:
-        for line in fh:
-            line = line.rstrip('\n')
-            if not line.strip() or line.lstrip().startswith('#'):
-                continue
-            rows.append([x.strip() for x in line.split(' :: ', 6)])
-    return rows
-
-
 def child_env(ctx, home=None, role=None, extra=None):
-    h = home or ctx['home']
-    env = dict(os.environ)
-    for k in ('LOOP_GUARD_MODE', 'LOOP_WITH_TESTS', 'LOOP_OWNER', 'LOOP_OWNER_HANDLE', 'LOOP_UPGRADE',
-              'LOOP_UPGRADE_HOOKS', 'LOOP_BACKUP_DIR'):
-        env.pop(k, None)
-    env.update({'HOME': h, 'USERPROFILE': h, 'LOOP_HOME': h + '/.loop', 'LOOP_GOAL': GOAL,
-                'JOURNAL_FILE': ctx['work'] + '/journal-fixture.txt', 'PYTHONDONTWRITEBYTECODE': '1',
-                'LOOP_PY': ctx['py']})
+    env = make_env(home or ctx['home'], {'LOOP_GOAL': GOAL, 'JOURNAL_FILE': ctx['work'] + '/journal-fixture.txt',
+                                         'LOOP_PY': ctx['py']}, CHILD_DROP)
     if role:
         env['LOOP_ROLE'] = role
     if extra:
@@ -149,22 +81,6 @@ def run_hook(ctx, hooks_dir, hook, role, payload):
                         capture_output=True, text=True, encoding='utf-8', errors='replace',
                         env=child_env(ctx, role=role), cwd=ctx['work'])
     return classify(cp)
-
-
-def safe(ctx, s):
-    for h in ctx['hide']:
-        if h and h in s:
-            return 'sha256:' + shatext(s)[:12]
-    return s
-
-
-def emit(ctx, rid, ok, expected, actual):
-    ctx['rows'] += 1
-    if ok:
-        ctx['pass'] += 1
-    else:
-        ctx['fail'] += 1
-    print('%s %s expected=%s actual=%s' % ('PASS' if ok else 'FAIL', rid, safe(ctx, expected), safe(ctx, actual)))
 
 
 def def_names(tree):
@@ -206,7 +122,7 @@ def row_control(ctx, rows):
     if payload is None:
         emit(ctx, 'control-flip-seen', False, 'flip seen', 'control payload row ' + CONTROL_ROW + ' absent')
         return
-    register(ctx, dst)
+    register(ctx['work'], MANIFEST, dst)
     shutil.copytree(src, dst, ignore=shutil.ignore_patterns('__pycache__', '*.pyc'))
     lib = dst + '/_guardlib.py'
     data = read_bytes(lib)
@@ -236,7 +152,7 @@ def row_control(ctx, rows):
 def row_nolib(ctx, rows):
     """A copy of LOOP_TREE/hooks/ without the library: each hook, given a payload it allows, denies and names itself."""
     dst = ctx['work'] + '/nolib-hooks'
-    register(ctx, dst)
+    register(ctx['work'], MANIFEST, dst)
     shutil.copytree(ctx['tree'] + '/hooks', dst, ignore=shutil.ignore_patterns('__pycache__', '*.pyc', '_guardlib.py'))
     for hook, fname in sorted(HOOK_FILES.items()):
         r = next((x for x in rows if x[1] == hook and x[3] == 'allow'), None)
@@ -251,12 +167,11 @@ def row_nolib(ctx, rows):
 def row_upgrade(ctx):
     up = ctx['work'] + '/up-home'
     bk = ctx['work'] + '/up-backup'
-    register(ctx, up)
-    register(ctx, bk)
+    register(ctx['work'], MANIFEST, up)
+    register(ctx['work'], MANIFEST, bk)
     shutil.copytree(ctx['home'], up)
     if not os.path.isfile(up + '/.loop/config.env'):
-        with open(up + '/.loop/config.env', 'w', encoding='utf-8', newline='\n') as fh:
-            fh.write('# fixture config for the upgrade row\n')
+        write_text(up + '/.loop/config.env', '# fixture config for the upgrade row\n')
     env = child_env(ctx, home=up, extra={'LOOP_UPGRADE': '1', 'LOOP_UPGRADE_HOOKS': '1', 'LOOP_BACKUP_DIR': bk})
     cp = subprocess.run(['bash', ctx['tree'] + '/install.sh'], capture_output=True, text=True, encoding='utf-8',
                         errors='replace', env=env, cwd=ctx['work'])
@@ -275,7 +190,7 @@ def row_upgrade(ctx):
 
 def row_fresh(ctx):
     fh_dir = ctx['work'] + '/fresh-home'
-    register(ctx, fh_dir)
+    register(ctx['work'], MANIFEST, fh_dir)
     os.makedirs(fh_dir)
     cp = subprocess.run(['bash', ctx['tree'] + '/install.sh'], capture_output=True, text=True, encoding='utf-8',
                         errors='replace', env=child_env(ctx, home=fh_dir), cwd=ctx['work'])
@@ -291,16 +206,9 @@ def row_fresh(ctx):
 
 
 def main():
-    if len(sys.argv) > 1 or not (os.environ.get('LOOP_TREE') and os.environ.get('LOOP_ROWS_HOME')
-                                 and os.environ.get('LOOP_WORK')):
-        print(USAGE)
-        return 64
-    tree = fwd(os.environ['LOOP_TREE'])
-    home = fwd(os.environ['LOOP_ROWS_HOME'])
-    work = fwd(os.environ['LOOP_WORK'])
+    tree, home, work = env_dirs(USAGE)
     here = os.path.dirname(os.path.abspath(__file__))
-    os.makedirs(work, exist_ok=True)
-    cleaned = clean_earlier(work)
+    cleaned = clean_earlier(work, MANIFEST)
     ctx = {'tree': tree, 'home': home, 'work': work, 'rows': 0, 'pass': 0, 'fail': 0,
            'py': fwd(os.environ.get('LOOP_PY') or sys.executable), 'py_self': fwd(sys.executable),
            'hide': [home, work, tree, fwd(os.path.expanduser('~'))]}
@@ -308,7 +216,7 @@ def main():
         b = read_bytes(p)
         print('info %s sha256=%s' % (label, shafull(b) if b is not None else 'absent'))
     print('info cleaned %d earlier fixture(s)' % cleaned)
-    rows = load_rows(here + '/rows.txt')
+    rows = load_rows(here + '/rows.txt', 6)
     hook_dir = tree + '/hooks'
     reason_bad = reason_n = 0
     for r in rows:

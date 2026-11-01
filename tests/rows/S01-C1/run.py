@@ -1,13 +1,10 @@
 #!/usr/bin/env python3
 """S01-C1 rows runner: bin/loop-skill-lint judges every SKILL.md under a skills folder, one rule at a time.
 
-Usage: run.py   (no positional argument; reads the environment)
-
 Environment: LOOP_TREE (the tree under test; every tree is judged against the same expectations in rows.txt, so a tree
 without the tool prints FAIL on the rows that need it), LOOP_ROWS_HOME (the home every spawned process gets, with LOOP_HOME at
 that home plus /.loop), LOOP_WORK (a work folder, created when absent; every fixture is written there at run time from the
 row text), LOOP_PY (the interpreter the tool and the install resolve), LOOP_NAMES_FILE (passed through to the install).
-Exits 64 with a usage line when a positional argument is given or when LOOP_TREE, LOOP_ROWS_HOME or LOOP_WORK is unset.
 The tool is run as bash <tree>/bin/loop-skill-lint. The installed-tool row installs the tree into a fresh home under
 LOOP_WORK by the install in the environment form (no positional argument) and compares the sha256 of the installed copy of
 each of the two bin files with the tree's file. The runner removes at its start only what its own manifest file
@@ -15,81 +12,20 @@ each of the two bin files with the tree's file. The runner removes at its start 
 run time from parts, so no committed file holds one. Prints PASS or FAIL per row with expected and actual; a sha256 stands in
 for output that could hold a path. Nothing is spawned in the background, nothing is killed, no timeout is set.
 """
-import hashlib
 import os
 import re
 import subprocess
 import sys
 import time
+sys.dont_write_bytecode = True
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from _lib import clean_earlier, env_dirs, fwd, load_rows, make_env, read_bytes, sha, tally
 
 USAGE = 'usage: LOOP_TREE=<tree> LOOP_ROWS_HOME=<home> LOOP_WORK=<work> LOOP_PY=<python> LOOP_NAMES_FILE=<file> python run.py (no positional argument)'
 MANIFEST = 's01c1-manifest.txt'
 SK = 'good-skill'
 DESC = 'description: A constructed one-line description.'
 BIN_FILES = ('loop-skill-lint', 'loop_skill_lint.py')
-
-
-def fwd(p):
-    return os.path.abspath(p).replace('\\', '/')
-
-
-def sha(s):
-    if isinstance(s, str):
-        s = s.encode('utf-8', 'replace')
-    return hashlib.sha256(s).hexdigest()[:12]
-
-
-def shafull(b):
-    return hashlib.sha256(b).hexdigest()
-
-
-def load_rows(path):
-    rows = []
-    with open(path, encoding='utf-8') as fh:
-        for line in fh:
-            line = line.rstrip('\n')
-            if not line.strip() or line.lstrip().startswith('#'):
-                continue
-            rows.append([x.strip() for x in line.split(' :: ', 3)])
-    return rows
-
-
-def read_bytes(p):
-    try:
-        with open(p, 'rb') as fh:
-            return fh.read()
-    except OSError:
-        return None
-
-
-def remove_path(p):
-    if os.path.isdir(p):
-        for root, dirs, files in os.walk(p, topdown=False):
-            for f in files:
-                fp = os.path.join(root, f)
-                os.chmod(fp, 0o600)
-                os.remove(fp)
-            for d in dirs:
-                os.rmdir(os.path.join(root, d))
-        os.rmdir(p)
-    elif os.path.exists(p):
-        os.chmod(p, 0o600)
-        os.remove(p)
-
-
-def clean_earlier(work):
-    mf = work + '/' + MANIFEST
-    data = read_bytes(mf)
-    if data is None:
-        return 0
-    n = 0
-    for p in data.decode('utf-8', 'replace').split('\n'):
-        p = p.strip()
-        if p and fwd(p).startswith(work + '/') and fwd(p) != work + '/' + MANIFEST:
-            remove_path(p)
-            n += 1
-    os.remove(mf)
-    return n
 
 
 def fresh_path(ctx, kind, tag):
@@ -319,12 +255,9 @@ def row_tagsync(ctx, rid, expect, arg):
 def row_install(ctx, rid, expect, arg):
     home = fresh_path(ctx, 'home', 'inst')
     os.makedirs(home)
-    env = dict(ctx['env'])
-    env.update({'HOME': home, 'USERPROFILE': home, 'LOOP_HOME': home + '/.loop', 'LOOP_PY': ctx['py'],
-                'LOOP_NAMES_FILE': ctx['names']})
-    for k in ('LOOP_WITH_TESTS', 'LOOP_OWNER', 'LOOP_OWNER_HANDLE', 'LOOP_UPGRADE', 'LOOP_UPGRADE_HOOKS',
-              'LOOP_BACKUP_DIR', 'LOOP_GOAL', 'JOURNAL_FILE', 'LOOP_SKILLS_DIR'):
-        env.pop(k, None)
+    env = make_env(home, {'LOOP_PY': ctx['py'], 'LOOP_NAMES_FILE': ctx['names']},
+                   ('LOOP_WITH_TESTS', 'LOOP_OWNER', 'LOOP_OWNER_HANDLE', 'LOOP_UPGRADE', 'LOOP_UPGRADE_HOOKS',
+                    'LOOP_BACKUP_DIR', 'LOOP_GOAL', 'JOURNAL_FILE', 'LOOP_SKILLS_DIR'))
     cp = subprocess.run(['bash', ctx['tree'] + '/install.sh'], capture_output=True, text=True, encoding='utf-8',
                         errors='replace', env=env, cwd=ctx['work'])
     same = 0
@@ -344,40 +277,13 @@ KINDS = {'kit': row_kit, 'fx': row_fx, 'env': row_env, 'argwins': row_argwins, '
 
 
 def main():
-    if len(sys.argv) > 1:
-        print(USAGE)
-        return 64
-    tree_e = os.environ.get('LOOP_TREE')
-    home_e = os.environ.get('LOOP_ROWS_HOME')
-    work_e = os.environ.get('LOOP_WORK')
-    if not tree_e or not home_e or not work_e:
-        print(USAGE)
-        return 64
-    tree, home, work = fwd(tree_e), fwd(home_e), fwd(work_e)
-    os.makedirs(work, exist_ok=True)
+    tree, home, work = env_dirs(USAGE)
     py = fwd(os.environ.get('LOOP_PY') or sys.executable)
-    env = dict(os.environ)
-    env.update({'HOME': home, 'USERPROFILE': home, 'LOOP_HOME': home + '/.loop', 'PYTHONDONTWRITEBYTECODE': '1', 'LOOP_PY': py})
-    env.pop('LOOP_GOAL', None)
-    cleaned = clean_earlier(work)
-    print('cleaned %d path(s) listed by an earlier run' % cleaned)
+    env = make_env(home, {'LOOP_PY': py}, ('LOOP_GOAL',))
+    clean_earlier(work, MANIFEST, True)
     ctx = {'tree': tree, 'home': home, 'work': work, 'env': env, 'py': py, 'names': os.environ.get('LOOP_NAMES_FILE', '')}
     rows = load_rows(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'rows.txt'))
-    passed = failed = 0
-    for rid, kind, expect, arg in rows:
-        fn = KINDS.get(kind)
-        if fn is None:
-            ok, detail = False, 'unknown kind ' + kind
-        else:
-            try:
-                ok, detail = fn(ctx, rid, expect, arg)
-            except Exception as exc:
-                ok, detail = False, 'expected=row runs actual=error %s' % type(exc).__name__
-        passed += ok
-        failed += (not ok)
-        print('%s %s %s' % ('PASS' if ok else 'FAIL', rid, detail))
-    print('rows=%d pass=%d fail=%d' % (len(rows), passed, failed))
-    return 1 if failed else 0
+    return tally(rows, KINDS, (ctx,), True)
 
 
 if __name__ == '__main__':

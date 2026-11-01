@@ -2,83 +2,33 @@
 """K04-C2 rows runner: install.sh gives the hook command lines of the installed agent files the literal home,
 and writes config.env last through a temporary file renamed into place as the final step.
 
-Usage: run.py   (no positional argument; reads the environment)
-
 Environment: LOOP_TREE (the tree under test; every tree is judged against the same expectations in rows.txt, so a tree
 without the change prints FAIL on the rows the change adds), LOOP_ROWS_HOME (used only for the set-or-usage check; every row
 targets a fresh home under LOOP_WORK), LOOP_WORK (a work folder, created when absent), LOOP_PY (the interpreter the install
 is given), LOOP_NAMES_FILE (passed through; row r4 reads its one word at run time and sets it as LOOP_OWNER for that one install).
-Exits 64 with a usage line when a positional argument is given or when LOOP_TREE, LOOP_ROWS_HOME or LOOP_WORK is unset.
 Every spawned process gets HOME and USERPROFILE at the home the row targets, LOOP_HOME at that home plus /.loop, and
 PYTHONDONTWRITEBYTECODE=1. The install runs as bash <tree>/install.sh with no positional argument. Prints PASS or FAIL per
 row with expected and actual; a sha256 stands in for any text that could hold a home path. Nothing is spawned in the
 background, nothing is killed, no timeout is set.
 """
-import hashlib
 import os
 import subprocess
 import sys
 import time
+sys.dont_write_bytecode = True
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from _lib import env_dirs, fresh_home, fwd, load_rows, make_env, read_bytes, run_phrase, sha, tally
 
 USAGE = 'usage: LOOP_TREE=<tree> LOOP_ROWS_HOME=<home> LOOP_WORK=<work> [LOOP_PY=<python>] [LOOP_NAMES_FILE=<file>] python run.py (no positional argument)'
 AGENTS = ['loop-leader', 'loop-scout', 'loop-writer', 'loop-reviewer', 'loop-auditor']
 HOMEVAR = b'$' + b'HOME'
 
 
-def fwd(p):
-    return os.path.abspath(p).replace('\\', '/')
-
-
-def sha(s):
-    if isinstance(s, str):
-        s = s.encode('utf-8', 'replace')
-    return hashlib.sha256(s).hexdigest()[:12]
-
-
-def load_rows(path):
-    rows = []
-    with open(path, encoding='utf-8') as fh:
-        for line in fh:
-            line = line.rstrip('\n')
-            if not line.strip() or line.lstrip().startswith('#'):
-                continue
-            rows.append([x.strip() for x in line.split(' :: ', 3)])
-    return rows
-
-
-def make_env(home, py):
-    env = dict(os.environ)
-    env['HOME'] = home
-    env['USERPROFILE'] = home
-    env['LOOP_HOME'] = home + '/.loop'
-    env['PYTHONDONTWRITEBYTECODE'] = '1'
-    env['LOOP_PY'] = py
-    env.pop('LOOP_WITH_TESTS', None)
-    env.pop('LOOP_OWNER', None)
-    env.pop('LOOP_GOAL', None)
-    env.pop('JOURNAL_FILE', None)
-    return env
-
-
-def fresh_home(work, tag):
-    home = '%s/home-%s-%d' % (work, tag, time.time_ns())
-    os.makedirs(home)
-    return home
-
-
 def install(script, home, work, py, owner=None):
-    env = make_env(home, py)
+    env = make_env(home, {'LOOP_PY': py}, ('LOOP_WITH_TESTS', 'LOOP_OWNER', 'LOOP_GOAL', 'JOURNAL_FILE'))
     if owner:
         env['LOOP_OWNER'] = owner
     return subprocess.run(['bash', script], capture_output=True, text=True, env=env, cwd=work)
-
-
-def read_bytes(p):
-    try:
-        with open(p, 'rb') as fh:
-            return fh.read()
-    except OSError:
-        return None
 
 
 def row_hooks(tree, work, py, state):
@@ -158,15 +108,6 @@ def row_owner(tree, work, py, names_file):
         cp.returncode, src_tokens, left, 'yes' if filled else 'no', sha(inst or b''), sha(cp.stdout + cp.stderr))
 
 
-def run_phrase(tree, expect, arg):
-    rel, phrase = arg.split('|', 1)
-    data = read_bytes(tree + '/' + rel)
-    if data is None:
-        return False, 'expected=%s actual=unreadable' % expect
-    actual = 'found' if phrase.encode('utf-8') in data else 'absent'
-    return actual == expect, 'expected=%s actual=%s file_sha=%s' % (expect, actual, sha(data))
-
-
 def row_reinstall(tree, work, py, state):
     home = state.get('home')
     if not home or not state.get('installed'):
@@ -182,39 +123,17 @@ def row_reinstall(tree, work, py, state):
 
 
 def main():
-    if len(sys.argv) > 1:
-        print(USAGE)
-        return 64
-    tree_e = os.environ.get('LOOP_TREE')
-    home_e = os.environ.get('LOOP_ROWS_HOME')
-    work_e = os.environ.get('LOOP_WORK')
-    if not tree_e or not home_e or not work_e:
-        print(USAGE)
-        return 64
-    tree, work = fwd(tree_e), fwd(work_e)
-    os.makedirs(work, exist_ok=True)
+    tree, home, work = env_dirs(USAGE)
     py = fwd(os.environ.get('LOOP_PY') or sys.executable)
     rows = load_rows(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'rows.txt'))
     state = {}
-    passed = failed = 0
-    for rid, kind, expect, _what in rows:
-        if kind == 'hooks':
-            ok, detail = row_hooks(tree, work, py, state)
-        elif kind == 'standin':
-            ok, detail = row_standin(tree, work, py)
-        elif kind == 'reinstall':
-            ok, detail = row_reinstall(tree, work, py, state)
-        elif kind == 'owner':
-            ok, detail = row_owner(tree, work, py, os.environ.get('LOOP_NAMES_FILE'))
-        elif kind == 'phrase':
-            ok, detail = run_phrase(tree, expect, _what)
-        else:
-            ok, detail = False, 'unknown kind ' + kind
-        passed += ok
-        failed += (not ok)
-        print('%s %s %s' % ('PASS' if ok else 'FAIL', rid, detail))
-    print('rows=%d pass=%d fail=%d' % (len(rows), passed, failed))
-    return 1 if failed else 0
+    return tally(rows, {
+        'hooks': lambda rid, expect, arg: row_hooks(tree, work, py, state),
+        'standin': lambda rid, expect, arg: row_standin(tree, work, py),
+        'reinstall': lambda rid, expect, arg: row_reinstall(tree, work, py, state),
+        'owner': lambda rid, expect, arg: row_owner(tree, work, py, os.environ.get('LOOP_NAMES_FILE')),
+        'phrase': lambda rid, expect, arg: run_phrase(tree, expect, arg),
+    })
 
 
 if __name__ == '__main__':

@@ -1,38 +1,18 @@
 #!/usr/bin/env python3
 """K03-C6 rows runner: the effort line in the frontmatter of each of the five agent files.
 
-Usage: run.py   (no positional argument; reads the environment)
-
 Environment: LOOP_TREE (the tree under test), LOOP_ROWS_HOME (used only for the set-or-usage check; no row targets it),
 LOOP_WORK (a work folder, created when absent; no row writes into it), LOOP_PY and LOOP_NAMES_FILE (accepted, unused).
-Exits 64 with a usage line when LOOP_TREE, LOOP_ROWS_HOME or LOOP_WORK is unset.
 Phrase row: a bytes search for one exact line inside the frontmatter of one file (between the first three-dash line
 and the next three-dash line). Frontmatter row: in each named file the first line is the three-dash line, a later
 three-dash line closes the frontmatter, and a model line sits between them. Nothing is spawned.
 Prints PASS or FAIL per row with the file, expected and actual.
 """
-import hashlib
 import os
 import sys
-
-
-def fwd(p):
-    return os.path.abspath(p).replace('\\', '/')
-
-
-def sha(s):
-    return hashlib.sha256(s).hexdigest()[:12]
-
-
-def load_rows(path):
-    rows = []
-    with open(path, encoding='utf-8') as fh:
-        for line in fh:
-            line = line.rstrip('\n')
-            if not line.strip() or line.lstrip().startswith('#'):
-                continue
-            rows.append([x.strip() for x in line.split(' :: ', 3)])
-    return rows
+sys.dont_write_bytecode = True
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from _lib import env_dirs, load_rows, sha, tally
 
 
 def frontmatter(data):
@@ -46,7 +26,7 @@ def frontmatter(data):
     return None
 
 
-def run_phrase(tree, expect, arg):
+def run_fm_phrase(tree, expect, arg):
     rel, phrase = arg.split('|', 1)
     try:
         with open(tree + '/' + rel, 'rb') as fh:
@@ -77,28 +57,12 @@ def run_frontmatter(tree, expect, arg):
 
 
 def main():
-    tree_e = os.environ.get('LOOP_TREE')
-    home_e = os.environ.get('LOOP_ROWS_HOME')
-    work_e = os.environ.get('LOOP_WORK')
-    if not tree_e or not home_e or not work_e:
-        print('usage: LOOP_TREE=<tree> LOOP_ROWS_HOME=<home> LOOP_WORK=<work> [LOOP_PY=<python>] [LOOP_NAMES_FILE=<file>] python run.py')
-        return 64
-    tree, work = fwd(tree_e), fwd(work_e)
-    os.makedirs(work, exist_ok=True)
+    tree, home, work = env_dirs('usage: LOOP_TREE=<tree> LOOP_ROWS_HOME=<home> LOOP_WORK=<work> [LOOP_PY=<python>] [LOOP_NAMES_FILE=<file>] python run.py', False)
     rows = load_rows(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'rows.txt'))
-    passed = failed = 0
-    for rid, kind, expect, arg in rows:
-        if kind == 'phrase':
-            ok, detail = run_phrase(tree, expect, arg)
-        elif kind == 'frontmatter':
-            ok, detail = run_frontmatter(tree, expect, arg)
-        else:
-            ok, detail = False, 'unknown kind ' + kind
-        passed += ok
-        failed += (not ok)
-        print('%s %s %s' % ('PASS' if ok else 'FAIL', rid, detail))
-    print('rows=%d pass=%d fail=%d' % (len(rows), passed, failed))
-    return 1 if failed else 0
+    return tally(rows, {
+        'phrase': lambda rid, expect, arg: run_fm_phrase(tree, expect, arg),
+        'frontmatter': lambda rid, expect, arg: run_frontmatter(tree, expect, arg),
+    })
 
 
 if __name__ == '__main__':

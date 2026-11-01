@@ -17,12 +17,14 @@ manifest file (k05c1-manifest.txt in LOOP_WORK) lists from an earlier run. Print
 actual; a sha256 stands in for any text that could hold a home path. Nothing is spawned in the background, nothing is
 killed, no timeout is set.
 """
-import hashlib
 import os
 import re
 import subprocess
 import sys
 import time
+sys.dont_write_bytecode = True
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from _lib import clean_earlier, fwd, load_rows, make_env, read_bytes, register, sha, shafull, tally
 
 USAGE = 'usage: LOOP_TREE=<tree> LOOP_ROWS_HOME=<home> LOOP_WORK=<work> [LOOP_PY=<python>] [LOOP_NAMES_FILE=<file>] python run.py (no positional argument)'
 WORD = 'Omicronfixture'
@@ -36,41 +38,8 @@ LINE = re.compile(r'^(replaced|added) (\S+) sha256 before (\S+) after (\S+)$', r
 MANIFEST = 'k05c1-manifest.txt'
 
 
-def fwd(p):
-    return os.path.abspath(p).replace('\\', '/')
-
-
-def sha(s):
-    if isinstance(s, str):
-        s = s.encode('utf-8', 'replace')
-    return hashlib.sha256(s).hexdigest()[:12]
-
-
-def shafull(b):
-    return hashlib.sha256(b).hexdigest()
-
-
 def clean(s):
     return s.replace('\r', '')
-
-
-def load_rows(path):
-    rows = []
-    with open(path, encoding='utf-8') as fh:
-        for line in fh:
-            line = line.rstrip('\n')
-            if not line.strip() or line.lstrip().startswith('#'):
-                continue
-            rows.append([x.strip() for x in line.split(' :: ', 3)])
-    return rows
-
-
-def read_bytes(p):
-    try:
-        with open(p, 'rb') as fh:
-            return fh.read()
-    except OSError:
-        return None
 
 
 def write_bytes(p, b):
@@ -78,68 +47,24 @@ def write_bytes(p, b):
         fh.write(b)
 
 
-def register(ctx, path):
-    with open(ctx['work'] + '/' + MANIFEST, 'a', encoding='utf-8') as fh:
-        fh.write(path + '\n')
-
-
-def remove_path(p):
-    if os.path.isdir(p):
-        for root, dirs, files in os.walk(p, topdown=False):
-            for f in files:
-                fp = os.path.join(root, f)
-                os.chmod(fp, 0o600)
-                os.remove(fp)
-            for d in dirs:
-                os.rmdir(os.path.join(root, d))
-        os.rmdir(p)
-    elif os.path.exists(p):
-        os.chmod(p, 0o600)
-        os.remove(p)
-
-
-def clean_earlier(work):
-    mf = work + '/' + MANIFEST
-    data = read_bytes(mf)
-    if data is None:
-        return 0
-    n = 0
-    for p in data.decode('utf-8', 'replace').split('\n'):
-        p = p.strip()
-        if p and fwd(p).startswith(work + '/') and fwd(p) != work + '/' + MANIFEST:
-            remove_path(p)
-            n += 1
-    os.remove(mf)
-    return n
-
-
-def make_env(home, py):
-    env = dict(os.environ)
-    env['HOME'] = home
-    env['USERPROFILE'] = home
-    env['LOOP_HOME'] = home + '/.loop'
-    env['PYTHONDONTWRITEBYTECODE'] = '1'
-    env['LOOP_PY'] = py
-    for k in ('LOOP_WITH_TESTS', 'LOOP_OWNER', 'LOOP_OWNER_HANDLE', 'LOOP_UPGRADE', 'LOOP_UPGRADE_HOOKS',
-              'LOOP_BACKUP_DIR', 'LOOP_GOAL', 'JOURNAL_FILE'):
-        env.pop(k, None)
-    return env
+ENV_DROP = ('LOOP_WITH_TESTS', 'LOOP_OWNER', 'LOOP_OWNER_HANDLE', 'LOOP_UPGRADE', 'LOOP_UPGRADE_HOOKS',
+            'LOOP_BACKUP_DIR', 'LOOP_GOAL', 'JOURNAL_FILE')
 
 
 def fresh_path(ctx, kind, tag):
     p = '%s/%s-%s-%d' % (ctx['work'], kind, tag, time.time_ns())
-    register(ctx, p)
+    register(ctx['work'], MANIFEST, p)
     return p
 
 
-def fresh_home(ctx, tag):
+def home_for(ctx, tag):
     home = fresh_path(ctx, 'home', tag)
     os.makedirs(home)
     return home
 
 
 def run_install(ctx, script, home, extra=None, drop=()):
-    env = make_env(home, ctx['py'])
+    env = make_env(home, {'LOOP_PY': ctx['py']}, ENV_DROP)
     for k in drop:
         env.pop(k, None)
     if extra:
@@ -230,7 +155,7 @@ def classify(st, exp):
 
 def setup(ctx, tag):
     """A home installed from the base bundle, then edited so an upgrade has work to do."""
-    home = fresh_home(ctx, tag)
+    home = home_for(ctx, tag)
     st = {'home': home, 'ok': False}
     cp = run_install(ctx, ctx['base'] + '/install.sh', home)
     st['base_exit'] = cp.returncode
@@ -401,7 +326,7 @@ def row_hooksflag(ctx):
 
 
 def row_noconfig(ctx):
-    home = fresh_home(ctx, 'r8')
+    home = home_for(ctx, 'r8')
     bk = fresh_path(ctx, 'bk', 'r8')
     cp = run_upgrade(ctx, home, bk)
     text = clean(cp.stdout + cp.stderr)
@@ -413,7 +338,7 @@ def row_noconfig(ctx):
 
 
 def row_plain(ctx):
-    home = fresh_home(ctx, 'r9')
+    home = home_for(ctx, 'r9')
     first = run_install(ctx, ctx['tree'] + '/install.sh', home)
     cfg = read_bytes(home + '/.loop/config.env')
     second = run_install(ctx, ctx['tree'] + '/install.sh', home)
@@ -502,25 +427,10 @@ def main():
         return 64
     os.makedirs(work, exist_ok=True)
     py = fwd(os.environ.get('LOOP_PY') or sys.executable)
-    cleaned = clean_earlier(work)
-    print('cleaned %d path(s) listed by an earlier run' % cleaned)
+    clean_earlier(work, MANIFEST, True)
     ctx = {'tree': tree, 'work': work, 'py': py, 'base_dir': base_dir, 'base': base_dir}
     rows = load_rows(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'rows.txt'))
-    passed = failed = 0
-    for rid, kind, _expect, _what in rows:
-        fn = KINDS.get(kind)
-        if fn is None:
-            ok, detail = False, 'unknown kind ' + kind
-        else:
-            try:
-                ok, detail = fn(ctx)
-            except Exception as exc:
-                ok, detail = False, 'expected=row runs actual=error %s' % type(exc).__name__
-        passed += ok
-        failed += (not ok)
-        print('%s %s %s' % ('PASS' if ok else 'FAIL', rid, detail))
-    print('rows=%d pass=%d fail=%d' % (len(rows), passed, failed))
-    return 1 if failed else 0
+    return tally(rows, KINDS, (ctx,), True, None)
 
 
 if __name__ == '__main__':

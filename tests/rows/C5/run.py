@@ -10,35 +10,18 @@ after the fourth whitespace-separated field (the dash is the first) with the exp
 Prints PASS or FAIL per row with the two sha256 prefixes (never the line), then a count, and exits 1 on
 any FAIL. Nothing is spawned in the background and nothing is killed.
 """
-import hashlib
 import os
 import re
 import subprocess
 import sys
+sys.dont_write_bytecode = True
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from _lib import Score, dirs_or_args, fwd, load_rows, make_env, sha, write_text
 
 NAMES_FILE = 'fixture-names.lst'  # beside <work>, in its parent folder
 GOAL = 'FIXT-C5'
 STEP = 'T01'
 NOTE = 'a home path in the text was rewritten to ~'
-
-
-def fwd(p):
-    return os.path.abspath(p).replace('\\', '/')
-
-
-def sha(s):
-    return hashlib.sha256(s.encode('utf-8', 'replace')).hexdigest()[:12]
-
-
-def load_rows(path):
-    rows = []
-    with open(path, encoding='utf-8') as fh:
-        for line in fh:
-            line = line.rstrip('\n')
-            if not line.strip() or line.lstrip().startswith('#'):
-                continue
-            rows.append([x.strip() for x in line.split(' :: ', 3)])
-    return rows
 
 
 def spelling(kind, home):
@@ -72,31 +55,16 @@ def tail_of(line):
 
 
 def main():
-    if len(sys.argv) == 1:
-        tree_e = os.environ.get('LOOP_TREE')
-        home_e = os.environ.get('LOOP_ROWS_HOME')
-        work_e = os.environ.get('LOOP_WORK')
-        if not tree_e or not home_e or not work_e:
-            print('usage: run.py <tree> <home> <work>   or   LOOP_TREE=<tree> LOOP_ROWS_HOME=<home> LOOP_WORK=<work> run.py')
-            return 64
-        sys.argv[1:] = [tree_e, home_e, work_e]
-    if len(sys.argv) != 4:
-        print('usage: run.py <tree> <home> <work>')
-        return 2
-    tree, home, work = fwd(sys.argv[1]), fwd(sys.argv[2]), fwd(sys.argv[3])
+    tree, home, work = dirs_or_args()
     os.makedirs(work, exist_ok=True)
     stub = tree + '/bin/loop-journal'
     rows = load_rows(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'rows.txt'))
-    env = dict(os.environ)
-    env.update({'HOME': home, 'USERPROFILE': home, 'LOOP_HOME': home + '/.loop',
-                'LOOP_PY': fwd(sys.executable), 'LOOP_NAMES_FILE': os.path.dirname(work) + '/' + NAMES_FILE,
-                'PYTHONDONTWRITEBYTECODE': '1'})
-    env.pop('LOOP_GOAL', None)
-    passed = failed = 0
+    env = make_env(home, {'LOOP_PY': fwd(sys.executable), 'LOOP_NAMES_FILE': os.path.dirname(work) + '/' + NAMES_FILE},
+                   ('LOOP_GOAL',))
+    score = Score()
     for rid, kind, expect, _desc in rows:
         fixture = work + '/' + rid + '.journal'
-        with open(fixture, 'w', encoding='utf-8', newline='\n') as fh:
-            fh.write('')
+        write_text(fixture, '')
         env['JOURNAL_FILE'] = fixture
         sp = spelling(kind, home)
         if sp is None:
@@ -113,13 +81,9 @@ def main():
         note_ok = (NOTE in out) if expect == 'rewritten' else (NOTE not in out)
         ok = (cp.returncode == 0 and got is not None and sha(got) == sha(want) and got == want
               and note_ok and 'journaled: ' + GOAL + ' ' + STEP in out)
-        passed += ok
-        failed += (not ok)
-        print('%s %s kind=%s exit=%d tail_sha=%s expected_sha=%s note=%s' % (
-            'PASS' if ok else 'FAIL', rid, kind, cp.returncode, sha(got) if got is not None else 'none',
+        score.row(ok, rid, 'kind=%s exit=%d tail_sha=%s expected_sha=%s note=%s' % (kind, cp.returncode, sha(got) if got is not None else 'none',
             sha(want), 'yes' if NOTE in out else 'no'))
-    print('rows=%d pass=%d fail=%d' % (len(rows), passed, failed))
-    return 1 if failed else 0
+    return score.done(rows)
 
 
 if __name__ == '__main__':

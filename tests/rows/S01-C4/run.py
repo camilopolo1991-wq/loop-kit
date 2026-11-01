@@ -20,12 +20,14 @@ per row, an info line with the sha256 of the runner's own two files, then rows=N
 background and nothing is killed.
 """
 import ast
-import hashlib
 import os
 import re
 import shutil
 import subprocess
 import sys
+sys.dont_write_bytecode = True
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from _lib import clean_earlier, fwd, info_sha, load_rows, make_env, read_bytes, register, tally, write_text
 
 USAGE = 'usage: LOOP_TREE=<tree> LOOP_ROWS_HOME=<home> LOOP_WORK=<work> LOOP_PY=<python> LOOP_NAMES_FILE=<file> python run.py (no positional argument)'
 MANIFEST = 's01c4-manifest.txt'
@@ -33,71 +35,9 @@ CONTROL_DIR = 's01c4-control'
 PLANTED = 'loop-planted-s01c4'
 
 
-def fwd(p):
-    return os.path.abspath(p).replace('\\', '/')
-
-
-def shafull(b):
-    return hashlib.sha256(b).hexdigest()
-
-
-def read_bytes(p):
-    try:
-        with open(p, 'rb') as fh:
-            return fh.read()
-    except OSError:
-        return None
-
-
 def read_text(p):
     b = read_bytes(p)
     return b.decode('utf-8', 'replace') if b is not None else ''
-
-
-def load_rows(path):
-    rows = []
-    with open(path, encoding='utf-8') as fh:
-        for line in fh:
-            line = line.rstrip('\n')
-            if not line.strip() or line.lstrip().startswith('#'):
-                continue
-            rows.append([x.strip() for x in line.split(' :: ', 3)])
-    return rows
-
-
-def remove_path(p):
-    if os.path.isdir(p):
-        for root, dirs, files in os.walk(p, topdown=False):
-            for f in files:
-                fp = os.path.join(root, f)
-                os.chmod(fp, 0o600)
-                os.remove(fp)
-            for d in dirs:
-                os.rmdir(os.path.join(root, d))
-        os.rmdir(p)
-    elif os.path.exists(p):
-        os.chmod(p, 0o600)
-        os.remove(p)
-
-
-def clean_earlier(work):
-    mf = work + '/' + MANIFEST
-    data = read_bytes(mf)
-    if data is None:
-        return 0
-    n = 0
-    for p in data.decode('utf-8', 'replace').split('\n'):
-        p = p.strip()
-        if p and fwd(p).startswith(work + '/') and fwd(p) != work + '/' + MANIFEST and os.path.exists(p):
-            remove_path(p)
-            n += 1
-    os.remove(mf)
-    return n
-
-
-def add_to_manifest(ctx, p):
-    with open(ctx['work'] + '/' + MANIFEST, 'a', encoding='utf-8') as fh:
-        fh.write(p + '\n')
 
 
 # ---- the drift test ----
@@ -171,16 +111,14 @@ def drift_child_main(tree, bindir):
 # ---- rows ----
 
 def run_drift(ctx, bindir):
-    env = dict(os.environ)
-    env.update({'HOME': ctx['home'], 'USERPROFILE': ctx['home'], 'LOOP_HOME': ctx['home'] + '/.loop',
-                'PYTHONDONTWRITEBYTECODE': '1', 'S01C4_DRIFT_BIN': bindir})
+    env = make_env(ctx['home'], {'S01C4_DRIFT_BIN': bindir})
     cp = subprocess.run([sys.executable, '-I', '-B', os.path.abspath(__file__)],
                         capture_output=True, text=True, env=env, cwd=ctx['work'])
     unnamed = [ln[len('UNNAMED '):] for ln in cp.stdout.splitlines() if ln.startswith('UNNAMED ')]
     return cp.returncode, unnamed, cp.stdout
 
 
-def row_present(ctx, expect, arg):
+def row_exists(ctx, expect, arg):
     b = read_bytes(ctx['tree'] + '/' + arg)
     got = 'present' if b else 'absent'
     return got == expect, 'expected=%s actual=%s bytes=%d' % (expect, got, len(b or b''))
@@ -194,10 +132,9 @@ def row_drift(ctx, expect, arg):
 
 def row_control(ctx, expect, arg):
     dest = ctx['work'] + '/' + CONTROL_DIR
-    add_to_manifest(ctx, dest)
+    register(ctx['work'], MANIFEST, dest)
     shutil.copytree(ctx['tree'] + '/bin', dest + '/bin', ignore=shutil.ignore_patterns('__pycache__', '*.pyc'))
-    with open(dest + '/bin/' + arg, 'w', encoding='utf-8', newline='\n') as fh:
-        fh.write('#!/usr/bin/env bash\n# planted by the S01-C4 control row\n')
+    write_text(dest + '/bin/' + arg, '#!/usr/bin/env bash\n# planted by the S01-C4 control row\n')
     rc, unnamed, out = run_drift(ctx, dest + '/bin')
     got = 'exit=%d planted=%s' % (rc, 'yes' if arg in out else 'no')
     return got == expect, 'expected=%s actual=%s unnamed=%d' % (expect, got, len(unnamed))
@@ -217,7 +154,7 @@ def row_order(ctx, expect, arg):
     return got == expect, 'expected=%s actual=%s items=%d' % (expect, got, len(parts) - 1)
 
 
-KINDS = {'present': row_present, 'drift': row_drift, 'control': row_control, 'order': row_order}
+KINDS = {'present': row_exists, 'drift': row_drift, 'control': row_control, 'order': row_order}
 
 
 def main():
@@ -235,29 +172,12 @@ def main():
     if child_bin:
         return drift_child_main(tree, fwd(child_bin))
     os.makedirs(work, exist_ok=True)
-    cleaned = clean_earlier(work)
-    print('cleaned %d path(s) listed by an earlier run' % cleaned)
+    clean_earlier(work, MANIFEST, True)
     ctx = {'tree': tree, 'work': work, 'home': fwd(home_e)}
     here = os.path.dirname(os.path.abspath(__file__))
-    for label, p in (('tests/rows/S01-C4/run.py', here + '/run.py'), ('tests/rows/S01-C4/rows.txt', here + '/rows.txt')):
-        b = read_bytes(p)
-        print('info sha256 %s %s' % (label, shafull(b) if b is not None else 'absent'))
+    info_sha((('tests/rows/S01-C4/run.py', here + '/run.py'), ('tests/rows/S01-C4/rows.txt', here + '/rows.txt')))
     rows = load_rows(os.path.join(here, 'rows.txt'))
-    passed = failed = 0
-    for rid, kind, expect, arg in rows:
-        fn = KINDS.get(kind)
-        if fn is None:
-            ok, detail = False, 'unknown kind ' + kind
-        else:
-            try:
-                ok, detail = fn(ctx, expect, arg)
-            except Exception as exc:
-                ok, detail = False, 'expected=row runs actual=error %s' % type(exc).__name__
-        passed += ok
-        failed += (not ok)
-        print('%s %s %s' % ('PASS' if ok else 'FAIL', rid, detail))
-    print('rows=%d pass=%d fail=%d' % (len(rows), passed, failed))
-    return 1 if failed else 0
+    return tally(rows, KINDS, (ctx,), True, False)
 
 
 if __name__ == '__main__':
