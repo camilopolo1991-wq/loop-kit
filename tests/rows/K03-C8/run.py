@@ -48,12 +48,23 @@ def run_check(tree, work, home, rid, expect, arg):
         want_exit, want_text, cp.returncode, names, sha(out))
 
 
+def tool_phrase(tree, expect, arg):
+    """K06-C3. The usage comment is in the command file on a tree where the command file is the tool, and in the module
+    beside the one launcher text on a tree where it moved: the named file is searched first, then its module."""
+    rel, num, phrase = arg.split('|', 2)
+    first = run_line_phrase(tree, expect, arg)
+    mod = rel.replace('-', '_') + '.py'
+    if first[0] or not os.path.isfile(tree + '/' + mod):
+        return first
+    return run_line_phrase(tree, expect, '%s|%s|%s' % (mod, num, phrase))
+
+
 def main():
     tree, home, work = env_dirs('usage: LOOP_TREE=<tree> LOOP_ROWS_HOME=<home> LOOP_WORK=<work> [LOOP_PY=<python>] [LOOP_NAMES_FILE=<file>] python run.py', False)
     rows = load_rows(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'rows.txt'))
     return tally(rows, {
         'check': lambda rid, expect, arg: run_check(tree, work, home, rid, expect, arg),
-        'phrase': lambda rid, expect, arg: run_line_phrase(tree, expect, arg),
+        'phrase': lambda rid, expect, arg: tool_phrase(tree, expect, arg),
     })
 
 

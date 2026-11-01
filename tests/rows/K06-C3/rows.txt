@@ -1,0 +1,58 @@
+# K06-C3 rows:  id :: kind :: expect :: arg
+# Fixtures: '#fixture <name> :: <text>' lines, written by the runner under LOOP_WORK; the two characters backslash n are a line feed.
+# Every name, goal id and path in them is constructed; no line is copied from a real step log, plan or report.
+#fixture pass/log.log :: - 2026-01-01T10:00:00Z FIXT-C3 GOAL START fixture run\n- 2026-01-01T10:01:00Z FIXT-C3 GOAL TRIPWIRE OPEN fixture\n- 2026-01-01T10:02:00Z FIXT-C3 T02 DISPATCH scout card evidence/T02/card.md\n- 2026-01-01T10:03:00Z FIXT-C3 T01 DISPATCH writer card evidence/T01/card.md\n- 2026-01-01T10:04:00Z FIXT-C3 T01 ROLLBACK evidence/T01/writer/rollback.txt sha256 0123456789abcdef\n- 2026-01-01T10:05:00Z FIXT-C3 T01 DONE change made evidence/T01/writer/note.txt\n- 2026-01-01T10:06:00Z FIXT-C3 T01 DISPATCH reviewer card evidence/T01/review/card.md\n- 2026-01-01T10:07:00Z FIXT-C3 T01 PASS verdict evidence/T01/review/verdict.md\n- 2026-01-01T10:08:00Z FIXT-C3 GOAL TRIPWIRE CLOSE fixture\n- 2026-01-01T10:09:30Z FIXT-C3 GOAL CLOSED fixture done\n- 2026-01-01T10:10:00Z OTHER-C3 T01 DISPATCH scout other card\n
+#fixture pass/plan.md :: # Plan\n\n## Live\ngoal: FIXT-C3 status: RUNNING\n\n| T | task | owner | status |\n|---|---|---|---|\n| T01 | change | writer | PASS evidence/T01/review/verdict.md |\n| T02 | look | scout | TODO |\n
+#fixture pass/card.md :: # Card\nTask: change one fixture file\nDo: edit the file named in the task\nDone when: the journal shows the change\n
+#fixture fail/log.log :: - 2026-01-01T10:00:00Z FIXT-C3 GOAL START fixture run\n- 2026-01-01T10:02:00Z FIXT-C3 T02 DISPATCH scout card evidence/T02/card.md\n- 2026-01-01T10:03:00Z FIXT-C3 T01 DISPATCH writer card evidence/T01/card.md\n- 2026-01-01T10:04:00Z FIXT-C3 T01 ROLLBACK ~/scratch/tree/rollback.txt sha256 0123456789abcdef\n- 2026-01-01T10:05:00Z FIXT-C3 T01 DONE change made\n- 2026-01-01T10:06:00Z FIXT-C3 T03 DONE change made\n- 2026-01-01T10:07:00Z FIXT-C3 T01 PASS verdict with no path\n
+#fixture fail/plan.md :: # Plan\n\n## Live\ngoal: FIXT-C3 status: RUNNING\n\n| T | task | owner | status |\n|---|---|---|---|\n| T01 | change | writer | PASS evidence/T01/review/verdict.md |\n| T03 | other | writer | TODO |\n| T04 | more | scout | PASS evidence/T04/writer/note.txt |\n
+#fixture fail/card.md :: # Card\nTask: change one fixture file\nDo: read plan.md and the journal for the rest\nDone when: the journal shows the change\n
+#fixture bad/log.log :: - 2026-01-01T10:00:00Z FIXT-C3 GOAL START fixture run\n- 2026-13-45T99:00:00Z FIXT-C3 T01 DONE bad stamp\n
+# (a) every launcher under bin/ is one text. On wt-main the launchers differ, so this row fails there.
+launchers-all-equal :: pairs :: 0 :: 13
+launchers-have-their-module :: modules :: 0 :: 13
+three-command-files-are-the-stub :: three :: ok :: loop-journal loop-preflight loop-card-lint
+# (b) the moved tools, one row per case, the tool of the tree against the tool of wt-main; these pass on both trees.
+fx-check-pass :: fixture :: equal:0 :: check-pass
+fx-check-fail :: fixture :: equal:1 :: check-fail
+fx-check-no-plan :: fixture :: equal:2 :: check-no-plan
+fx-check-usage :: fixture :: equal:64 :: check-usage
+fx-active-pass :: fixture :: equal:0 :: active-pass
+fx-active-no-start :: fixture :: equal:2 :: active-no-start
+fx-active-malformed :: fixture :: equal:2 :: active-malformed
+fx-active-usage :: fixture :: equal:64 :: active-usage
+fx-dispatches-pass :: fixture :: equal:0 :: dispatches-pass
+fx-dispatches-usage :: fixture :: equal:64 :: dispatches-usage
+fx-read-plain :: fixture :: equal:0 :: read-plain
+fx-read-tail :: fixture :: equal:0 :: read-tail
+fx-read-other-goal :: fixture :: equal:0 :: read-other-goal
+fx-read-none :: fixture :: equal:0 :: read-none
+fx-read-drive-spelling :: fixture :: equal:0 :: read-drive-spelling
+fx-read-c-spelling :: fixture :: equal:0 :: read-c-spelling
+fx-read-tail-zero :: fixture :: equal:0 :: read-tail-zero
+fx-read-tail-plus-past-end :: fixture :: equal:0 :: read-tail-plus-past-end
+fx-read-tail-plus-nine :: fixture :: equal:0 :: read-tail-plus-two
+fx-read-tail-bad :: fixture :: equal:1 :: read-tail-bad
+fx-read-usage :: fixture :: equal:64 :: read-usage
+fx-read-no-file :: fixture :: equal:2 :: read-no-file
+fx-append-unknown-option :: fixture :: equal:64 :: append-unknown-option
+fx-append-usage :: fixture :: equal:64 :: append-usage
+fx-lint-card-pass :: fixture :: equal:0 :: lint-card-pass
+fx-lint-card-fail :: fixture :: equal:1 :: lint-card-fail
+fx-lint-plan-pass :: fixture :: equal:0 :: lint-plan-pass
+fx-lint-plan-fail :: fixture :: equal:1 :: lint-plan-fail
+fx-lint-usage :: fixture :: equal:2 :: lint-usage
+fx-lint-unknown-kind :: fixture :: equal:2 :: lint-unknown-kind
+append-same-line :: append :: 0 :: -
+preflight-stable-lines :: preflight :: 0 :: -
+preflight-config-cannot-be-decoded :: preflight :: 0 :: bad-config
+# raw stdout bytes, no carriage return deleted: a current_goal file ending CRLF with a plan fixture holding a Live block
+preflight-current-goal-crlf-live-line :: preflight :: 0 :: crlf-goal
+# Failure-path change (the only behaviour change of this card): with LOOP_PY at a missing file the old preflight command file fell
+# back to python3 or python on PATH; the one launcher text does not (the GOAL forbids running a wrapper through python3 on PATH).
+# This row passes on wt-branch (exit 3 and the message) and fails on wt-main.
+failure-path-change-preflight-exit-3-on-missing-python :: nopy :: 3 :: -
+# (c) the upgrade form against a home installed from wt-main: the three modules are printed under added (on wt-main none is).
+upgrade-adds-the-three-modules :: upgrade :: 3 :: loop_journal.py loop_preflight.py loop_card_lint.py
+# (d) the control: a stub copy with one byte changed is reported unequal by the comparison of the pairs row.
+control-one-byte-flips-the-comparison :: control :: unequal :: loop-scan

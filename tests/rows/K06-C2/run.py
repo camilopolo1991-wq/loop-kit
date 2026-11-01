@@ -12,13 +12,16 @@ Rows (rows.txt, id :: kind :: expect :: arg):
            count (0 expected; every runner of wt-main defines some)
   install  an install with LOOP_WITH_TESTS=1 of LOOP_TREE into a fresh home under LOOP_WORK (HOME and USERPROFILE at it,
            LOOP_HOME at it plus /.loop) places the library under the home's tests/rows/, equal to the tree's
-  lines    tests/rows under LOOP_TREE holds at least expect fewer lines than arg (the wt-main count, in the row text)
+  lines    tests/rows under LOOP_TREE (without the folders named K06-C3 and later) holds at least expect fewer lines than the
+           same count measured on the sibling folder wt-main at run time (arg is only a label, wt-main); the literal
+           full-tree count on both trees and its difference are printed beside it, not judged
 
 Prints PASS or FAIL per row with expected and actual (a sha256 stands in for the install output), then rows=N pass=P
 fail=F. Nothing is spawned in the background and nothing is killed.
 """
 import ast
 import os
+import re
 import subprocess
 import sys
 ROWS = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -70,13 +73,38 @@ def row_install(ctx, rid, expect, arg):
         expect, cp.returncode, 'absent' if got is None else ('equal' if got == want else 'differs'), sha(cp.stdout + cp.stderr))
 
 
-def row_lines(ctx, rid, expect, arg):
+def later_folder(name):
+    """K06-C3 and later folders (K06-C<n>, n of 3 or more): folders this goal adds after card C2."""
+    m = re.match(r'^K06-C(\d+)$', name)
+    return m is not None and int(m.group(1)) >= 3
+
+
+def count_lines(base, only_c2_population):
+    """Lines under base/tests/rows; with only_c2_population the folders named K06-C3 and later at the top are left out."""
     n = 0
-    for root, dirs, files in os.walk(ctx['tree'] + '/tests/rows'):
-        dirs[:] = [d for d in dirs if d != '__pycache__']
+    root0 = base + '/tests/rows'
+    if not os.path.isdir(root0):
+        return None
+    for root, dirs, files in os.walk(root0):
+        dirs[:] = [d for d in dirs if d != '__pycache__' and not (only_c2_population and root == root0 and later_folder(d))]
         n += sum((read_bytes(os.path.join(root, f)) or b'').count(b'\n') for f in files)
-    return int(arg) - n >= int(expect), 'expected=at least %s fewer than %s actual=%d lines under the tree, %d fewer' % (
-        expect, arg, n, int(arg) - n)
+    return n
+
+
+def row_lines(ctx, rid, expect, arg):
+    """Judged: the population card C2 refactored (tests/rows without the folders named K06-C3 and later) against the same
+    count measured on wt-main now. Printed, not judged: the literal full-tree count on both trees and its difference."""
+    n = count_lines(ctx['tree'], True)
+    main_tree = os.path.dirname(ctx['tree']) + '/wt-main'
+    lit_here = count_lines(ctx['tree'], False)
+    lit_main = count_lines(main_tree, False)
+    pop_main = count_lines(main_tree, True)
+    diff = 'n/a' if lit_main is None else str(lit_main - lit_here)
+    fewer = 'n/a' if pop_main is None else str(pop_main - n)
+    return pop_main is not None and pop_main - n >= int(expect), (
+        'expected=at least %s fewer than the wt-main count measured now (%s) actual=%d lines under the tree without K06-C3 and later, %s fewer; '
+        'literal full tree: here %s, wt-main %s (population without K06-C3 and later on wt-main %s), difference %s') % (
+        expect, pop_main, n, fewer, lit_here, lit_main, pop_main, diff)
 
 
 def main():

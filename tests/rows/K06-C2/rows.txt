@@ -1,5 +1,7 @@
 # K06-C2 rows:  id :: kind :: expect :: arg
 count-no-runner-defines-a-library-name :: count :: 0 :: tests/rows
 install-places-the-library-under-the-home :: install :: placed :: rows/_lib.py
-fewer-lines-than-wt-main :: lines :: 1500 :: 7489
-# lines: arg is the line count under tests/rows on wt-main (7489, measured by the baseline scout); expect is the least fall
+fewer-lines-than-wt-main :: lines :: 1500 :: wt-main
+# lines: the wt-main count is measured at run time on the sibling folder wt-main (arg is a label); expect is the least fall
+# Reading (K06-C3): the judged count is the population card C2 refactored, tests/rows without the folders named K06-C3 and later
+# (folders this goal adds after C2); the literal full-tree count on both trees and its difference are printed beside it, not judged.
