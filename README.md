@@ -20,7 +20,7 @@ The first line installs into a home that holds nothing yet, the second brings an
 
 Start here: `AGENTS.md`, `docs/guides/install.md` and `docs/STATUS.md`.
 
-Kit files: 67, counted by `wc -l < MANIFEST.txt`.
+Kit files: 68, counted by `wc -l < MANIFEST.txt`.
 
 | Repository | Installed at |
 |---|---|

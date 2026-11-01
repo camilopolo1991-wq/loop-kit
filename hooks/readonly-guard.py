@@ -27,57 +27,46 @@ Config by env (set in the agent frontmatter command line or settings.json env):
 Never echoes the command. Any Exception fails closed with the same deny JSON, exit 0.
 Register with "onFailure": "block" and a timeout so a crash or hang also blocks.
 """
+import functools
 import json
 import os
 import re
 import shlex
 import sys
 
+# The shared library sits beside this file and is loaded by that path, so the load does not rest
+# on the script folder being on the module path (the hook runs under an isolated interpreter).
+# If it cannot be loaded the hook fails closed with the same deny JSON, exit 0.
+try:
+    _LIB = os.path.join(os.path.dirname(os.path.abspath(__file__)), '_guardlib.py')
+    _g = type(sys)('_guardlib')
+    _g.__file__ = _LIB
+    with open(_LIB, encoding='utf-8') as _fh:
+        exec(compile(_fh.read(), _LIB, 'exec'), _g.__dict__)
+except Exception:
+    print(json.dumps({'hookSpecificOutput': {
+        'hookEventName': 'PreToolUse', 'permissionDecision': 'deny',
+        'permissionDecisionReason': 'readonly-guard could not load its library, so it fails closed.'}}))
+    sys.exit(0)
+
+# The shared shapes (bodies in _guardlib). This hook's output is always a deny.
+_canon = _g.canon
+_is_abs = _g.is_abs
+split_segments = _g.split_segments
+tokenize = _g.tokenize
+is_assignment = _g.is_assignment
+base = _g.base
+out = functools.partial(_g.out, 'deny')
+
 LOOP_HOME = os.environ.get('LOOP_HOME') or os.path.expanduser('~/.loop')
 
-
-def _current_goal():
-    """LOOP_GOAL from the environment (the dispatcher sets it), else from
-    $LOOP_HOME/current_goal, which the leader writes at goal start."""
-    g = os.environ.get('LOOP_GOAL') or ''
-    if g:
-        return g.strip()
-    try:
-        with open(os.path.join(LOOP_HOME, 'current_goal'), encoding='utf-8') as fh:
-            g = fh.read().strip().splitlines()[0] if fh else ''
-    except Exception:
-        g = ''
-    return g if re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._-]{0,63}', g or '') else ''
-
-
-LOOP_GOAL = _current_goal()
+# LOOP_GOAL from the environment (the dispatcher sets it), else from $LOOP_HOME/current_goal,
+# which the leader writes at goal start.
+LOOP_GOAL = _g.current_goal(LOOP_HOME)
 LOOP_ROLE = (os.environ.get('LOOP_ROLE') or 'scout').lower()
 ROLE = LOOP_ROLE  # P21: run() narrows this from the payload's agent_type
 
-_MSYS_DRIVE = re.compile(r'^/([A-Za-z])(?=/|$)')
 _RF = re.I if os.name == 'nt' else 0
-
-
-def _canon(path):
-    """P21. One spelling for every path this guard compares.
-
-    The auditor's evidence redirect to an absolute C:/... path was denied as not
-    absolute, and the /c/... form that readlink gives under bash -lc never matched a
-    C:/ prefix. On Windows the MSYS drive form, backslashes and forward slashes all
-    become X:/... before any comparison. normpath also folds .. segments, so a
-    traversal out of an allowed folder is judged where it lands.
-    """
-    p = str(path or '').strip().replace('\\', '/')
-    if os.name == 'nt':
-        m = _MSYS_DRIVE.match(p)
-        if m:
-            p = m.group(1).upper() + ':' + p[2:]
-    return os.path.normpath(p).replace('\\', '/')
-
-
-def _is_abs(p):
-    p = str(p or '')
-    return p.startswith('/') or re.match(r'^[A-Za-z]:[\\/]', p) is not None
 
 
 def effective_role(agent_type):
@@ -192,80 +181,10 @@ CURL_LONG_UPLOAD = {'--data', '--data-raw', '--data-binary', '--data-urlencode',
 WGET_UPLOAD = {'--post-data', '--post-file', '--method', '--body-data', '--body-file'}
 
 # ---------------------------------------------------------------- helpers
-def out(reason):
-    print(json.dumps({'hookSpecificOutput': {'hookEventName': 'PreToolUse',
-                                             'permissionDecision': 'deny',
-                                             'permissionDecisionReason': reason}}))
-    sys.exit(0)
-
-
-def split_segments(cmd):
-    """Split on top-level ; & | newline ( ) ` outside quotes. Linear scan."""
-    segments, buf = [], []
-    in_s = in_d = False
-    for c in cmd:
-        if in_s:
-            buf.append(c)
-            if c == "'":
-                in_s = False
-        elif in_d:
-            buf.append(c)
-            if c == '"':
-                in_d = False
-        elif c == "'":
-            in_s = True
-            buf.append(c)
-        elif c == '"':
-            in_d = True
-            buf.append(c)
-        elif c in ';&|\n()`':
-            segments.append(''.join(buf))
-            buf = []
-        else:
-            buf.append(c)
-    segments.append(''.join(buf))
-    return [s for s in segments if s.strip()]
-
-
-def tokenize(seg, posix=True):
-    try:
-        return shlex.split(seg, posix=posix)
-    except ValueError:
-        return seg.split()
-
-
-def is_assignment(tok):
-    if '=' not in tok:
-        return False
-    head = tok.split('=', 1)[0]
-    return bool(head) and (head[0].isalpha() or head[0] == '_') and all(c.isalnum() or c == '_' for c in head)
-
-
 def skip_flags(toks, j, value_flags):
     while j < len(toks) and toks[j].startswith('-') and toks[j] != '-':
         j += 2 if toks[j] in value_flags else 1
     return j
-
-
-WIN_EXEC_SUFFIXES = ('.exe', '.com', '.cmd', '.bat', '.ps1')
-
-
-def base(tok):
-    """Basename of a command token, separator- and suffix-normalised.
-
-    A bare rsplit('/') is POSIX-only, and on Windows a backslash separator OR an
-    executable suffix is INDEPENDENTLY enough to slip a denied verb past it: measured,
-    both `C:\\tools\\rm -rf` and `rm.exe -rf` were allowed while bare `rm` was denied.
-    Lowercased because Windows command lookup is case-insensitive and every word class
-    in this file is lowercase.
-    """
-    tok = tok.replace('\\', '/').rsplit('/', 1)[-1]
-    # drive-relative spelling with no separator, e.g. C:rm
-    tok = tok.rsplit(':', 1)[-1].lower()
-    for suf in WIN_EXEC_SUFFIXES:
-        if tok.endswith(suf) and len(tok) > len(suf):
-            return tok[:-len(suf)]
-    return tok
 
 
 def resolve(toks, start, acc, depth=0):
@@ -648,18 +567,6 @@ def strip_quotes(s):
     return s
 
 
-def _fwd(path):
-    """Path with a single, forward-slash separator convention.
-
-    os.path.normpath emits BACKSLASHES on Windows, and EVIDENCE_RE is built by appending
-    a literal '/goals/.../evidence/' to a normpath'd LOOP_HOME. That produces a
-    mixed-separator pattern which cannot match any real path, so role_may_write()
-    returned False for every path and the guard failed CLOSED: scout and reviewer could
-    not write their own evidence at all. Normalise both sides to '/' instead.
-    """
-    return os.path.normpath(path).replace('\\', '/')
-
-
 def role_may_write(path):
     p = _canon(path)
     if not EVIDENCE_RE.match(p):
@@ -721,7 +628,7 @@ def mentions_writer_sub(text):
     return bool(WRITER_SUB_RE.search(text or ''))
 
 
-def run():
+def run_readonly():
     global ROLE
     d = json.load(sys.stdin)
     tool = d.get('tool_name')
@@ -762,12 +669,5 @@ def run():
     out('Read-only role: tool %s is not judged by this guard and is denied.' % tool)
 
 
-def main():
-    try:
-        run()
-    except Exception:
-        out('readonly-guard hit an unexpected error, so it fails closed.')
-
-
 if __name__ == '__main__':
-    main()
+    _g.main(run_readonly, 'readonly-guard hit an unexpected error, so it fails closed.')

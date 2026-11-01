@@ -27,17 +27,26 @@ import re
 import secrets
 import sys
 
-def _fwd(s):
-    """One separator convention for every rule in this file.
+# The shared library sits beside this file and is loaded by that path, so the load does not rest
+# on the script folder being on the module path (the hook runs under an isolated interpreter).
+# If it cannot be loaded the hook fails closed with the same deny JSON, exit 0.
+try:
+    _LIB = os.path.join(os.path.dirname(os.path.abspath(__file__)), '_guardlib.py')
+    _g = type(sys)('_guardlib')
+    _g.__file__ = _LIB
+    with open(_LIB, encoding='utf-8') as _fh:
+        exec(compile(_fh.read(), _LIB, 'exec'), _g.__dict__)
+except Exception:
+    print(json.dumps({'hookSpecificOutput': {
+        'hookEventName': 'PreToolUse', 'permissionDecision': 'deny',
+        'permissionDecisionReason': 'pretool-guard could not load its library, so it fails closed.'}}))
+    sys.exit(0)
 
-    Two defects made these lists partly decorative on Windows. Rules anchored `(^|/)`
-    cannot match a backslash spelling at all. Worse, the rules built from LOOP_HOME could
-    not match ANY spelling: os.path.expanduser('~') returns backslashes while the rule
-    appends '/', so LOOP_HOME came out as the mixed string 'C:\\Users\\OWNER_HANDLE/.loop' and
-    `re.escape(LOOP_HOME) + '/(names|secrets)'` matched neither the backslash, the
-    forward-slash nor the emulated spelling. Measured: 0 of 3.
-    """
-    return (s or '').replace('\\', '/')
+# One separator convention for every rule in this file (the body is in _guardlib.fwd). Rules
+# anchored `(^|/)` cannot match a backslash spelling at all, and the rules built from LOOP_HOME
+# could not match any spelling until LOOP_HOME and HOME were both folded to '/' once, below.
+_fwd = _g.fwd
+out = _g.out
 
 
 def _root_re(p):
@@ -236,18 +245,6 @@ def dispatch_text(ti):
 
 
 
-def out(decision, reason=None, updated=None):
-    h = {'hookEventName': 'PreToolUse'}
-    if decision:
-        h['permissionDecision'] = decision
-    if reason:
-        h['permissionDecisionReason'] = reason
-    if updated is not None:
-        h['updatedInput'] = updated
-    print(json.dumps({'hookSpecificOutput': h}))
-    sys.exit(0)
-
-
 def check(patterns, text):
     # Normalise separators before matching: every rule here is written with '/', and a
     # Windows path or command reaches this hook spelled with '\\'. Without this the
@@ -259,7 +256,7 @@ def check(patterns, text):
     return None
 
 
-def run():
+def run_pretool():
     d = json.load(sys.stdin)
     tool = d.get('tool_name', '')
     ti = d.get('tool_input', {}) or {}
@@ -321,12 +318,5 @@ def run():
     sys.exit(0)
 
 
-def main():
-    try:
-        run()
-    except Exception:
-        out('deny', 'pretool-guard hit an unexpected error (including malformed input), so it fails closed.')
-
-
 if __name__ == '__main__':
-    main()
+    _g.main(run_pretool, 'pretool-guard hit an unexpected error (including malformed input), so it fails closed.')

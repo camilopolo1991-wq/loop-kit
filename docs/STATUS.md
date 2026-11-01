@@ -10,7 +10,7 @@ Lines in MANIFEST.txt:
 
 ```
 $ wc -l < MANIFEST.txt
-67
+68
 ```
 
 measured at commit 14bf1d0dc9a44bc006e141ac09c71441b7cae13f on 2026-10-30
@@ -28,7 +28,7 @@ Hooks files (caches left out):
 
 ```
 $ find hooks -type f ! -name "*.pyc" | wc -l
-4
+5
 ```
 
 measured at commit 14bf1d0dc9a44bc006e141ac09c71441b7cae13f on 2026-10-30
@@ -46,7 +46,7 @@ Row folders under tests/rows/:
 
 ```
 $ find tests/rows -mindepth 1 -maxdepth 1 -type d | wc -l
-38
+39
 ```
 
 measured at commit 14bf1d0dc9a44bc006e141ac09c71441b7cae13f on 2026-10-30
@@ -55,10 +55,10 @@ Commits on main (the value at the main this branch grew from):
 
 ```
 $ git rev-list --count main
-35
+43
 ```
 
-measured at commit 14bf1d0dc9a44bc006e141ac09c71441b7cae13f on 2026-10-30
+measured at commit 345cfbf7e2198ec12131b2cdced6d7308a22890f on 2026-10-31
 
 ## Configuration keys
 

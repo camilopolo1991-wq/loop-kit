@@ -361,9 +361,11 @@ def row_hooks(ctx):
     changed = sum(1 for rel, b in st['pre'].items() if rel.startswith('.claude/hooks/') and now.get(rel) != b)
     nh = sum(1 for rel in st['pre'] if rel.startswith('.claude/hooks/'))
     c = counts(clean(st['up'].stdout))
-    ok = st['up'].returncode == 0 and changed == 0 and nh >= 1 and c is not None and c[3] == nh
+    # the upgrade counts every hooks file of the tree as skipped, including one the base home does not hold yet
+    nt = len(tree_files(ctx['tree'], 'hooks'))
+    ok = st['up'].returncode == 0 and changed == 0 and nh >= 1 and c is not None and c[3] == nt
     return ok, 'expected=exit 0, hooks files=%d unchanged, hooks skipped=%d actual=exit %d changed=%d counts=%s' % (
-        nh, nh, st['up'].returncode, changed, c)
+        nh, nt, st['up'].returncode, changed, c)
 
 
 def row_again(ctx):
