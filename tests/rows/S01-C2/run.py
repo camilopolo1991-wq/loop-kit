@@ -13,6 +13,7 @@ sha256 of MANIFEST.txt and of the runner's own two files, then rows=N pass=N fai
 background, nothing is killed, no timeout is set.
 """
 import ast
+import importlib.util
 import os
 import re
 import sys
@@ -52,6 +53,18 @@ def listed_row_folders(lines):
     return None
 
 
+def inventory_lines(ctx):
+    """The lines the tree's inventory tool prints for the tree (its render function, loaded from the tree's
+    bin/loop_inventory.py), or None when the tree has no tool. The Row folders and Positional form lines come from here."""
+    p = ctx['tree'] + '/bin/loop_inventory.py'
+    if read_bytes(p) is None:
+        return None
+    spec = importlib.util.spec_from_file_location('loop_inventory_of_the_tree', p)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod.render(ctx['tree']).split('\n')
+
+
 def row_headings(ctx, expect, arg):
     lines = read_lines(ctx, arg)
     if lines is None:
@@ -72,7 +85,7 @@ def row_verifypaths(ctx, expect, arg):
     cmds = None if lines is None else verify_commands(lines)
     if cmds is None:
         return False, 'expected=%s actual=file or Verify section absent' % expect
-    folders = listed_row_folders(lines) or []
+    folders = listed_row_folders(inventory_lines(ctx) or []) or []
     missing = []
     checked = 0
     for c in cmds:
@@ -159,10 +172,10 @@ def row_cost(ctx, expect, arg):
 
 
 def row_rowlist(ctx, expect, arg):
-    lines = read_lines(ctx, arg)
+    lines = inventory_lines(ctx)
     listed = None if lines is None else listed_row_folders(lines)
     if listed is None:
-        return False, 'expected=%s actual=file or Row folders line absent' % expect
+        return False, 'expected=%s actual=inventory tool or its Row folders line absent' % expect
     base = ctx['tree'] + '/tests/rows'
     actual = sorted(d for d in os.listdir(base) if os.path.isdir(base + '/' + d)) if os.path.isdir(base) else []
     return sorted(listed) == actual and len(actual) > 0, 'expected=%s actual=listed %d, on disk %d, only listed %s, only on disk %s' % (
@@ -192,9 +205,9 @@ def row_forms(ctx, expect, arg):
     on the Positional form line also reads its tree from the argument list. The needles are built from parts so this
     file holds neither one whole. A runner may read the tree through the library functions env_dirs and dirs_or_args
     (tests/rows/_lib.py then holds the read)."""
-    lines = read_lines(ctx, arg)
+    lines = inventory_lines(ctx)
     if lines is None:
-        return False, 'expected=%s actual=file absent' % expect
+        return False, 'expected=%s actual=inventory tool absent' % expect
     pos_needle = 'sys.' + 'argv[1]'
     env_needle = 'os.environ.get(' + chr(39) + 'LOOP_TREE' + chr(39) + ')'
     allf = listed_row_folders(lines)
@@ -299,7 +312,7 @@ def row_manifest(ctx, expect, arg):
     rows = {}
     for ln in m.decode('utf-8', 'replace').split('\n'):
         t = ln.rstrip('\r').split('\t')
-        if len(t) >= 3 and t[0]:
+        if len(t) >= 2 and t[0]:
             rows[t[0]] = t
     bad = []
     shown = []
@@ -313,7 +326,7 @@ def row_manifest(ctx, expect, arg):
         shown.append('%s sha256=%s' % (rel, h))
         if r is None:
             bad.append(rel + ' not listed')
-        elif r[1] != h or r[2] != h:
+        elif r[1] != h:
             bad.append(rel + ' hash differs')
     return not bad, 'expected=%s actual=%d bad %s [%s]' % (expect, len(bad), '; '.join(bad), '; '.join(shown))
 

@@ -32,6 +32,9 @@ FIGURES = [
     ('find tests/rows -mindepth 1 -maxdepth 1 -type d | wc -l', 'rows'),
     ('git rev-list --count main', 'commits'),
 ]
+# The figures that carry a "measured at commit" line: the skills and the commits on main. The other four are printed by
+# bin/loop-inventory from the tree and carry none.
+HAND_FIGURES = 2
 
 
 def git(ctx, *args):
@@ -102,7 +105,7 @@ def row_shalines(ctx, expect, arg):
             seen[sha] = (rc == 0 and out == 'commit')
         if not seen[sha]:
             bad.append('%s does not resolve' % sha[:8])
-    ok = len(found) >= len(FIGURES) and not bad
+    ok = len(found) >= HAND_FIGURES and not bad
     return ok, 'expected=%s actual=%d line(s), %d distinct sha(s), bad %d %s' % (expect, len(found), len(seen), len(bad), ';'.join(bad[:5]))
 
 

@@ -7,8 +7,9 @@ Environment: LOOP_TREE (the tree under test), LOOP_ROWS_HOME (HOME and USERPROFI
 home plus /.loop), LOOP_WORK (a work folder, created when absent), LOOP_PY and LOOP_NAMES_FILE (accepted, unused here).
 Exits 64 with a usage line when a positional argument is given or when LOOP_TREE, LOOP_ROWS_HOME or LOOP_WORK is unset.
 
-The drift test is this runner. It fails (exit 1) when any of these has no line naming it in docs/STATUS.md, docs/guides/,
-AGENTS.md or README.md of the tree: a command file under bin/ (a file that is not a .py module, not under __pycache__ and
+The drift test is this runner. It fails (exit 1) when any of these has no line naming it in the output of the tree's
+bin/loop-inventory (its render function, loaded from the tree's bin/loop_inventory.py; a tree without the tool names
+nothing): a command file under bin/ (a file that is not a .py module, not under __pycache__ and
 not DESCRIPTION.md), a key of the DEFAULTS table in bin/loop_conf.py (read with ast, never imported), or a file under
 hooks/ (caches left out). A name counts as named when a line holds it as a whole token: the characters before and after
 it are not letters, digits, underscore or hyphen. Each unnamed item is printed as a line 'UNNAMED <kind> <name>'.
@@ -20,6 +21,7 @@ per row, an info line with the sha256 of the runner's own two files, then rows=N
 background and nothing is killed.
 """
 import ast
+import importlib.util
 import os
 import re
 import shutil
@@ -80,10 +82,14 @@ def hook_files(tree):
 
 
 def naming_text(tree):
-    parts = [read_text(tree + '/docs/STATUS.md'), read_text(tree + '/AGENTS.md'), read_text(tree + '/README.md')]
-    for p in walk_files(tree + '/docs/guides'):
-        parts.append(read_text(p))
-    return '\n'.join(parts)
+    """The text the tree's inventory tool prints for the tree (its render function); empty when the tree has no tool."""
+    p = tree + '/bin/loop_inventory.py'
+    if read_bytes(p) is None:
+        return ''
+    spec = importlib.util.spec_from_file_location('loop_inventory_of_the_tree', p)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod.render(tree)
 
 
 def is_named(name, text):

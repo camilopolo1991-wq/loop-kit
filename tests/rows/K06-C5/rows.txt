@@ -1,0 +1,9 @@
+# K06-C5 rows: a generated inventory (bin/loop-inventory) and one manifest column. Fields: id :: kind :: expected :: argument
+# Every row is judged the same on every tree; wt-main has no inventory and a third manifest column, so its rows fail.
+a-tool-output-equals-the-status-sections :: bytes :: equal :: docs/STATUS.md
+b-manifest-two-columns-on-every-line :: columns :: 2 :: MANIFEST.txt
+c-readme-count-equals-the-manifest-lines :: readme :: equal :: README.md
+d-carried-figures-section-absent :: absent :: absent :: docs/STATUS.md|Figures carried from the README
+e-agents-names-the-tool-and-holds-no-list :: agents :: one line names the tool :: AGENTS.md
+f-install-with-tests-places-the-tool :: install :: placed :: bin/loop-inventory|bin/loop_inventory.py
+g-control-one-byte-changed-figure-fails-the-comparison :: control :: copy differs :: docs/STATUS.md
