@@ -16,7 +16,7 @@ Report a meeting or recording by its id and date, never by its title (titles emb
 - Test logic on constructed placeholders ("Zeta Testperson", "Omicron Fixture"), never on a stored real row.
 
 ## Sweeping code and files for names
-- The list is `$LOOP_HOME/names.txt` (the redactor's; refresh with `loop-names-refresh`). You cannot read it, and you do not need to: `loop-scan <file>` checks against it and prints counts and file:line locations only.
+- The list is `$LOOP_HOME/names.txt` (the redactor's; written by the owner by hand). You cannot read it, and you do not need to: `loop-scan <file>` checks against it and prints counts and file:line locations only.
 - Sweep every node of a workflow and both copies (top level and `activeVersion`), comments included. Classify each hit's position by AST (comment, string, code) using positions, never by printing the match.
 - A zero needs its control: the same scan on the pre-change copy must find the known hits.
 

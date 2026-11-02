@@ -4,4 +4,4 @@ sha-lines-name-a-commit-under-the-tree :: shalines :: every "measured at commit"
 six-kit-figures-equal-the-measure :: figures :: MANIFEST.txt lines, bin files, hooks files, skills, row folders and commits on main as stated equal the values measured on the tree :: docs/STATUS.md
 readme-has-no-dollar-block :: nodollar :: no fenced block whose first line starts with a dollar sign and a space :: README.md
 readme-has-no-first-goal-heading :: noheading :: no heading holding the words The first goal :: README.md|The first goal
-readme-figure-line-is-present :: hasline :: the figure line, which C7 puts where the install count line stood, is present once :: README.md|Kit files: 58, counted by `wc -l < MANIFEST.txt`.
+readme-figure-line-is-present :: hasline :: the figure line, which C7 puts where the install count line stood, is present once :: README.md|Kit files: 52, counted by `wc -l < MANIFEST.txt`.

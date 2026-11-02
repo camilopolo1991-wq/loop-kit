@@ -20,7 +20,7 @@ The first line installs into a home that holds nothing yet, the second brings an
 
 Start here: `AGENTS.md`, `docs/guides/install.md` and `docs/STATUS.md`.
 
-Kit files: 58, counted by `wc -l < MANIFEST.txt`.
+Kit files: 52, counted by `wc -l < MANIFEST.txt`.
 
 | Repository | Installed at |
 |---|---|
@@ -30,3 +30,10 @@ Kit files: 58, counted by `wc -l < MANIFEST.txt`.
 | `bin/` | `$LOOP_HOME/bin/` |
 | `templates/` | `$LOOP_HOME/templates/` |
 | `tests/` | `$LOOP_HOME/tests/`, only in an install with tests |
+
+| Folder | What it holds |
+|---|---|
+| `bin/` | The kit's command-line tools and the Python modules behind them, copied by install.sh into the home's .loop/bin. |
+| `docs/` | Project documents that state figures, each figure kept in step with what it measures. |
+| `skills/` | One folder per skill, each holding a SKILL.md that a role loads by name, copied by install.sh into the home's .claude/skills. |
+| `tests/rows/` | One folder per card, each holding rows.txt and a run.py that judges a tree against those rows. |

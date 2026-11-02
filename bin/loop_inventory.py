@@ -10,7 +10,7 @@ It prints three sections of Markdown to stdout, as bytes with line feeds, and wr
 Those three sections stand byte for byte in docs/STATUS.md; tests/rows/K06-C5/run.py compares them. The figures that
 cannot be read from the tree alone (the skills, the commits on main) stay in STATUS.md as measured by hand.
 
-A command file under bin/ is a file that is not a .py module, not a .pyc and not DESCRIPTION.md. A row folder is a folder
+A command file under bin/ is a file that is not a .py module and not a .pyc. A row folder is a folder
 under tests/rows/ (what `find tests/rows -mindepth 1 -maxdepth 1 -type d` counts). A row folder has the positional form when
 its run.py reads sys.argv[1] or calls dirs_or_args, imported from the library _lib.
 """
@@ -116,7 +116,7 @@ def default_keys(tree):
 def render(tree):
     """The text of the three sections for the tree, with line feeds only; every section ends with one blank line."""
     bins = bin_files(tree)
-    cmds = [f for f in bins if f != 'DESCRIPTION.md']
+    cmds = bins
     hooks = hook_files(tree)
     rows = row_folders(tree)
     pos = positional_folders(tree, rows)
@@ -126,7 +126,7 @@ def render(tree):
     out.append('```\n$ wc -l < MANIFEST.txt\n%d\n```\n' % manifest_lines(tree))
     out.append('Files under bin/ that are not modules (`.py`) or caches (`.pyc`):\n')
     out.append('```\n$ find bin -type f ! -name "*.py" ! -name "*.pyc" | wc -l\n%d\n```\n' % len(bins))
-    out.append('Command files, those files less DESCRIPTION.md: %s\n' % ' '.join(cmds))
+    out.append('Command files, those files: %s\n' % ' '.join(cmds))
     out.append('Hooks files (caches left out):\n')
     out.append('```\n$ find hooks -type f ! -name "*.pyc" | wc -l\n%d\n```\n' % len(hooks))
     out.append('Hooks files: %s\n' % ' '.join(hooks))
