@@ -22,6 +22,8 @@ Start here: `AGENTS.md`, `docs/guides/install.md` and `docs/STATUS.md`.
 
 Kit files: 52, counted by `wc -l < MANIFEST.txt`.
 
+LOOP_HOME, when set to an absolute path before either install line, picks the loop home at install (bin, templates, config.env, goals and scratch go there); unset, the loop home is `~/.loop`.
+
 | Repository | Installed at |
 |---|---|
 | `agents/` | `~/.claude/agents/` |

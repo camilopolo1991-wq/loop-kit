@@ -28,6 +28,11 @@
 #   tests/      -> .loop/tests/   only with --with-tests (the docker shim that `loop-tripwire selftest`
 #                                 finds at bin/../tests); without the flag no tests directory is made
 #
+# The loop folder ".loop" above is $LOOP_HOME when LOOP_HOME is set (an absolute path), else $HOME/.loop. bin,
+# templates, tests, goals, scratch, record and config.env are all made there, and the config.env LOOP_HOME and
+# ENGINE_RECORD_DIR lines name that folder (the ~/.loop spelling when it is the default). The Claude home's agents,
+# hooks and skills stay under $HOME/.claude, shared by every loop home.
+#
 # Upgrade mode, environment form only (no positional argument): LOOP_UPGRADE=1 and LOOP_BACKUP_DIR=<absent or empty
 # folder> against a home whose .loop holds config.env. Every file it is about to replace is first copied into
 # LOOP_BACKUP_DIR under the same relative path; then every kit file under bin, templates, skills and agents is replaced
@@ -99,6 +104,29 @@ if [ -z "${HOME:-}" ] || [ ! -d "$HOME" ]; then
   echo "install.sh: HOME is not a directory. Nothing was written." >&2
   exit 2
 fi
+# the loop folder: LOOP_HOME when set (absolute), else .loop under HOME; every ".loop/..." destination below follows it
+if [ -n "${LOOP_HOME:-}" ]; then
+  LOOPDIR="$(printf '%s' "$LOOP_HOME" | tr '\\' '/')"
+  LOOPDIR="${LOOPDIR%/}"
+  case "$LOOPDIR" in
+    /?*|[A-Za-z]:/?*) ;;
+    *) echo "install.sh: LOOP_HOME is not an absolute path. Nothing was written." >&2; exit 2;;
+  esac
+else
+  LOOPDIR="$HOME/.loop"
+fi
+LOOPLIT="$(spell "$LOOPDIR")"
+if [ -z "$LOOPLIT" ]; then
+  echo "install.sh: could not spell the loop folder as a literal path. Nothing was written." >&2
+  exit 2
+fi
+# dest <relative destination>: a ".loop/x" destination lands under the loop folder, anything else under HOME
+dest() {
+  case "$1" in
+    .loop/*) printf '%s' "$LOOPDIR/${1#.loop/}";;
+    *) printf '%s' "$HOME/$1";;
+  esac
+}
 NEED="agents bin hooks skills templates"
 if [ "$WITH_TESTS" -eq 1 ]; then NEED="$NEED tests"; fi
 for d in $NEED; do
@@ -111,7 +139,7 @@ done
 # 2. destinations: the map of source dir -> destination dir under $HOME
 MAP="agents:.claude/agents hooks:.claude/hooks skills:.claude/skills bin:.loop/bin templates:.loop/templates"
 if [ "$WITH_TESTS" -eq 1 ]; then MAP="$MAP tests:.loop/tests"; fi
-CONFIG="$HOME/.loop/config.env"
+CONFIG="$LOOPDIR/config.env"
 if [ "$UPGRADE" -eq 0 ] && [ -e "$CONFIG" ]; then
   echo "install.sh: .loop/config.env already exists under HOME. This home is already installed; nothing was written." >&2
   exit 4
@@ -161,7 +189,7 @@ if [ "$UPGRADE" -eq 1 ]; then
   fi
   UPG='
 import hashlib, os, re, shutil, sys
-src, home, py, bk, uph, owner = sys.argv[1:7]
+src, home, py, bk, uph, owner, loop = sys.argv[1:8]
 tok = b"@LOOP_PYTHON@"
 otok = b"OWNER_HANDLE"
 pyb, hb, ob = py.encode(), home.encode(), owner.encode()
@@ -169,6 +197,10 @@ uph = (uph == "1")
 
 def sha(b):
     return hashlib.sha256(b).hexdigest()
+
+def dp(to):
+    # a .loop/ destination lands under the loop folder, anything else under the Claude home side of HOME
+    return loop + "/" + to[len(".loop/"):] if to.startswith(".loop/") else home + "/" + to
 
 def keep(new, old):
     # where a bundle line holds the owner token, take the word that stands at the same place in the existing file
@@ -224,7 +256,7 @@ for line in sys.stdin.read().split("\n"):
         skipped += 1
         continue
     data = open(src + "/" + frm, "rb").read()
-    dest = home + "/" + to
+    dest = dp(to)
     old = open(dest, "rb").read() if os.path.isfile(dest) else None
     new = fill(to, data, old)
     if old is None:
@@ -245,7 +277,7 @@ for kind, frm, to, old, new in plan:
             sys.exit(5)
 nrep = nadd = 0
 for kind, frm, to, old, new in plan:
-    dest = home + "/" + to
+    dest = dp(to)
     if kind == "added":
         os.makedirs(os.path.dirname(dest), exist_ok=True)
         with open(dest, "wb") as fh:
@@ -259,13 +291,13 @@ for kind, frm, to, old, new in plan:
     print("%s %s sha256 before %s after %s" % (kind, to, sha(old) if old is not None else "-", sha(new)))
 print("upgrade: replaced %d, added %d, unchanged %d, hooks skipped %d" % (nrep, nadd, unchanged, skipped))
 '
-  cut -f1,2 "$LIST" | "$PY" -c "$UPG" "$SRCLIT" "$HOMELIT" "$PY" "$BKLIT" "${LOOP_UPGRADE_HOOKS:-}" "${LOOP_OWNER_HANDLE:-}" || { echo "install.sh: the upgrade failed" >&2; exit 5; }
+  cut -f1,2 "$LIST" | "$PY" -c "$UPG" "$SRCLIT" "$HOMELIT" "$PY" "$BKLIT" "${LOOP_UPGRADE_HOOKS:-}" "${LOOP_OWNER_HANDLE:-}" "$LOOPLIT" || { echo "install.sh: the upgrade failed" >&2; exit 5; }
   exit 0
 fi
 
 CLASH=0
 while IFS="$(printf '\t')" read -r from to; do
-  if [ -e "$HOME/$to" ]; then CLASH=$((CLASH + 1)); fi
+  if [ -e "$(dest "$to")" ]; then CLASH=$((CLASH + 1)); fi
 done <"$LIST"
 if [ "$CLASH" -gt 0 ]; then
   echo "install.sh: $CLASH destination file(s) already exist under HOME. Nothing was overwritten or written." >&2
@@ -274,7 +306,7 @@ fi
 
 # 3. copy
 while IFS="$(printf '\t')" read -r from to; do
-  mkdir -p "$(dirname "$HOME/$to")" && cp -p "$SRC/$from" "$HOME/$to" || { echo "install.sh: copy failed for $from" >&2; exit 5; }
+  mkdir -p "$(dirname "$(dest "$to")")" && cp -p "$SRC/$from" "$(dest "$to")" || { echo "install.sh: copy failed for $from" >&2; exit 5; }
 done <"$LIST"
 echo "copied $TOTAL file(s)"
 
@@ -293,13 +325,16 @@ tok = b"@LOOP_PYTHON@"
 val = sys.argv[1].encode()
 home = sys.argv[2].encode()
 owner = sys.argv[3].encode()
+loop = sys.argv[4]
 otok = b"OWNER_HANDLE"
 hits = files = lines = ohits = 0
 for line in sys.stdin.read().split("\n"):
     p = line.strip("\r")
     if not p:
         continue
-    data = open(p, "rb").read()
+    # p is the destination as the list names it; a .loop/ path is read and written under the loop folder
+    rp = loop + "/" + p[len(".loop/"):] if p.startswith(".loop/") else p
+    data = open(rp, "rb").read()
     new = data.replace(tok, val)
     if owner and otok in new:
         ohits += new.count(otok)
@@ -317,29 +352,38 @@ for line in sys.stdin.read().split("\n"):
             out.append(ln)
         new = b"\n".join(out)
     if new != data:
-        open(p, "wb").write(new)
+        open(rp, "wb").write(new)
         hits += data.count(tok)
         files += 1
 print("filled %d token(s) in %d file(s), %d hook line(s) given the literal home, %d owner handle token(s)" % (hits, files, lines, ohits))
 '
-( cd "$HOME" && cut -f2 "$LIST" | "$PY" -c "$FILL" "$PY" "$HOMELIT" "${LOOP_OWNER:-}" ) || { echo "install.sh: filling the interpreter token failed" >&2; exit 5; }
+( cd "$HOME" && cut -f2 "$LIST" | "$PY" -c "$FILL" "$PY" "$HOMELIT" "${LOOP_OWNER:-}" "$LOOPLIT" ) || { echo "install.sh: filling the interpreter token failed" >&2; exit 5; }
 if [ -z "${LOOP_OWNER:-}" ]; then
   echo "LOOP_OWNER is not set: the owner handle (the OWNER_HANDLE token) is set by hand in the installed files."
 fi
 
 # 5. the home's own directories and its config, last
-mkdir -p "$HOME/.loop/goals" "$HOME/.loop/scratch" "$HOME/.loop/record/docs" || { echo "install.sh: could not make the .loop directories" >&2; exit 5; }
-if [ -f "$HOME/.loop/templates/STATE.md" ] && [ ! -e "$HOME/.loop/record/docs/STATE.md" ]; then
-  cp "$HOME/.loop/templates/STATE.md" "$HOME/.loop/record/docs/STATE.md" || exit 5
+mkdir -p "$LOOPDIR/goals" "$LOOPDIR/scratch" "$LOOPDIR/record/docs" || { echo "install.sh: could not make the .loop directories" >&2; exit 5; }
+if [ -f "$LOOPDIR/templates/STATE.md" ] && [ ! -e "$LOOPDIR/record/docs/STATE.md" ]; then
+  cp "$LOOPDIR/templates/STATE.md" "$LOOPDIR/record/docs/STATE.md" || exit 5
 fi
-TMPCFG="$HOME/.loop/config.env.tmp.$$"
+# the two path lines of config.env follow the loop folder: the ~/.loop spelling when it is the default one under HOME,
+# the literal path of the folder when LOOP_HOME chose another
+if [ "$LOOPLIT" = "$HOMELIT/.loop" ]; then
+  CFG_HOME="~/.loop"
+  CFG_RECORD="~/.loop/record"
+else
+  CFG_HOME="$LOOPLIT"
+  CFG_RECORD="$LOOPLIT/record"
+fi
+TMPCFG="$LOOPDIR/config.env.tmp.$$"
 trap 'rm -f "$LIST" "$TMPCFG"' EXIT
 {
   echo "# config.env for this home, written by install.sh. No secrets belong in this file."
   echo "# Paths may start with ~; the loop tools expand it. Environment variables of the same name win."
-  echo "LOOP_HOME=~/.loop"
+  echo "LOOP_HOME=$CFG_HOME"
   echo "LOOP_PY=$PY"
-  echo "ENGINE_RECORD_DIR=~/.loop/record"
+  echo "ENGINE_RECORD_DIR=$CFG_RECORD"
   echo "RECORD_BRANCH=record"
   echo "WRAPPERS=loop-guard-run loop-journal loop-scan loop-report loop-tripwire loop-ticket"
   echo "MAX_LEADERS=1"
