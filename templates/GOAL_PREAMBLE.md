@@ -47,7 +47,7 @@ The owner is usually right about his own system. Twice a fresh measurement contr
 - The guard requires `loop-guard-run <<'LOOP' ... LOOP` with nothing after the terminator. A bare command is denied with that instruction. That denial is not a finding.
 - The redactor has list-quality false positives: it masks ordinary words as `[NAME]`. Reword rather than fighting it, and never disable it.
 - Read-only roles cannot run inline interpreter code. Write the script into evidence with the Write tool and run that file.
-- The writer never says the word git. The leader owns every branch and commit.
+- The writer's limits on git and branches are in `agents/loop-writer.md`. The leader owns every branch and commit.
 - **A denied command is never redone another way.** A denied `mkdir`, or a denied command that used a `$VAR` path, redone with the Write tool or with the path spelled out literally is re-routing, and re-routing is forbidden. Quote the denial as a finding and stop that step.
 - **Evidence folders are made one way, by every role: the Write tool writing a file at its full path.** No role runs `mkdir`. The leader makes each task's folder by writing that task's card there (`evidence/T<nn>/card.md`, `evidence/T<nn>/writer/card.md`, `evidence/T<nn>/review/card.md`) before it dispatches. The orchestrator makes `evidence/AUDIT/review/` the same way before it dispatches the auditor. Inside its own folder a role makes a subfolder by writing its first file there. A role whose folder is missing returns BLOCKED and names the folder.
 

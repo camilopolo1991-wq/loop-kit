@@ -64,7 +64,7 @@ The leader decides new, update or duplicate by writing `loop-ticket index` to a 
 A ticket's Acceptance criteria, Authority and Budget sections follow the same rules as a GOAL.md's under skill `loop-goal`: numbered, each observable, each able to fail.
 
 ## The fresh ticket review (PROPOSED to READY)
-Dispatch a fresh `loop-reviewer` (never the one that touched this ticket before) with the ticket's Acceptance criteria, Authority and Budget. Record its result as a `ticket-review` note with `verdict=PASS` or `verdict=FAIL`. On FAIL, the leader edits the ticket and re-reviews, at most twice. If the third review still fails, stop HELD with every reading (never merge them). On PASS, `set READY --reason <why>`.
+Dispatch a fresh `loop-reviewer` (never the one that touched this ticket before) with the ticket's Acceptance criteria, Authority and Budget. Record its result as a `ticket-review` note with `verdict=PASS` or `verdict=FAIL`. On FAIL, the leader edits the ticket and re-reviews, at most twice. If the third review still fails, stop HELD with every reading shown as the measurement discipline of `templates/GOAL_PREAMBLE.md` requires. On PASS, `set READY --reason <why>`.
 
 ## The viability check (READY, before `start`)
 Dispatch a scout to check the ticket is still worth running. Record its result as a `viability` note with one of four `result=` values, and follow the matching path:

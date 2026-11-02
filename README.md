@@ -15,7 +15,7 @@ The first line installs into a home that holds nothing yet, the second brings an
 | An agent retries a denied command another way | The pre-tool hook denies the shape and fails closed | `pretool-guard.py` |
 | A change has no way back | The journal check fails a PASS that has no ROLLBACK line before it | `loop-journal --check` |
 | A plan row says PASS and no log shows it | Given `--log PATH`, the plan lint also checks each PASS row of a plan against that step log | `loop-card-lint --log PATH plan.md` |
-| A reviewer FAIL stops the whole run | A reviewer FAIL after its retries lands partial or drops under the goal's standing rules, and is a stop only when the GOAL has none | `loop-card-lint plan.md` |
+| A reviewer FAIL stops the whole run | A reviewer FAIL after its retries lands partial or drops as the GOAL's own ruling for it says, and is a stop only when the GOAL rules nothing for it (law in `templates/GOAL_PREAMBLE.md`) | `loop-card-lint plan.md` |
 | A leader dies and nothing says why | The dispatcher writes the leader's exit code beside the run log as `<GOAL>.<ts>.log.rc` | `loop-dispatch <GOAL-ID> --dry-run` |
 
 Start here: `AGENTS.md`, `docs/guides/install.md` and `docs/STATUS.md`.

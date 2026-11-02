@@ -1,0 +1,27 @@
+# K06-C4 rows:  id :: kind :: expect :: arg
+# Every name and path in them is constructed or relative; no line is copied from a real step log, plan file or report.
+# (a) count rows, one per sentence S1 to S9: arg is a case-insensitive regular expression; the rows judge the prose files of
+#     LOOP_TREE (agents/, skills/, templates/, docs/guides/, README.md, AGENTS.md); the regex is found in exactly one of them and
+#     that one is the home file given as expect. Each regex matches a restatement of the rule, never a bare mention of a tool or
+#     file name. On wt-main the rows S1 to S8 fail (more than one file holds the sentence); S9 already had one home there
+#     (the preamble guards line; the other files only name the tool), so the S9 row passes on both trees.
+S1-record-commit-kinds-one-home :: count :: skills/loop-record/SKILL.md :: one per hold and one per close
+S2-two-readings-one-home :: count :: templates/GOAL_PREAMBLE.md :: two readings|never merge
+S3-wall-time-instrument-one-home :: count :: skills/loop-record/SKILL.md :: step-log tool's
+S4-fresh-reviewer-one-home :: count :: agents/loop-leader.md :: retry (gets a|with no) fresh|never the same one
+S5-writer-never-runs-git-one-home :: count :: agents/loop-writer.md :: never (runs? git|says? the word git)
+S6-standing-rules-are-law-one-home :: count :: templates/GOAL_PREAMBLE.md :: the goal's standing rules|only when the GOAL has none|section is law
+S7-card-lint-before-dispatch-one-home :: count :: agents/loop-leader.md :: dispatch only on exit 0|card lint on it exited 0|card-lint <card file>.{0,3} must exit 0
+S8-returns-saved-one-home :: count :: agents/loop-leader.md :: done[- ]when names
+S9-loop-guard-run-one-home-on-both-trees :: count :: templates/GOAL_PREAMBLE.md :: nothing after the terminator|bare command is denied
+# (b) the two lines added to the Known context guidance of templates/GOAL.md: found on wt-branch, absent on wt-main (the row fails there).
+T1-owner-hand-edit-announced :: phrase :: found :: templates/GOAL.md|An owner hand edit inside a live surface is announced before a GOAL pins a carried value from it
+T2-standing-rule-reaches-cards-by-phrase :: phrase :: found :: templates/GOAL.md|A standing rule that lists a secret-class file or a guarded folder reaches cards by a phrase, never by the name
+# (c) lines of agents/, skills/ and templates/ together: fewer under LOOP_TREE than under wt-main (both counts printed).
+prose-lines-fewer-than-wt-main :: lines :: fewer :: agents skills templates
+# (d) and (e) the two lints, run from LOOP_TREE/bin.
+skill-lint-exit-0 :: lint :: 0 :: loop-skill-lint|skills
+card-lint-exit-0 :: lint :: 0 :: loop-card-lint|examples/example-card.md
+# (f) the control: a scratch copy of the home file of S1 plus the phrase pasted into a second scratch prose file is counted as two
+#     files by the logic of the (a) rows; the comparison is printed as FAIL on a control line and the row passes only when it is seen.
+control-pasted-phrase-counts-two-files :: control :: 2 :: S1

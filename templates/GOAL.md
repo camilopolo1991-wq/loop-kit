@@ -5,9 +5,11 @@ Acceptance criteria:
 1. <observable, able to fail; name the control that proves the check can fail>
 2. <...>
 Authority: <writes to named surfaces, task branches>. Everything else is a gate.
-Budget: writes <n> | external calls <n> | model calls <n> | wall time <n> min (measured as the sum the step-log tool's --active mode prints)
+Budget: writes <n> | external calls <n> | model calls <n> | wall time <n> min (measured as skill loop-record defines wall time)
 Out of scope: <named>
 Known context: <pointers only: report ids, card titles. Never machine values; the scout measures those>
+  - An owner hand edit inside a live surface is announced before a GOAL pins a carried value from it.
+  - A standing rule that lists a secret-class file or a guarded folder reaches cards by a phrase, never by the name.
 Premises (each labelled): <fact> | measured <instrument> or CARRIED
 
 ## Standing rules

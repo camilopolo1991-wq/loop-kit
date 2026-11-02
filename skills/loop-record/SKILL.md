@@ -11,7 +11,7 @@ Fixed line shapes, so `loop-journal --check` and the auditor can read them:
 - `loop-journal <GOAL-ID> GOAL "START GOAL.md sha256 <first 16>"` at every leader start.
 - `loop-journal <GOAL-ID> <window-id> "TRIPWIRE OPEN"` before `loop-tripwire start`, and `"TRIPWIRE CLOSE exit <n>"` after `loop-tripwire check`.
 - `loop-journal <GOAL-ID> T<nn> "ROLLBACK <path> sha256 <first 16>"` by the writer, before its change.
-- `loop-journal <GOAL-ID> T<nn> "DISPATCH <role> <card path>"` by the leader for every dispatch, scouts and reviewers as well as writers; <role> is scout, writer or reviewer, and `loop-journal --dispatches <GOAL-ID>` counts them. A DISPATCH line is appended only after the card file is written and the card lint on it exited 0.
+- `loop-journal <GOAL-ID> T<nn> "DISPATCH <role> <card path>"` by the leader for every dispatch, scouts and reviewers as well as writers; <role> is scout, writer or reviewer, and `loop-journal --dispatches <GOAL-ID>` counts them. A DISPATCH line is appended only when the leader's dispatch rule in `agents/loop-leader.md` allows it.
 - `loop-journal --check <GOAL-ID>` exits 1 when a writer task (owner column says writer) has a PASS line with no ROLLBACK line before it. The leader runs it before `GOAL CLOSED`, and a non-zero exit means the goal is not closed.
 
 ## STATE.md: current facts only, under 150 lines
@@ -52,7 +52,7 @@ Commits: shas; unpushed count after the push; the files holding each commit's pr
 branches: total | stale over 14 days | deleted or archived this batch.
 deployments: only when a push from the record branch triggers a deploy on this machine; otherwise not applicable.
 ```
-No carry-forward essay, no restating the goal, no narration. Every number in the report names its instrument: writer runs are the count of writer DISPATCH lines in the step log, reviewer FAILs the count of FAIL lines, pushes the count of PUSH lines, wall time the sum line the step-log tool's --active prints, quoted; two readings of one number are both kept with their instruments. No em dashes. Every number not measured this goal is marked CARRIED, not stated as fact. Evidence stays on disk and the report points to it.
+No carry-forward essay, no restating the goal, no narration. Every number in the report names its instrument: writer runs are the count of writer DISPATCH lines in the step log, reviewer FAILs the count of FAIL lines, pushes the count of PUSH lines, wall time the sum line the step-log tool's --active prints, quoted; disagreeing readings follow the measurement discipline of `templates/GOAL_PREAMBLE.md`. No em dashes. Every number not measured this goal is marked CARRIED, not stated as fact. Evidence stays on disk and the report points to it.
 
 ## Sending
 One `loop-report` at close, plus one HELD report per stop. `loop-report` uses REPORT_SEND_CMD from config.env; with none set it writes the report and prints its path. No test mail, no proof mail, no channel check. If the send fails, write the draft to `report.md` (it already exists on disk) and print only its path, one line, nothing else.

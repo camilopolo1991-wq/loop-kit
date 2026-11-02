@@ -6,7 +6,7 @@ description: Repository rules for branches, commits, the keep-list, archives and
 # Git on this box
 
 - Long-lived: `main`, `staging` where one exists, and the record branch (`RECORD_BRANCH` from config.env). Everything else is a task branch named `<type>/<scope>-<desc>-<yyyymmdd>`.
-- A task card that needs a task branch: the leader creates and checks it out before dispatching the writer. The writer never creates, switches or commits to a branch, and never runs git at all, read-only included; it edits files only, on the branch the leader already checked out.
+- A task card that needs a task branch: the leader creates and checks it out before dispatching the writer. The writer's limits on branches and git are in `agents/loop-writer.md`; it edits files only, on the branch the leader already checked out.
 - Commits: `type(scope): summary`, 72 characters or fewer. Types: feat, fix, refactor, docs, chore, test, revert. The commit-msg hook enforces this. The leader always commits with `git commit -F <file>`, staged by path, with `loop-scan` first.
 - Clones: listed in `$LOOP_HOME/config.env` (WRITABLE_TREES). A tree not listed there is never written.
 - Keep-list: in STATE.md section 2, changed only by the owner's word. A keep-listed or checked-out branch is never deleted or archived.
