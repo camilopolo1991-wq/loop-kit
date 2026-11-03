@@ -1,23 +1,23 @@
 #!/usr/bin/env python3
 """S01-C3 rows runner: the status page docs/STATUS.md holds every figure of the kit, and the README holds no figure block.
 
-Usage: run.py   (no positional argument; reads the environment)
-
 Environment: LOOP_TREE (the tree under test; every tree is judged against the same rows in rows.txt, so a tree without
 docs/STATUS.md prints FAIL on the rows that need it), LOOP_ROWS_HOME (the home every child gets, with LOOP_HOME at that
 home plus /.loop), LOOP_WORK (a work folder, created when absent), LOOP_PY and LOOP_NAMES_FILE (accepted, unused here).
-Exits 64 with a usage line when a positional argument is given or when LOOP_TREE, LOOP_ROWS_HOME or LOOP_WORK is unset.
 The runner writes no fixture. It removes at its start only what its own manifest file (s01c3-manifest.txt in LOOP_WORK)
 lists from an earlier run, which is nothing today. The only children are short git reads under the tree, run to the end
 in the foreground with HOME, USERPROFILE and LOOP_HOME at the rows home and core.autocrlf=false. Prints PASS or FAIL per
 row with expected and actual, an info line with the sha256 of the runner's own two files, then rows=N pass=N fail=N.
 Nothing is spawned in the background, nothing is killed, no timeout is set.
 """
-import hashlib
 import os
 import re
 import subprocess
 import sys
+sys.dont_write_bytecode = True
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from _lib import (clean_earlier, env_dirs, info_sha, load_rows, make_env, read_bytes, read_lines, row_present, sha,
+    shafull, tally)
 
 USAGE = 'usage: LOOP_TREE=<tree> LOOP_ROWS_HOME=<home> LOOP_WORK=<work> LOOP_PY=<python> LOOP_NAMES_FILE=<file> python run.py (no positional argument)'
 MANIFEST = 's01c3-manifest.txt'
@@ -32,75 +32,14 @@ FIGURES = [
     ('find tests/rows -mindepth 1 -maxdepth 1 -type d | wc -l', 'rows'),
     ('git rev-list --count main', 'commits'),
 ]
-
-
-def fwd(p):
-    return os.path.abspath(p).replace('\\', '/')
-
-
-def shafull(b):
-    return hashlib.sha256(b).hexdigest()
-
-
-def load_rows(path):
-    rows = []
-    with open(path, encoding='utf-8') as fh:
-        for line in fh:
-            line = line.rstrip('\n')
-            if not line.strip() or line.lstrip().startswith('#'):
-                continue
-            rows.append([x.strip() for x in line.split(' :: ', 3)])
-    return rows
-
-
-def read_bytes(p):
-    try:
-        with open(p, 'rb') as fh:
-            return fh.read()
-    except OSError:
-        return None
-
-
-def read_lines(ctx, rel):
-    b = read_bytes(ctx['tree'] + '/' + rel)
-    return None if b is None else b.decode('utf-8', 'replace').replace('\r\n', '\n').split('\n')
-
-
-def remove_path(p):
-    if os.path.isdir(p):
-        for root, dirs, files in os.walk(p, topdown=False):
-            for f in files:
-                fp = os.path.join(root, f)
-                os.chmod(fp, 0o600)
-                os.remove(fp)
-            for d in dirs:
-                os.rmdir(os.path.join(root, d))
-        os.rmdir(p)
-    elif os.path.exists(p):
-        os.chmod(p, 0o600)
-        os.remove(p)
-
-
-def clean_earlier(work):
-    mf = work + '/' + MANIFEST
-    data = read_bytes(mf)
-    if data is None:
-        return 0
-    n = 0
-    for p in data.decode('utf-8', 'replace').split('\n'):
-        p = p.strip()
-        if p and fwd(p).startswith(work + '/') and fwd(p) != work + '/' + MANIFEST and os.path.exists(p):
-            remove_path(p)
-            n += 1
-    os.remove(mf)
-    return n
+# The figures that carry a "measured at commit" line: the skills and the commits on main. The other four are printed by
+# bin/loop-inventory from the tree and carry none.
+HAND_FIGURES = 2
 
 
 def git(ctx, *args):
     """One git read under the tree; returns (returncode, stdout stripped)."""
-    env = dict(os.environ)
-    env.update({'HOME': ctx['home'], 'USERPROFILE': ctx['home'], 'LOOP_HOME': ctx['home'] + '/.loop'})
-    env.pop('LOOP_GOAL', None)
+    env = make_env(ctx['home'], drop=('LOOP_GOAL',))
     try:
         cp = subprocess.run(['git', '-c', 'core.autocrlf=false', '-C', ctx['tree']] + list(args), capture_output=True,
                             text=True, encoding='utf-8', errors='replace', env=env, cwd=ctx['work'])
@@ -147,13 +86,6 @@ def status_figure(lines, cmd):
     return None
 
 
-def row_present(ctx, expect, arg):
-    b = read_bytes(ctx['tree'] + '/' + arg)
-    if b is None:
-        return False, 'expected=%s present actual=absent' % arg
-    return len(b) > 0, 'expected=%s present and not empty actual=%d bytes sha256=%s' % (arg, len(b), shafull(b))
-
-
 def row_shalines(ctx, expect, arg):
     lines = read_lines(ctx, arg)
     if lines is None:
@@ -173,7 +105,7 @@ def row_shalines(ctx, expect, arg):
             seen[sha] = (rc == 0 and out == 'commit')
         if not seen[sha]:
             bad.append('%s does not resolve' % sha[:8])
-    ok = len(found) >= len(FIGURES) and not bad
+    ok = len(found) >= HAND_FIGURES and not bad
     return ok, 'expected=%s actual=%d line(s), %d distinct sha(s), bad %d %s' % (expect, len(found), len(seen), len(bad), ';'.join(bad[:5]))
 
 
@@ -234,9 +166,7 @@ def row_hasline(ctx, expect, arg):
 
 def git_bytes(ctx, *args):
     """One git read under the tree; returns (returncode, stdout bytes)."""
-    env = dict(os.environ)
-    env.update({'HOME': ctx['home'], 'USERPROFILE': ctx['home'], 'LOOP_HOME': ctx['home'] + '/.loop'})
-    env.pop('LOOP_GOAL', None)
+    env = make_env(ctx['home'], drop=('LOOP_GOAL',))
     try:
         cp = subprocess.run(['git', '-c', 'core.autocrlf=false', '-C', ctx['tree']] + list(args), capture_output=True,
                             env=env, cwd=ctx['work'])
@@ -293,40 +223,13 @@ KINDS = {'moved': row_moved, 'present': row_present, 'shalines': row_shalines, '
 
 
 def main():
-    if len(sys.argv) > 1:
-        print(USAGE)
-        return 64
-    tree_e = os.environ.get('LOOP_TREE')
-    home_e = os.environ.get('LOOP_ROWS_HOME')
-    work_e = os.environ.get('LOOP_WORK')
-    if not tree_e or not home_e or not work_e:
-        print(USAGE)
-        return 64
-    tree, work = fwd(tree_e), fwd(work_e)
-    os.makedirs(work, exist_ok=True)
-    cleaned = clean_earlier(work)
-    print('cleaned %d path(s) listed by an earlier run' % cleaned)
-    ctx = {'tree': tree, 'work': work, 'home': fwd(home_e)}
+    tree, home, work = env_dirs(USAGE)
+    clean_earlier(work, MANIFEST, True)
+    ctx = {'tree': tree, 'work': work, 'home': home}
     here = os.path.dirname(os.path.abspath(__file__))
-    for label, p in (('tests/rows/S01-C3/run.py', here + '/run.py'), ('tests/rows/S01-C3/rows.txt', here + '/rows.txt')):
-        b = read_bytes(p)
-        print('info sha256 %s %s' % (label, shafull(b) if b is not None else 'absent'))
+    info_sha((('tests/rows/S01-C3/run.py', here + '/run.py'), ('tests/rows/S01-C3/rows.txt', here + '/rows.txt')))
     rows = load_rows(os.path.join(here, 'rows.txt'))
-    passed = failed = 0
-    for rid, kind, expect, arg in rows:
-        fn = KINDS.get(kind)
-        if fn is None:
-            ok, detail = False, 'unknown kind ' + kind
-        else:
-            try:
-                ok, detail = fn(ctx, expect, arg)
-            except Exception as exc:
-                ok, detail = False, 'expected=row runs actual=error %s' % type(exc).__name__
-        passed += ok
-        failed += (not ok)
-        print('%s %s %s' % ('PASS' if ok else 'FAIL', rid, detail))
-    print('rows=%d pass=%d fail=%d' % (len(rows), passed, failed))
-    return 1 if failed else 0
+    return tally(rows, KINDS, (ctx,), True, False)
 
 
 if __name__ == '__main__':

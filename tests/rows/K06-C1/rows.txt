@@ -1,0 +1,204 @@
+# K06-C1 decision rows: one hook JSON per row. Format:  id :: hook :: role :: expect :: word :: rsha :: payload
+#   rsha     the first twelve hex digits of the sha256 of the whole deny reason (- for an allow); checked by one aggregate row
+#   hook     pre = pretool-guard.py, ro = readonly-guard.py, wg = writer-git-guard.py, wp = writer-path-guard.py (all under LOOP_TREE/hooks/)
+#   role     the value of LOOP_ROLE for the child (scout, reviewer, writer, leader)
+#   expect   allow (empty output, exit 0) or deny (a deny decision in the JSON output)
+#   word     the first word of the deny reason (- for an allow)
+#   payload  the hook JSON; "~/" is the rows home at run time; a payload beginning RAW: is sent as the text after it
+# expect and word were measured by running wt-main (the tree at 345cfbf7) with HOME, USERPROFILE and LOOP_HOME at the rows home.
+# Every child also gets LOOP_GOAL=FIXTURE-K06C1, JOURNAL_FILE under the work folder and PYTHONDONTWRITEBYTECODE=1.
+pre-deny-bash-env :: pre :: leader :: deny :: Environment :: 95a472ba5cda :: {"tool_name":"Bash","tool_input":{"command":"loop-guard-run <<'LOOP'\nenv\nLOOP"}}
+pre-deny-bash-printenv :: pre :: leader :: deny :: Environment :: 95a472ba5cda :: {"tool_name":"Bash","tool_input":{"command":"loop-guard-run <<'LOOP'\nprintenv HOME\nLOOP"}}
+pre-deny-bash-set :: pre :: leader :: deny :: set :: 681362305020 :: {"tool_name":"Bash","tool_input":{"command":"loop-guard-run <<'LOOP'\nset\nLOOP"}}
+pre-deny-bash-docker-inspect :: pre :: leader :: deny :: docker :: 4cd6ba9cb428 :: {"tool_name":"Bash","tool_input":{"command":"loop-guard-run <<'LOOP'\ndocker inspect abc\nLOOP"}}
+pre-deny-bash-docker-exec-env :: pre :: leader :: deny :: Environment :: 2a25a22e40b9 :: {"tool_name":"Bash","tool_input":{"command":"loop-guard-run <<'LOOP'\ndocker exec abc env\nLOOP"}}
+pre-deny-bash-cat-dotenv :: pre :: leader :: deny :: Never :: dbaf2676a80e :: {"tool_name":"Bash","tool_input":{"command":"loop-guard-run <<'LOOP'\ncat ~/proj/.env\nLOOP"}}
+pre-deny-bash-settings-local :: pre :: leader :: deny :: settings.local.json :: fd04f60658ec :: {"tool_name":"Bash","tool_input":{"command":"loop-guard-run <<'LOOP'\nls ~/.claude/settings.local.json\nLOOP"}}
+pre-deny-bash-loop-names-list :: pre :: leader :: deny :: The :: 598663ea3b2f :: {"tool_name":"Bash","tool_input":{"command":"loop-guard-run <<'LOOP'\nls ~/.loop/names.lst\nLOOP"}}
+pre-deny-bash-git-remote-v :: pre :: leader :: deny :: A :: 19835217c560 :: {"tool_name":"Bash","tool_input":{"command":"loop-guard-run <<'LOOP'\ngit remote -v\nLOOP"}}
+pre-deny-bash-export-key :: pre :: leader :: deny :: Never :: f55275ae27ad :: {"tool_name":"Bash","tool_input":{"command":"loop-guard-run <<'LOOP'\nexport MY_KEY=1\nLOOP"}}
+pre-deny-bash-psql :: pre :: leader :: deny :: Use :: c1b4d4eb5864 :: {"tool_name":"Bash","tool_input":{"command":"loop-guard-run <<'LOOP'\npsql -c x\nLOOP"}}
+pre-deny-bash-push-main :: pre :: leader :: deny :: Pushing :: d3e205bc55c9 :: {"tool_name":"Bash","tool_input":{"command":"loop-guard-run <<'LOOP'\ngit push origin main\nLOOP"}}
+pre-deny-bash-push-force :: pre :: leader :: deny :: Force-push, :: 0150a38d2b4a :: {"tool_name":"Bash","tool_input":{"command":"loop-guard-run <<'LOOP'\ngit push --force origin feature\nLOOP"}}
+pre-deny-bash-filter-branch :: pre :: leader :: deny :: A :: 68aebe44e085 :: {"tool_name":"Bash","tool_input":{"command":"loop-guard-run <<'LOOP'\ngit filter-branch --all\nLOOP"}}
+pre-deny-bash-merge-main :: pre :: leader :: deny :: Merges :: b5d0ef1e8f18 :: {"tool_name":"Bash","tool_input":{"command":"loop-guard-run <<'LOOP'\ngit merge main\nLOOP"}}
+pre-deny-bash-grant :: pre :: leader :: deny :: GRANT, :: 247d55dc46b5 :: {"tool_name":"Bash","tool_input":{"command":"loop-guard-run <<'LOOP'\necho GRANT ALL\nLOOP"}}
+pre-deny-bash-gh-pr-merge :: pre :: leader :: deny :: A :: c78bd9031d3d :: {"tool_name":"Bash","tool_input":{"command":"loop-guard-run <<'LOOP'\ngh pr merge 5\nLOOP"}}
+pre-deny-bash-docker-stop :: pre :: leader :: deny :: Stopping :: 995967c69ece :: {"tool_name":"Bash","tool_input":{"command":"loop-guard-run <<'LOOP'\ndocker stop abc\nLOOP"}}
+pre-deny-bash-rm-rf-root :: pre :: leader :: deny :: That :: c7b14e03d68e :: {"tool_name":"Bash","tool_input":{"command":"loop-guard-run <<'LOOP'\nrm -rf /\nLOOP"}}
+pre-deny-bash-gc-prune :: pre :: leader :: deny :: git :: caa7173234ac :: {"tool_name":"Bash","tool_input":{"command":"loop-guard-run <<'LOOP'\ngit gc --prune=now\nLOOP"}}
+pre-deny-bash-powershell :: pre :: leader :: deny :: powershell, :: b4625304f759 :: {"tool_name":"Bash","tool_input":{"command":"loop-guard-run <<'LOOP'\npowershell -c dir\nLOOP"}}
+pre-deny-bash-cmd :: pre :: leader :: deny :: powershell, :: b4625304f759 :: {"tool_name":"Bash","tool_input":{"command":"loop-guard-run <<'LOOP'\ncmd /c dir\nLOOP"}}
+pre-deny-bash-gci-env :: pre :: leader :: deny :: Env: :: f36b024be2ec :: {"tool_name":"Bash","tool_input":{"command":"loop-guard-run <<'LOOP'\nGet-ChildItem Env:\nLOOP"}}
+pre-deny-bash-env-token :: pre :: leader :: deny :: Never :: 813c48ff454b :: {"tool_name":"Bash","tool_input":{"command":"loop-guard-run <<'LOOP'\necho $env:MY_TOKEN\nLOOP"}}
+pre-deny-bash-unguarded :: pre :: leader :: deny :: Run :: 3f3a9d14680f :: {"tool_name":"Bash","tool_input":{"command":"ls"}}
+pre-deny-bash-after-terminator :: pre :: leader :: deny :: The :: beff7a2f38f6 :: {"tool_name":"Bash","tool_input":{"command":"loop-guard-run <<'LOOP'\nls\nLOOP\necho tail"}}
+pre-deny-bash-backslash-dotenv :: pre :: leader :: deny :: Never :: dbaf2676a80e :: {"tool_name":"Bash","tool_input":{"command":"loop-guard-run <<'LOOP'\ncat C:\\proj\\.env\nLOOP"}}
+pre-deny-read-dotenv :: pre :: leader :: deny :: Never :: 6b4535ed98e4 :: {"tool_name":"Read","tool_input":{"file_path":"~/proj/.env"}}
+pre-deny-read-settings-local :: pre :: leader :: deny :: settings.local.json :: e018d2ef6286 :: {"tool_name":"Read","tool_input":{"file_path":"~/.claude/settings.local.json"}}
+pre-deny-read-loop-secrets :: pre :: leader :: deny :: The :: 598663ea3b2f :: {"tool_name":"Read","tool_input":{"file_path":"~/.loop/secrets.lst"}}
+pre-deny-read-ssh :: pre :: leader :: deny :: Key :: 85a25fca60b4 :: {"tool_name":"Read","tool_input":{"file_path":"~/.ssh/config"}}
+pre-deny-read-pem :: pre :: leader :: deny :: Key :: 85a25fca60b4 :: {"tool_name":"Read","tool_input":{"file_path":"~/k/server.pem"}}
+pre-deny-read-hermes-auth :: pre :: leader :: deny :: Key :: 85a25fca60b4 :: {"tool_name":"Read","tool_input":{"file_path":"~/.hermes/auth.json"}}
+pre-deny-read-backslash-dotenv :: pre :: leader :: deny :: Never :: 6b4535ed98e4 :: {"tool_name":"Read","tool_input":{"file_path":"C:\\proj\\.env"}}
+pre-deny-grep-root :: pre :: leader :: deny :: Search :: 4b748ee818f7 :: {"tool_name":"Grep","tool_input":{"path":"/","pattern":"x"}}
+pre-deny-glob-dotenv :: pre :: leader :: deny :: Never :: 6b4535ed98e4 :: {"tool_name":"Glob","tool_input":{"pattern":"**/.env"}}
+pre-deny-write-claude-settings :: pre :: leader :: deny :: Sessions :: 41e91964376a :: {"tool_name":"Write","tool_input":{"file_path":"~/.claude/settings.json"}}
+pre-deny-write-claude-hooks :: pre :: leader :: deny :: Sessions :: 41e91964376a :: {"tool_name":"Write","tool_input":{"file_path":"~/.claude/hooks/x.py"}}
+pre-deny-write-claude-md :: pre :: leader :: deny :: The :: 76f161f5af93 :: {"tool_name":"Write","tool_input":{"file_path":"~/CLAUDE.md"}}
+pre-deny-write-dotenv :: pre :: leader :: deny :: Never :: 85266296c1c3 :: {"tool_name":"Write","tool_input":{"file_path":"~/proj/.env"}}
+pre-deny-write-goal-md :: pre :: leader :: deny :: GOAL.md :: 723cc59ce273 :: {"tool_name":"Write","tool_input":{"file_path":"~/.loop/goals/G1/GOAL.md"}}
+pre-deny-write-edit-claude-hooks :: pre :: leader :: deny :: Sessions :: 41e91964376a :: {"tool_name":"Edit","tool_input":{"file_path":"~/.claude/hooks/x.py"}}
+pre-deny-write-notebook-dotenv :: pre :: leader :: deny :: Never :: 85266296c1c3 :: {"tool_name":"NotebookEdit","tool_input":{"notebook_path":"~/proj/.env"}}
+pre-deny-agent-push-main :: pre :: leader :: deny :: A :: 3f43fa79faf7 :: {"tool_name":"Agent","tool_input":{"subagent_type":"loop-writer","prompt":"TASK 1\ngit push origin main\nDone when: x\nReturn: y"}}
+pre-deny-agent-force-push :: pre :: leader :: deny :: A :: d463ba1b2ab6 :: {"tool_name":"Agent","tool_input":{"subagent_type":"loop-writer","prompt":"TASK 1\ngit push --force origin x\nDone when: x\nReturn: y"}}
+pre-deny-agent-filter-repo :: pre :: leader :: deny :: A :: d0929f57ae01 :: {"tool_name":"Agent","tool_input":{"subagent_type":"loop-writer","prompt":"TASK 1\ngit filter-repo --x\nDone when: x\nReturn: y"}}
+pre-deny-agent-merge-main :: pre :: leader :: deny :: A :: 188207b3075f :: {"tool_name":"Agent","tool_input":{"subagent_type":"loop-writer","prompt":"TASK 1\ngit merge main\nDone when: x\nReturn: y"}}
+pre-deny-agent-reviewer-leak :: pre :: leader :: deny :: A :: cb63bec253e0 :: {"tool_name":"Agent","tool_input":{"subagent_type":"loop-reviewer","prompt":"REVIEW 1\nRESULT: DONE"}}
+pre-deny-agent-reviewer-writer-evidence :: pre :: leader :: deny :: A :: d208a30c0087 :: {"tool_name":"Agent","tool_input":{"subagent_type":"loop-reviewer","prompt":"REVIEW 1\nlook at evidence/T01/writer/x"}}
+pre-deny-agent-reviewer-report :: pre :: leader :: deny :: A :: 2e4c67559df8 :: {"tool_name":"Agent","tool_input":{"subagent_type":"loop-reviewer","prompt":"REVIEW 1\nread report.md"}}
+pre-deny-agent-reviewer-no-card :: pre :: leader :: deny :: A :: 694076ebd642 :: {"tool_name":"Agent","tool_input":{"subagent_type":"loop-reviewer","prompt":"please check"}}
+pre-deny-agent-writer-no-task :: pre :: leader :: deny :: A :: 4dccbc9ff3a3 :: {"tool_name":"Agent","tool_input":{"subagent_type":"loop-writer","prompt":"do it\nDone when: x\nReturn: y"}}
+pre-deny-agent-writer-no-done :: pre :: leader :: deny :: The :: 11755eb4ec6c :: {"tool_name":"Agent","tool_input":{"subagent_type":"loop-writer","prompt":"TASK 1\nReturn: y"}}
+pre-deny-tool-unknown :: pre :: leader :: deny :: Tool :: 2e2c523a7ee5 :: {"tool_name":"Frobnicate","tool_input":{"x":"y"}}
+pre-deny-mcp-push-main :: pre :: leader :: deny :: A :: 3f43fa79faf7 :: {"tool_name":"mcp__fixture__run","tool_input":{"command":"git push origin main"}}
+pre-deny-malformed :: pre :: leader :: deny :: pretool-guard :: 8db3b24ca5e7 :: RAW:not json
+pre-allow-bash-guarded :: pre :: leader :: allow :: - :: - :: {"tool_name":"Bash","tool_input":{"command":"loop-guard-run <<'LOOP'\nls ~/proj\nLOOP"}}
+pre-allow-bash-guarded-git-status :: pre :: leader :: allow :: - :: - :: {"tool_name":"Bash","tool_input":{"command":"loop-guard-run <<'LOOP'\ngit status\nLOOP"}}
+pre-allow-read-plain :: pre :: leader :: allow :: - :: - :: {"tool_name":"Read","tool_input":{"file_path":"~/proj/readme.md"}}
+pre-allow-write-plain :: pre :: leader :: allow :: - :: - :: {"tool_name":"Write","tool_input":{"file_path":"~/proj/x.txt"}}
+pre-allow-grep-dir :: pre :: leader :: allow :: - :: - :: {"tool_name":"Grep","tool_input":{"path":"~/proj","pattern":"x"}}
+pre-allow-skill :: pre :: leader :: allow :: - :: - :: {"tool_name":"Skill","tool_input":{"skill":"loop-pii"}}
+pre-allow-agent-card :: pre :: leader :: allow :: - :: - :: {"tool_name":"Agent","tool_input":{"subagent_type":"loop-writer","prompt":"TASK 1\nwrite one file\nDone when: x\nReturn: y"}}
+pre-allow-agent-reviewer-card :: pre :: leader :: allow :: - :: - :: {"tool_name":"Agent","tool_input":{"subagent_type":"loop-reviewer","prompt":"REVIEW 1\ncriteria only"}}
+ro-deny-bash-python-c :: ro :: scout :: deny :: Read-only :: f09a242a5b9b :: {"tool_name":"Bash","tool_input":{"command":"python -c 'print(1)'"}}
+ro-deny-bash-bash-c :: ro :: scout :: deny :: Read-only :: f3b24d1a8c94 :: {"tool_name":"Bash","tool_input":{"command":"bash -c 'ls'"}}
+ro-deny-bash-eval :: ro :: scout :: deny :: Read-only :: f0f5c24180f1 :: {"tool_name":"Bash","tool_input":{"command":"eval ls"}}
+ro-deny-bash-base64-d :: ro :: scout :: deny :: Read-only :: c8bcf6802c10 :: {"tool_name":"Bash","tool_input":{"command":"echo aGk= | base64 -d"}}
+ro-deny-bash-rm :: ro :: scout :: deny :: Read-only :: 4694ebc7a038 :: {"tool_name":"Bash","tool_input":{"command":"rm ~/x.txt"}}
+ro-deny-bash-cp :: ro :: scout :: deny :: Read-only :: 8ed009b9713b :: {"tool_name":"Bash","tool_input":{"command":"cp ~/a ~/b"}}
+ro-deny-bash-mkdir :: ro :: scout :: deny :: Read-only :: 7b3c137987e5 :: {"tool_name":"Bash","tool_input":{"command":"mkdir ~/d"}}
+ro-deny-bash-mv :: ro :: scout :: deny :: Read-only :: a7032917f2d1 :: {"tool_name":"Bash","tool_input":{"command":"mv ~/a ~/b"}}
+ro-deny-bash-touch :: ro :: scout :: deny :: Read-only :: 64a32b89b740 :: {"tool_name":"Bash","tool_input":{"command":"touch ~/a"}}
+ro-deny-bash-git-commit :: ro :: scout :: deny :: Read-only :: c58e85b4ef7a :: {"tool_name":"Bash","tool_input":{"command":"git commit -m x"}}
+ro-deny-bash-git-push :: ro :: scout :: deny :: Read-only :: c58e85b4ef7a :: {"tool_name":"Bash","tool_input":{"command":"git push origin x"}}
+ro-deny-bash-docker-exec :: ro :: scout :: deny :: Read-only :: 3232bc40aa62 :: {"tool_name":"Bash","tool_input":{"command":"docker exec abc ls"}}
+ro-deny-bash-psql :: ro :: scout :: deny :: Read-only :: 6e6c51264425 :: {"tool_name":"Bash","tool_input":{"command":"psql -c x"}}
+ro-deny-bash-loop-sql-write :: ro :: scout :: deny :: Read-only :: 39f9a9a9d6f7 :: {"tool_name":"Bash","tool_input":{"command":"loop-sql --write x"}}
+ro-deny-bash-loop-n8n-put :: ro :: scout :: deny :: Read-only :: 39f6f07a1084 :: {"tool_name":"Bash","tool_input":{"command":"loop-n8n put x"}}
+ro-deny-bash-loop-journal-write :: ro :: scout :: deny :: Read-only :: 133d2e805a89 :: {"tool_name":"Bash","tool_input":{"command":"loop-journal G T01 \"line\""}}
+ro-deny-bash-curl-d :: ro :: scout :: deny :: Read-only :: a640fa450bd9 :: {"tool_name":"Bash","tool_input":{"command":"curl -d x http://example.invalid"}}
+ro-deny-bash-wget-post :: ro :: scout :: deny :: Read-only :: 226b054a4c3d :: {"tool_name":"Bash","tool_input":{"command":"wget --post-data=x http://example.invalid"}}
+ro-deny-bash-sed-i :: ro :: scout :: deny :: Read-only :: a0acf3cef2e3 :: {"tool_name":"Bash","tool_input":{"command":"sed -i s/a/b/ ~/f"}}
+ro-deny-bash-perl-i :: ro :: scout :: deny :: Read-only :: f09a242a5b9b :: {"tool_name":"Bash","tool_input":{"command":"perl -i -pe s/a/b/ ~/f"}}
+ro-deny-bash-redirect-outside :: ro :: scout :: deny :: Read-only :: 9ff86dcc2446 :: {"tool_name":"Bash","tool_input":{"command":"echo x > ~/out.txt"}}
+ro-deny-bash-redirect-dollar :: ro :: scout :: deny :: Read-only :: 0d895b2dc4cf :: {"tool_name":"Bash","tool_input":{"command":"echo x > $HOME/out.txt"}}
+ro-deny-bash-tee-outside :: ro :: scout :: deny :: Read-only :: 9ff86dcc2446 :: {"tool_name":"Bash","tool_input":{"command":"echo x | tee ~/out.txt"}}
+ro-deny-bash-powershell :: ro :: scout :: deny :: Read-only :: f3e5d3b8d051 :: {"tool_name":"Bash","tool_input":{"command":"powershell -c dir"}}
+ro-deny-bash-cmd :: ro :: scout :: deny :: Read-only :: f3e5d3b8d051 :: {"tool_name":"Bash","tool_input":{"command":"cmd /c dir"}}
+ro-deny-bash-del :: ro :: scout :: deny :: Read-only :: ab46e6f8327a :: {"tool_name":"Bash","tool_input":{"command":"del x"}}
+ro-deny-bash-command-word-var :: ro :: scout :: deny :: Read-only :: 6d0c412d09db :: {"tool_name":"Bash","tool_input":{"command":"$X ls"}}
+ro-deny-bash-ansi-c :: ro :: scout :: deny :: Read-only :: d334c40aa5b4 :: {"tool_name":"Bash","tool_input":{"command":"echo $'a'"}}
+ro-deny-bash-rm-exe :: ro :: scout :: deny :: Read-only :: 4694ebc7a038 :: {"tool_name":"Bash","tool_input":{"command":"rm.exe ~/x"}}
+ro-deny-bash-backslash-rm :: ro :: scout :: deny :: Read-only :: 4694ebc7a038 :: {"tool_name":"Bash","tool_input":{"command":"C:\\tools\\rm x"}}
+ro-deny-bash-cat-writer-sub :: ro :: scout :: deny :: Read-only :: a45280e7dcfd :: {"tool_name":"Bash","tool_input":{"command":"cat ~/.loop/goals/FIXTURE-K06C1/evidence/T01/writer/a.txt"}}
+ro-deny-bash-ls-goals-root :: ro :: scout :: deny :: Read-only :: 7e17ac074356 :: {"tool_name":"Bash","tool_input":{"command":"ls ~/.loop/goals"}}
+ro-deny-bash-ls-writer-sub :: ro :: scout :: deny :: Read-only :: a45280e7dcfd :: {"tool_name":"Bash","tool_input":{"command":"ls ~/.loop/goals/FIXTURE-K06C1/evidence/T01/writer"}}
+ro-deny-bash-find-delete :: ro :: scout :: deny :: Read-only :: 4694ebc7a038 :: {"tool_name":"Bash","tool_input":{"command":"find ~/x -delete"}}
+ro-deny-bash-xargs-rm :: ro :: scout :: deny :: Read-only :: 4694ebc7a038 :: {"tool_name":"Bash","tool_input":{"command":"ls | xargs rm"}}
+ro-deny-bash-env-S-rm :: ro :: scout :: deny :: Read-only :: 4694ebc7a038 :: {"tool_name":"Bash","tool_input":{"command":"env -S \"rm x\""}}
+ro-deny-bash-python-heredoc :: ro :: scout :: deny :: Read-only :: f09a242a5b9b :: {"tool_name":"Bash","tool_input":{"command":"python - <<EOF\nprint(1)\nEOF"}}
+ro-deny-bash-python-script-outside :: ro :: scout :: deny :: Read-only :: 65ee9fa9cdcf :: {"tool_name":"Bash","tool_input":{"command":"python ~/x/y.py"}}
+ro-deny-bash-git-branch-delete :: ro :: scout :: deny :: Read-only :: 143d289ccd50 :: {"tool_name":"Bash","tool_input":{"command":"git branch -D x"}}
+ro-deny-bash-ssh :: ro :: scout :: deny :: Read-only :: d421d1836879 :: {"tool_name":"Bash","tool_input":{"command":"ssh host ls"}}
+ro-deny-read-writer-sub :: ro :: scout :: deny :: Read-only :: a45280e7dcfd :: {"tool_name":"Read","tool_input":{"file_path":"~/.loop/goals/FIXTURE-K06C1/evidence/T01/writer/a.txt"}}
+ro-deny-read-config :: ro :: scout :: deny :: Read-only :: 2bdf34d02245 :: {"tool_name":"Read","tool_input":{"file_path":"~/.loop/config.env"}}
+ro-deny-write-outside :: ro :: scout :: deny :: Read-only :: 9ff86dcc2446 :: {"tool_name":"Write","tool_input":{"file_path":"~/proj/x.txt"}}
+ro-deny-write-writer-sub :: ro :: scout :: deny :: Read-only :: 9ff86dcc2446 :: {"tool_name":"Write","tool_input":{"file_path":"~/.loop/goals/FIXTURE-K06C1/evidence/T01/writer/x.txt"}}
+ro-deny-write-scout-in-review :: ro :: scout :: deny :: Read-only :: 9ff86dcc2446 :: {"tool_name":"Write","tool_input":{"file_path":"~/.loop/goals/FIXTURE-K06C1/evidence/T01/review/x.txt"}}
+ro-deny-write-no-path :: ro :: scout :: deny :: Read-only :: 9ff86dcc2446 :: {"tool_name":"Write","tool_input":{}}
+ro-deny-write-reviewer-in-scout-folder :: ro :: reviewer :: deny :: Read-only :: 9ff86dcc2446 :: {"tool_name":"Write","tool_input":{"file_path":"~/.loop/goals/FIXTURE-K06C1/evidence/T01/x.txt"}}
+ro-deny-write-reviewer-in-audit :: ro :: reviewer :: deny :: Read-only :: 9ff86dcc2446 :: {"tool_name":"Write","tool_input":{"file_path":"~/.loop/goals/FIXTURE-K06C1/evidence/AUDIT/review/x.md"}}
+ro-deny-tool-other :: ro :: scout :: deny :: Read-only :: 47f214f229b6 :: {"tool_name":"Frobnicate","tool_input":{"x":"y"}}
+ro-deny-malformed :: ro :: scout :: deny :: readonly-guard :: 594dec556176 :: RAW:not json
+ro-deny-tool-input-list :: ro :: scout :: deny :: readonly-guard :: 594dec556176 :: {"tool_name":"Bash","tool_input":["x"]}
+ro-allow-bash-ls-evidence :: ro :: scout :: allow :: - :: - :: {"tool_name":"Bash","tool_input":{"command":"ls ~/.loop/goals/FIXTURE-K06C1/evidence/T01"}}
+ro-allow-bash-cat :: ro :: scout :: allow :: - :: - :: {"tool_name":"Bash","tool_input":{"command":"cat ~/proj/a.txt"}}
+ro-allow-bash-git-status :: ro :: scout :: allow :: - :: - :: {"tool_name":"Bash","tool_input":{"command":"git status"}}
+ro-allow-bash-git-log :: ro :: reviewer :: allow :: - :: - :: {"tool_name":"Bash","tool_input":{"command":"git log --oneline"}}
+ro-allow-bash-journal-read :: ro :: scout :: allow :: - :: - :: {"tool_name":"Bash","tool_input":{"command":"loop-journal --read"}}
+ro-allow-bash-grep :: ro :: scout :: allow :: - :: - :: {"tool_name":"Bash","tool_input":{"command":"grep -n x ~/proj/a.txt"}}
+ro-allow-bash-null-redirect :: ro :: scout :: allow :: - :: - :: {"tool_name":"Bash","tool_input":{"command":"ls ~/proj > /dev/null"}}
+ro-allow-bash-evidence-redirect :: ro :: scout :: allow :: - :: - :: {"tool_name":"Bash","tool_input":{"command":"echo x > ~/.loop/goals/FIXTURE-K06C1/evidence/T01/o.txt"}}
+ro-allow-bash-reviewer-review-redirect :: ro :: reviewer :: allow :: - :: - :: {"tool_name":"Bash","tool_input":{"command":"echo x > ~/.loop/goals/FIXTURE-K06C1/evidence/T01/review/o.txt"}}
+ro-allow-write-scout-own :: ro :: scout :: allow :: - :: - :: {"tool_name":"Write","tool_input":{"file_path":"~/.loop/goals/FIXTURE-K06C1/evidence/T01/notes.txt"}}
+ro-allow-write-reviewer-own :: ro :: reviewer :: allow :: - :: - :: {"tool_name":"Write","tool_input":{"file_path":"~/.loop/goals/FIXTURE-K06C1/evidence/T01/review/x.txt"}}
+ro-allow-write-auditor-own :: ro :: reviewer :: allow :: - :: - :: {"tool_name":"Write","agent_type":"loop-auditor","tool_input":{"file_path":"~/.loop/goals/FIXTURE-K06C1/evidence/AUDIT/review/x.md"}}
+ro-allow-read-plain :: ro :: scout :: allow :: - :: - :: {"tool_name":"Read","tool_input":{"file_path":"~/proj/readme.md"}}
+wg-deny-git-status :: wg :: writer :: deny :: Writer :: 45b0e2939112 :: {"tool_name":"Bash","tool_input":{"command":"git status"},"cwd":"~/proj"}
+wg-deny-git-exe :: wg :: writer :: deny :: Writer :: 45b0e2939112 :: {"tool_name":"Bash","tool_input":{"command":"C:/tools/git.exe status"},"cwd":"~/proj"}
+wg-deny-git-dash :: wg :: writer :: deny :: Writer :: 45b0e2939112 :: {"tool_name":"Bash","tool_input":{"command":"git-lfs ls"},"cwd":"~/proj"}
+wg-deny-python-c :: wg :: writer :: deny :: Writer :: 21d35ca0f6b8 :: {"tool_name":"Bash","tool_input":{"command":"python -c \"print(1)\""},"cwd":"~/proj"}
+wg-deny-bash-c :: wg :: writer :: deny :: Writer :: 21d35ca0f6b8 :: {"tool_name":"Bash","tool_input":{"command":"bash -c 'ls'"},"cwd":"~/proj"}
+wg-deny-eval :: wg :: writer :: deny :: Writer :: 21d35ca0f6b8 :: {"tool_name":"Bash","tool_input":{"command":"eval ls"},"cwd":"~/proj"}
+wg-deny-base64 :: wg :: writer :: deny :: Writer :: 382f6d964429 :: {"tool_name":"Bash","tool_input":{"command":"echo aGk= | base64 -d"},"cwd":"~/proj"}
+wg-deny-openssl-enc :: wg :: writer :: deny :: Writer :: 382f6d964429 :: {"tool_name":"Bash","tool_input":{"command":"openssl enc -d -in x"},"cwd":"~/proj"}
+wg-deny-subst :: wg :: writer :: deny :: Writer :: 366f99cc511c :: {"tool_name":"Bash","tool_input":{"command":"echo $(date)"},"cwd":"~/proj"}
+wg-deny-backtick :: wg :: writer :: deny :: Writer :: 366f99cc511c :: {"tool_name":"Bash","tool_input":{"command":"echo `date`"},"cwd":"~/proj"}
+wg-deny-backslash :: wg :: writer :: deny :: Writer :: 366f99cc511c :: {"tool_name":"Bash","tool_input":{"command":"dir C:\\x"},"cwd":"~/proj"}
+wg-deny-ansi-c :: wg :: writer :: deny :: Writer :: e38c55c20b97 :: {"tool_name":"Bash","tool_input":{"command":"echo $'a'"},"cwd":"~/proj"}
+wg-deny-brace-git :: wg :: writer :: deny :: Writer :: e38c55c20b97 :: {"tool_name":"Bash","tool_input":{"command":"{git,status}"},"cwd":"~/proj"}
+wg-deny-cmdword-var :: wg :: writer :: deny :: Writer :: e38c55c20b97 :: {"tool_name":"Bash","tool_input":{"command":"$GIT status"},"cwd":"~/proj"}
+wg-deny-cp-git :: wg :: writer :: deny :: Writer :: e339b473d509 :: {"tool_name":"Bash","tool_input":{"command":"cp /usr/bin/git ~/x"},"cwd":"~/proj"}
+wg-deny-scan-range :: wg :: writer :: deny :: Writer :: 6742963109d1 :: {"tool_name":"Bash","tool_input":{"command":"loop-scan --range a..b"},"cwd":"~/proj"}
+wg-deny-scan-nofile :: wg :: writer :: deny :: Writer :: 6742963109d1 :: {"tool_name":"Bash","tool_input":{"command":"loop-scan"},"cwd":"~/proj"}
+wg-deny-powershell :: wg :: writer :: deny :: Writer :: 20fd44158437 :: {"tool_name":"Bash","tool_input":{"command":"powershell -c dir"},"cwd":"~/proj"}
+wg-deny-cmd :: wg :: writer :: deny :: Writer :: 20fd44158437 :: {"tool_name":"Bash","tool_input":{"command":"cmd /c dir"},"cwd":"~/proj"}
+wg-deny-unknown :: wg :: writer :: deny :: Writer :: e5f8b1b05799 :: {"tool_name":"Bash","tool_input":{"command":"frobnicate x"},"cwd":"~/proj"}
+wg-deny-ticket :: wg :: writer :: deny :: Writer :: e5f8b1b05799 :: {"tool_name":"Bash","tool_input":{"command":"loop-ticket list"},"cwd":"~/proj"}
+wg-deny-rm-nowt :: wg :: writer :: deny :: Writer :: 3772460ebedb :: {"tool_name":"Bash","tool_input":{"command":"rm ~/x"},"cwd":"~/proj"}
+wg-deny-script-nowt :: wg :: writer :: deny :: Writer :: 7c7f06ead51c :: {"tool_name":"Bash","tool_input":{"command":"~/x/y.sh"},"cwd":"~/proj"}
+wg-deny-interp-script-nowt :: wg :: writer :: deny :: Writer :: 7c7f06ead51c :: {"tool_name":"Bash","tool_input":{"command":"python ~/x/y.py"},"cwd":"~/proj"}
+wg-deny-sed-i :: wg :: writer :: deny :: Writer :: ec2cb72a918e :: {"tool_name":"Bash","tool_input":{"command":"sed -i s/a/b/ ~/f"},"cwd":"~/proj"}
+wg-deny-xargs-git :: wg :: writer :: deny :: Writer :: 45b0e2939112 :: {"tool_name":"Bash","tool_input":{"command":"echo x | xargs git"},"cwd":"~/proj"}
+wg-deny-env-S-git :: wg :: writer :: deny :: Writer :: 45b0e2939112 :: {"tool_name":"Bash","tool_input":{"command":"env -S \"git status\""},"cwd":"~/proj"}
+wg-deny-python-heredoc :: wg :: writer :: deny :: Writer :: 21d35ca0f6b8 :: {"tool_name":"Bash","tool_input":{"command":"python - <<EOF\nprint(1)\nEOF"},"cwd":"~/proj"}
+wg-deny-cp-nowt :: wg :: writer :: deny :: Writer :: 3772460ebedb :: {"tool_name":"Bash","tool_input":{"command":"cp ~/a ~/b"},"cwd":"~/proj"}
+wg-deny-mkdir-nowt :: wg :: writer :: deny :: Writer :: 3772460ebedb :: {"tool_name":"Bash","tool_input":{"command":"mkdir ~/d"},"cwd":"~/proj"}
+wg-deny-malformed :: wg :: writer :: deny :: writer-git-guard :: a14a6bb507dd :: RAW:not json
+wg-deny-command-not-string :: wg :: writer :: deny :: writer-git-guard :: a14a6bb507dd :: {"tool_name":"Bash","tool_input":{"command":["ls"]}}
+wg-allow-sha256sum :: wg :: writer :: allow :: - :: - :: {"tool_name":"Bash","tool_input":{"command":"sha256sum ~/proj/a.txt"},"cwd":"~/proj"}
+wg-allow-echo :: wg :: writer :: allow :: - :: - :: {"tool_name":"Bash","tool_input":{"command":"echo hi"},"cwd":"~/proj"}
+wg-allow-fd-dup :: wg :: writer :: allow :: - :: - :: {"tool_name":"Bash","tool_input":{"command":"ls ~/proj 2>&1"},"cwd":"~/proj"}
+wg-allow-assignment :: wg :: writer :: allow :: - :: - :: {"tool_name":"Bash","tool_input":{"command":"FOO=1 sha256sum ~/proj/a.txt"},"cwd":"~/proj"}
+wg-allow-journal :: wg :: writer :: allow :: - :: - :: {"tool_name":"Bash","tool_input":{"command":"loop-journal GOAL-X T01 \"a line\""},"cwd":"~/proj"}
+wg-allow-scan-file :: wg :: writer :: allow :: - :: - :: {"tool_name":"Bash","tool_input":{"command":"loop-scan ~/proj/a.txt"},"cwd":"~/proj"}
+wg-allow-guarded-heredoc :: wg :: writer :: allow :: - :: - :: {"tool_name":"Bash","tool_input":{"command":"loop-guard-run <<'LOOP'\nls ~/proj\nLOOP"},"cwd":"~/proj"}
+wg-allow-quoted-git-pattern :: wg :: writer :: allow :: - :: - :: {"tool_name":"Bash","tool_input":{"command":"grep \"git commit\" ~/proj/a.txt"},"cwd":"~/proj"}
+wg-allow-non-bash-tool :: wg :: writer :: allow :: - :: - :: {"tool_name":"Write","tool_input":{"file_path":"~/proj/x.txt"}}
+wp-deny-git :: wp :: writer :: deny :: Writer :: e4214684724d :: {"tool_name":"Write","tool_input":{"file_path":"~/proj/.git/HEAD"}}
+wp-deny-claude :: wp :: writer :: deny :: Writer :: dbe9e6818b30 :: {"tool_name":"Write","tool_input":{"file_path":"~/.claude/agents/x.md"}}
+wp-deny-claude-md :: wp :: writer :: deny :: Writer :: 2d7f4ca3f23d :: {"tool_name":"Write","tool_input":{"file_path":"~/proj/CLAUDE.md"}}
+wp-deny-dotenv :: wp :: writer :: deny :: Writer :: f4037655c427 :: {"tool_name":"Write","tool_input":{"file_path":"~/proj/.env"}}
+wp-deny-journal :: wp :: writer :: deny :: Writer :: c48647046ebb :: {"tool_name":"Write","tool_input":{"file_path":"~/proj/JOURNAL.md"}}
+wp-deny-state :: wp :: writer :: deny :: Writer :: c48647046ebb :: {"tool_name":"Write","tool_input":{"file_path":"~/proj/STATE.md"}}
+wp-deny-tickets :: wp :: writer :: deny :: Writer :: 11f1fc4240f2 :: {"tool_name":"Write","tool_input":{"file_path":"~/proj/tickets/T1.md"}}
+wp-deny-report-md :: wp :: writer :: deny :: The :: 306f8befee23 :: {"tool_name":"Write","tool_input":{"file_path":"~/proj/report.md"}}
+wp-deny-summary-md :: wp :: writer :: deny :: The :: 306f8befee23 :: {"tool_name":"Write","tool_input":{"file_path":"~/proj/summary.md"}}
+wp-deny-relative :: wp :: writer :: deny :: Writer :: 054d8c10de0b :: {"tool_name":"Write","tool_input":{"file_path":"proj/x.txt"}}
+wp-deny-other-goal :: wp :: writer :: deny :: Writer :: ce24f7ef1434 :: {"tool_name":"Write","tool_input":{"file_path":"~/.loop/goals/OTHER-GOAL/evidence/T01/writer/x.txt"}}
+wp-deny-evidence-not-writer :: wp :: writer :: deny :: Writer :: 26ecc0c7c2d3 :: {"tool_name":"Write","tool_input":{"file_path":"~/.loop/goals/FIXTURE-K06C1/evidence/T01/x.txt"}}
+wp-deny-outside :: wp :: writer :: deny :: Writer :: c9098f765801 :: {"tool_name":"Write","tool_input":{"file_path":"~/proj/x.txt"}}
+wp-deny-traversal :: wp :: writer :: deny :: Writer :: 26ecc0c7c2d3 :: {"tool_name":"Write","tool_input":{"file_path":"~/.loop/goals/FIXTURE-K06C1/evidence/T01/writer/../../x.txt"}}
+wp-deny-goal-dir :: wp :: writer :: deny :: Writer :: c9098f765801 :: {"tool_name":"Write","tool_input":{"file_path":"~/.loop/goals/FIXTURE-K06C1/GOAL.md"}}
+wp-deny-edit-claude :: wp :: writer :: deny :: Writer :: dbe9e6818b30 :: {"tool_name":"Edit","tool_input":{"file_path":"~/.claude/settings.json"}}
+wp-deny-notebook-git :: wp :: writer :: deny :: Writer :: e4214684724d :: {"tool_name":"NotebookEdit","tool_input":{"notebook_path":"~/proj/.git/x.ipynb"}}
+wp-deny-multiedit-outside :: wp :: writer :: deny :: Writer :: c9098f765801 :: {"tool_name":"MultiEdit","tool_input":{"file_path":"~/proj/x.txt"}}
+wp-deny-no-path :: wp :: writer :: deny :: Writer :: 054d8c10de0b :: {"tool_name":"Write","tool_input":{}}
+wp-deny-path-not-string :: wp :: writer :: deny :: Writer :: 054d8c10de0b :: {"tool_name":"Write","tool_input":{"file_path":5}}
+wp-deny-malformed :: wp :: writer :: deny :: writer-path-guard :: 0b4a8afc412c :: RAW:not json
+wp-allow-evidence-writer :: wp :: writer :: allow :: - :: - :: {"tool_name":"Write","tool_input":{"file_path":"~/.loop/goals/FIXTURE-K06C1/evidence/T01/writer/x.txt"}}
+wp-allow-evidence-writer-nested :: wp :: writer :: allow :: - :: - :: {"tool_name":"Write","tool_input":{"file_path":"~/.loop/goals/FIXTURE-K06C1/evidence/T04/writer/r1/y.txt"}}
+wp-allow-edit-tool :: wp :: writer :: allow :: - :: - :: {"tool_name":"Edit","tool_input":{"file_path":"~/.loop/goals/FIXTURE-K06C1/evidence/T01/writer/x.txt"}}
+wp-allow-notebook :: wp :: writer :: allow :: - :: - :: {"tool_name":"NotebookEdit","tool_input":{"notebook_path":"~/.loop/goals/FIXTURE-K06C1/evidence/T01/writer/x.ipynb"}}
+wp-allow-non-write-tool :: wp :: writer :: allow :: - :: - :: {"tool_name":"Read","tool_input":{"file_path":"~/proj/x.txt"}}

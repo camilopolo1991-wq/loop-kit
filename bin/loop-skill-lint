@@ -1,13 +1,23 @@
 #!/usr/bin/env bash
-# loop-skill-lint [<skills folder>] : judges every SKILL.md under the folder named by the one positional argument, or by
-#   LOOP_SKILLS_DIR when none is given. Rules, output and exit codes are in bin/loop_skill_lint.py.
-# Prints one line per skill (folder, lines, bytes, verdict) and one closing line with the counts of skills and broken rules.
-# Exit 0 no rule is broken, 1 a rule is broken, 64 usage, 3 LOOP_PY does not resolve.
-# STRUCT-01 C1.
-set -euo pipefail
-BIN="$(dirname "$(readlink -f "$0")")"
-# LOOP_PY resolved the way the P12 stubs resolve it: the environment first, then config.env
-# read with sed, and deliberately NO fallback to python3 or python on PATH.
+# The one launcher text for every command under bin/. Each command file in bin/ is a copy of this file, byte for byte.
+# It runs the python module whose name is its own file name with the dash turned into an underscore and .py added,
+# found beside it (loop-scan runs loop_scan.py), and passes every argument through.
+#
+# P12. A command file carried a python3 shebang. On this host python3 on PATH is the Microsoft Store stub: it exits 49
+# and prints an install prompt, so the command died before its first line. loop-guard-run is required by CLAUDE.md for
+# every shell command the loop runs, so the loop could not run at all.
+#
+# LOOP_PY is resolved the one way: the environment first, then config.env under the loop home. There is deliberately NO
+# fallback to python3 or python on PATH. A launcher that silently finds the Store stub is the defect itself.
+set -uo pipefail
+SELF="$(readlink -f "$0")"
+BIN="$(dirname "$SELF")"
+NAME="$(basename "$SELF")"
+MOD="${NAME//-/_}.py"
+case "$(uname -s 2>/dev/null)" in
+  MINGW*|MSYS*|CYGWIN*) BIN_NATIVE="$(cygpath -m "$BIN" 2>/dev/null || printf '%s' "$BIN")";;
+  *) BIN_NATIVE="$BIN";;
+esac
 LOOP_HOME_D="${LOOP_HOME:-$HOME/.loop}"
 if [ -z "${LOOP_PY:-}" ] && [ -f "$LOOP_HOME_D/config.env" ]; then
   LOOP_PY="$(sed -n 's/^[[:space:]]*LOOP_PY=//p' "$LOOP_HOME_D/config.env" | tail -1)"
@@ -16,13 +26,9 @@ if [ -z "${LOOP_PY:-}" ] && [ -f "$LOOP_HOME_D/config.env" ]; then
 fi
 PY="${LOOP_PY:-}"
 if [ -z "$PY" ] || ! "$PY" -c 'import sys' >/dev/null 2>&1; then
-  echo "loop-skill-lint: LOOP_PY does not resolve to a working python interpreter." >&2
-  echo "loop-skill-lint: set LOOP_PY in the environment, or as LOOP_PY= in $LOOP_HOME_D/config.env." >&2
-  echo "loop-skill-lint: there is no fallback to python3 on PATH, by design." >&2
+  echo "$NAME: LOOP_PY does not resolve to a working python interpreter." >&2
+  echo "$NAME: set LOOP_PY in the environment, or as LOOP_PY= in $LOOP_HOME_D/config.env." >&2
+  echo "$NAME: there is no fallback to python3 on PATH, by design." >&2
   exit 3
 fi
-case "$(uname -s 2>/dev/null)" in
-  MINGW*|MSYS*|CYGWIN*) BIN_NATIVE="$(cygpath -m "$BIN" 2>/dev/null || printf '%s' "$BIN")";;
-  *) BIN_NATIVE="$BIN";;
-esac
-exec "$PY" "$BIN_NATIVE/loop_skill_lint.py" "$@"
+exec "$PY" "$BIN_NATIVE/$MOD" "$@"

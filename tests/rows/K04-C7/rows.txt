@@ -1,14 +1,14 @@
 # id :: expect :: file :: phrase   (expect found = the phrase is in the file, absent = it is not; the same expected verdicts judge every tree)
 P01 :: found :: README.md :: Given `--log PATH`, the plan lint also checks each PASS row of a plan against that step log
-P02 :: found :: README.md :: lands partial or drops under the goal's standing rules, and is a stop only when the GOAL has none
-P03 :: found :: agents/loop-leader.md :: lands partial or drops under the goal's standing rules; it is a stop only when the GOAL has none
-P04 :: found :: agents/loop-leader.md :: is spent. Wall time is the sum the step-log tool's `--active` mode prints.
-P05 :: found :: skills/loop-record/SKILL.md :: A DISPATCH line is appended only after the card file is written and the card lint on it exited 0.
-P06 :: found :: skills/loop-goal/SKILL.md :: max wall time (the sum the step-log tool's --active mode prints)
+P02 :: found :: README.md :: lands partial or drops as the GOAL's own ruling for it says, and is a stop only when the GOAL rules nothing for it
+P03 :: found :: agents/loop-leader.md :: lands partial or drops as the GOAL's own ruling for it says (law per `templates/GOAL_PREAMBLE.md`, Concurrency); it is a stop only when the GOAL rules nothing for it
+P04 :: found :: agents/loop-leader.md :: is spent. Wall time is measured as skill loop-record defines it.
+P05 :: found :: skills/loop-record/SKILL.md :: A DISPATCH line is appended only when the leader's dispatch rule in `agents/loop-leader.md` allows it.
+P06 :: found :: skills/loop-goal/SKILL.md :: max wall time (measured as skill loop-record defines it)
 P07 :: found :: skills/loop-goal/SKILL.md :: Standing rules: the owner's standing rulings that override the base stops for this goal.
 P08 :: found :: skills/loop-goal/SKILL.md :: Premises: carried figures, each marked CARRIED with its source, re-measured by a scout.
-P09 :: found :: templates/GOAL.md :: wall time <n> min (measured as the sum the step-log tool's --active mode prints)
-P10 :: found :: agents/loop-leader.md :: After 2 retries the card lands partial or drops under the goal's standing rules; the leader stops and asks the owner, with both readings side by side, only when the GOAL has none.
+P09 :: found :: templates/GOAL.md :: wall time <n> min (measured as skill loop-record defines wall time)
+P10 :: found :: agents/loop-leader.md :: After 2 retries the card lands partial or drops as the GOAL's own ruling for it says (`templates/GOAL_PREAMBLE.md`, Concurrency, makes that section law); the leader stops and asks the owner, with the readings shown as the measurement discipline of that preamble requires, only when the GOAL gives none.
 R03 :: absent :: agents/loop-leader.md :: Then stop and ask the owner with both readings side by side.
 R01 :: absent :: README.md :: an owner gate, a reviewer FAIL after two retries, a guard denial
 R02 :: absent :: agents/loop-leader.md :: - A reviewer FAIL after 2 retries.

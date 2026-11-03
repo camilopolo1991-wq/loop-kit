@@ -802,9 +802,24 @@ def cmd_check(goal_id, window_id):
 
 def cmd_selftest():
     here = os.path.dirname(os.path.realpath(__file__))
-    sys.path.insert(0, here)
-    import tripwire_selftest
-    return tripwire_selftest.run(script_path=os.path.realpath(__file__))
+    # tripwire_selftest.py lives in the kit's tests/ folder, beside the docker shim: the same three places the shim is looked for.
+    cands = []
+    if os.environ.get('LOOP_TRIPWIRE_TESTS_DIR'):
+        cands.append(os.environ['LOOP_TRIPWIRE_TESTS_DIR'])
+    cands.append(os.path.join(here, '..', 'tests'))
+    cands.append(os.path.join(os.environ.get('LOOP_HOME') or os.path.expanduser('~/.loop'), 'kit-src', 'tests'))
+    tried = []
+    for c in cands:
+        c = os.path.normpath(c)
+        if c in tried:
+            continue
+        tried.append(c)
+        if os.path.isfile(os.path.join(c, 'tripwire_selftest.py')):
+            sys.path.insert(0, c)
+            import tripwire_selftest
+            return tripwire_selftest.run(script_path=os.path.realpath(__file__))
+    sys.stderr.write('loop-tripwire selftest: tests/tripwire_selftest.py not found; tried: %s\n' % ', '.join(tried))
+    return 2
 
 
 # --------------------------------------------------------------- main ---

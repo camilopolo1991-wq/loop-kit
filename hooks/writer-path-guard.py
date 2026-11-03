@@ -15,54 +15,40 @@ STATE.md, a tickets/ directory, or another goal's directory.
 Without LOOP_GOAL set the guard denies every write: a writer with no goal has no scope.
 Fails closed on any error. Register with "onFailure": "block".
 """
+import functools
 import json
 import os
 import re
 import sys
 
+# The shared library sits beside this file and is loaded by that path, so the load does not rest
+# on the script folder being on the module path (the hook runs under an isolated interpreter).
+# If it cannot be loaded the hook fails closed with the same deny JSON, exit 0.
+try:
+    _LIB = os.path.join(os.path.dirname(os.path.abspath(__file__)), '_guardlib.py')
+    _g = type(sys)('_guardlib')
+    _g.__file__ = _LIB
+    with open(_LIB, encoding='utf-8') as _fh:
+        exec(compile(_fh.read(), _LIB, 'exec'), _g.__dict__)
+except Exception:
+    print(json.dumps({'hookSpecificOutput': {
+        'hookEventName': 'PreToolUse', 'permissionDecision': 'deny',
+        'permissionDecisionReason': 'writer-path-guard could not load its library, so it fails closed.'}}))
+    sys.exit(0)
+
+# The shared shapes (bodies in _guardlib). This hook's output is always a deny.
+_canon = _g.canon
+_is_abs = _g.is_abs
+_k = _g.fold
+out = functools.partial(_g.out, 'deny')
+
 LOOP_HOME = os.path.normpath(os.environ.get('LOOP_HOME') or os.path.expanduser('~/.loop'))
 
+# LOOP_GOAL from the environment (the dispatcher sets it), else from $LOOP_HOME/current_goal,
+# which the leader writes at goal start.
+LOOP_GOAL = _g.current_goal(LOOP_HOME)
 
-def _current_goal():
-    """LOOP_GOAL from the environment (the dispatcher sets it), else from
-    $LOOP_HOME/current_goal, which the leader writes at goal start."""
-    g = os.environ.get('LOOP_GOAL') or ''
-    if g:
-        return g.strip()
-    try:
-        with open(os.path.join(LOOP_HOME, 'current_goal'), encoding='utf-8') as fh:
-            g = fh.read().strip().splitlines()[0] if fh else ''
-    except Exception:
-        g = ''
-    return g if re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._-]{0,63}', g or '') else ''
-
-
-LOOP_GOAL = _current_goal()
-
-_MSYS_DRIVE = re.compile(r'^/([A-Za-z])(?=/|$)')
 _RF = re.I if os.name == 'nt' else 0
-
-
-def _canon(path):
-    """P21. One spelling for every path this guard compares.
-
-    The auditor's evidence redirect to an absolute C:/... path was denied as not
-    absolute, and the /c/... form that readlink gives under bash -lc never matched a
-    C:/ prefix. On Windows the MSYS drive form, backslashes and forward slashes all
-    become X:/... before any comparison. normpath also folds .. segments, so a
-    traversal out of an allowed folder is judged where it lands.
-    """
-    p = str(path or '').strip().replace('\\', '/')
-    if os.name == 'nt':
-        m = _MSYS_DRIVE.match(p)
-        if m:
-            p = m.group(1).upper() + ':' + p[2:]
-    return os.path.normpath(p).replace('\\', '/')
-
-
-def _k(s):
-    """Prefix comparisons are case-blind on Windows, where the filesystem is."""
-    return s.lower() if os.name == 'nt' else s
 
 ALWAYS_DENY = [
     (r'/\.git(/|$)', 'Writer role: never write inside .git. The leader owns git.'),
@@ -73,30 +59,6 @@ ALWAYS_DENY = [
     (r'/tickets(/|$)', 'Writer role: tickets are the leader\'s.'),
     (r'(^|/)(summary|report|findings|analysis)\.md$', 'The harness refuses these names for subagent writes. Pick another name.'),
 ]
-
-
-def out(reason):
-    print(json.dumps({'hookSpecificOutput': {'hookEventName': 'PreToolUse',
-                                             'permissionDecision': 'deny',
-                                             'permissionDecisionReason': reason}}))
-    sys.exit(0)
-
-
-def _fwd(path):
-    """One separator convention for every comparison in this file.
-
-    os.path.normpath and os.path.join emit BACKSLASHES on Windows, while this guard
-    builds its prefixes by appending a literal '/'. The result is a mixed-separator
-    string that no real path can start with, so every prefix test silently went False.
-    """
-    return os.path.normpath(path).replace('\\', '/')
-
-
-def _is_abs(p):
-    """Absolute on either platform. `p.startswith('/')` is POSIX-only, and a Windows
-    absolute path begins `C:\\` or `C:/`, so the POSIX-only test rejected every real
-    write on this host and the guard denied the writer role outright."""
-    return bool(p) and (p.startswith('/') or re.match(r'^[A-Za-z]:[\\/]', p) is not None)
 
 
 def allowed_roots():
@@ -115,7 +77,7 @@ def allowed_roots():
     return roots
 
 
-def run():
+def run_writer_path():
     d = json.load(sys.stdin)
     tool = d.get('tool_name')
     if tool not in ('Write', 'Edit', 'MultiEdit', 'NotebookEdit'):
@@ -144,12 +106,5 @@ def run():
     out('Writer role: path is outside the task worktree listed in writable.txt and outside evidence/T<nn>/writer/.')
 
 
-def main():
-    try:
-        run()
-    except Exception:
-        out('writer-path-guard hit an unexpected error, so it fails closed.')
-
-
 if __name__ == '__main__':
-    main()
+    _g.main(run_writer_path, 'writer-path-guard hit an unexpected error, so it fails closed.')

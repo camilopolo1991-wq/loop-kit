@@ -9,11 +9,13 @@ point into <home>; no home path is written in the row text. Prints PASS or FAIL 
 the expected and actual exit and a sha256 prefix of the output text (never the text), then a
 count, and exits 1 on any FAIL. Nothing is spawned in the background and nothing is killed.
 """
-import hashlib
 import os
 import re
 import subprocess
 import sys
+sys.dont_write_bytecode = True
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from _lib import Score, dirs_or_args, fwd, load_rows, make_env, sha, write_text
 
 NAMES_FILE = 'fixture-names.lst'  # beside <work>, in its parent folder
 GOAL = 'FIXT-C4'  # no plan for this id exists under the test home
@@ -46,58 +48,22 @@ LOGS = {
 }
 
 
-def fwd(p):
-    return os.path.abspath(p).replace('\\', '/')
-
-
-def sha(s):
-    return hashlib.sha256(s.encode('utf-8', 'replace')).hexdigest()[:12]
-
-
-def load_rows(path):
-    rows = []
-    with open(path, encoding='utf-8') as fh:
-        for line in fh:
-            line = line.rstrip('\n')
-            if not line.strip() or line.lstrip().startswith('#'):
-                continue
-            rows.append([x.strip() for x in line.split(' :: ', 3)])
-    return rows
-
-
 def main():
-    if len(sys.argv) == 1:
-        tree_e = os.environ.get('LOOP_TREE')
-        home_e = os.environ.get('LOOP_ROWS_HOME')
-        work_e = os.environ.get('LOOP_WORK')
-        if not tree_e or not home_e or not work_e:
-            print('usage: run.py <tree> <home> <work>   or   LOOP_TREE=<tree> LOOP_ROWS_HOME=<home> LOOP_WORK=<work> run.py')
-            return 64
-        sys.argv[1:] = [tree_e, home_e, work_e]
-    if len(sys.argv) != 4:
-        print('usage: run.py <tree> <home> <work>')
-        return 2
-    tree, home, work = fwd(sys.argv[1]), fwd(sys.argv[2]), fwd(sys.argv[3])
+    tree, home, work = dirs_or_args()
     os.makedirs(work, exist_ok=True)
     stub = tree + '/bin/loop-journal'
     rows = load_rows(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'rows.txt'))
-    env = dict(os.environ)
-    env.update({'HOME': home, 'USERPROFILE': home, 'LOOP_HOME': home + '/.loop',
-                'LOOP_PY': fwd(sys.executable), 'LOOP_NAMES_FILE': os.path.dirname(work) + '/' + NAMES_FILE,
-                'PYTHONDONTWRITEBYTECODE': '1'})
-    env.pop('LOOP_GOAL', None)
-    env.pop('JOURNAL_FILE', None)
-    passed = failed = 0
+    env = make_env(home, {'LOOP_PY': fwd(sys.executable), 'LOOP_NAMES_FILE': os.path.dirname(work) + '/' + NAMES_FILE},
+                   ('LOOP_GOAL', 'JOURNAL_FILE'))
+    score = Score()
     for rid, kind, expect, _desc in rows:
         log = work + '/' + rid + '.log'
-        with open(log, 'w', encoding='utf-8', newline='\n') as fh:
-            fh.write('\n'.join(l % GOAL for l in LOGS[kind]) + '\n')
+        write_text(log, '\n'.join(l % GOAL for l in LOGS[kind]) + '\n')
         cmd = ['bash', stub, '--check', GOAL, '--file', log]
         if kind != 'noplan':
             pdir = work + '/plan-' + rid
             os.makedirs(pdir, exist_ok=True)
-            with open(pdir + '/plan.md', 'w', encoding='utf-8', newline='\n') as fh:
-                fh.write(PLAN)
+            write_text(pdir + '/plan.md', PLAN)
             cmd += ['--plan', pdir + '/plan.md']
         cp = subprocess.run(cmd, capture_output=True, text=True, env=env, cwd=work)
         out = cp.stdout + cp.stderr
@@ -110,12 +76,8 @@ def main():
             ok = cp.returncode == want and 'missing ROLLBACK 0' in out and 'FAIL' not in out
         else:
             ok = cp.returncode == want and 'unreadable' in out
-        passed += ok
-        failed += (not ok)
-        print('%s %s expected_exit=%d actual_exit=%d out_sha=%s' % (
-            'PASS' if ok else 'FAIL', rid, want, cp.returncode, sha(out)))
-    print('rows=%d pass=%d fail=%d' % (len(rows), passed, failed))
-    return 1 if failed else 0
+        score.row(ok, rid, 'expected_exit=%d actual_exit=%d out_sha=%s' % (want, cp.returncode, sha(out)))
+    return score.done(rows)
 
 
 if __name__ == '__main__':

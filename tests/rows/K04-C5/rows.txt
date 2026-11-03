@@ -10,9 +10,9 @@ s5 :: phrase :: skills/loop-record/SKILL.md :: Commits section lists every recor
 s6 :: phrase :: skills/loop-record/SKILL.md :: Every number in the report names its instrument
 s7 :: phrase :: skills/loop-audit/SKILL.md :: followed by a PASS or DONE line for the same task with no DISPATCH line for that task between them fails the item, whatever the time between
 s8 :: phrase :: skills/loop-audit/SKILL.md :: Every commit with the goal trailer appears in the log, the placement commit included. Each commit's scan evidence
-s9a :: phrase :: agents/loop-leader.md :: the record commits of a goal are its placement commit, one per hold and one per close, each carrying the trailer and its two scan files under evidence/record/, the placement commit's files saved by whoever makes it
+s9a :: phrase :: agents/loop-leader.md :: Which commits a goal makes, and the trailer and scan files each carries, is set by skill loop-record (Commits and pushes)
 s9b :: phrase :: skills/loop-record/SKILL.md :: the record commits of a goal are its placement commit, one per hold and one per close, each carrying the trailer and its two scan files under evidence/record/, the placement commit's files saved by whoever makes it
-s9c :: twice :: skills/loop-audit/SKILL.md :: the record commits of a goal are its placement commit, one per hold and one per close, each carrying the trailer and its two scan files under evidence/record/, the placement commit's files saved by whoever makes it
+s9c :: twice :: skills/loop-audit/SKILL.md :: the record commits of a goal are those skill loop-record names (Commits and pushes)
 s10 :: removed :: skills/loop-record/SKILL.md :: gets at most 2 commits total
 s11a :: removed :: agents/loop-leader.md :: plus one more only if the goal pauses at an owner gate
 s11b :: removed :: skills/loop-record/SKILL.md :: plus exactly one more only if the goal paused at an owner gate

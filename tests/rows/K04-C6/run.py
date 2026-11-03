@@ -1,14 +1,11 @@
 #!/usr/bin/env python3
 """K04-C6 rows runner: bin/loop-dispatch, the dispatcher in the kit.
 
-Usage: run.py   (no positional argument; reads the environment)
-
 Environment: LOOP_TREE (the tree under test; every tree is judged against the same expected values in rows.txt,
 so a tree without the dispatcher prints FAIL on the rows it adds), LOOP_ROWS_HOME (the home every spawned process
 gets as HOME and USERPROFILE; LOOP_HOME is that home plus /.loop), LOOP_WORK (a work folder, created when absent),
 LOOP_PY (the interpreter that runs the dispatcher; default is the interpreter running this file),
 LOOP_NAMES_FILE (passed through untouched).
-Exits 64 with a usage line when a positional argument is given or when LOOP_TREE, LOOP_ROWS_HOME or LOOP_WORK is unset.
 At run time the runner writes a fixture goal under LOOP_ROWS_HOME/.loop/goals/ whose GOAL carries "wall time 400 min",
 and a stand-in binary under LOOP_WORK that exits 3 at once. Every dispatcher row sets LOOP_CLAUDE_BIN to the stand-in,
 so the real claude binary is never launched. Every spawned process gets HOME, USERPROFILE and LOOP_HOME at a home and
@@ -25,6 +22,9 @@ import re
 import shutil
 import subprocess
 import sys
+sys.dont_write_bytecode = True
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from _lib import Score, env_dirs, fwd, load_rows, make_env, sha
 
 GOAL = 'ZZFIX-06'
 USAGE = ('usage: LOOP_TREE=<tree> LOOP_ROWS_HOME=<home> LOOP_WORK=<work> [LOOP_PY=<python>] '
@@ -42,38 +42,7 @@ DRIVE_RE = re.compile(rb'(?<![A-Za-z0-9])[A-Za-z]:[\\/]')
 HOOKLINE_RE = re.compile(rb'(?i)(hook|command:)')
 
 
-def fwd(p):
-    return os.path.abspath(p).replace('\\', '/')
-
-
-def sha(s):
-    if isinstance(s, str):
-        s = s.encode('utf-8', 'replace')
-    return hashlib.sha256(s).hexdigest()[:12]
-
-
-def load_rows(path):
-    rows = []
-    with open(path, encoding='utf-8') as fh:
-        for line in fh:
-            line = line.rstrip('\n')
-            if not line.strip() or line.lstrip().startswith('#'):
-                continue
-            rows.append([x.strip() for x in line.split(' :: ', 2)])
-    return rows
-
-
-def make_env(home, standin):
-    env = dict(os.environ)
-    env['HOME'] = home
-    env['USERPROFILE'] = home
-    env['LOOP_HOME'] = home + '/.loop'
-    env['PYTHONDONTWRITEBYTECODE'] = '1'
-    env['LOOP_CLAUDE_BIN'] = standin
-    env['MAX_LEADERS'] = '99'
-    for k in ('JOURNAL_FILE', 'LOOP_GOAL', 'CLAUDE_BIN'):
-        env.pop(k, None)
-    return env
+LEADER_DROP = ('JOURNAL_FILE', 'LOOP_GOAL', 'CLAUDE_BIN')
 
 
 def write_goal(home, text):
@@ -141,7 +110,7 @@ def row_r7(py, tool, work, standin):
         return 'no-tool', sha('')
     h = throwaway(work, 'home-r7')
     write_goal(h, FIXTURE_GOAL)
-    rc, out = run_tool(py, tool, make_env(h, standin), [GOAL, '--dry-run'])
+    rc, out = run_tool(py, tool, make_env(h, {'LOOP_CLAUDE_BIN': standin, 'MAX_LEADERS': '99'}, LEADER_DROP), [GOAL, '--dry-run'])
     lines = out.splitlines()
     off = 'recall receipt gate OFF' in out and 'goal lint gate OFF' in out
     ok_line = any(ln.startswith('ok') and 'recall receipt' in ln for ln in lines)
@@ -152,7 +121,7 @@ def row_r7(py, tool, work, standin):
     digest = hashlib.sha256(FIXTURE_GOAL.encode('utf-8')).hexdigest()
     with open(hc + '/.loop/cache/recall-receipts.json', 'w', encoding='utf-8') as fh:
         json.dump({GOAL: {'sha256': digest, 'rc': 0}}, fh)
-    _, outc = run_tool(py, tool, make_env(hc, standin), [GOAL, '--dry-run'])
+    _, outc = run_tool(py, tool, make_env(hc, {'LOOP_CLAUDE_BIN': standin, 'MAX_LEADERS': '99'}, LEADER_DROP), [GOAL, '--dry-run'])
     ctl = any(ln.startswith('ok') and 'recall receipt' in ln for ln in outc.splitlines()) and 'recall receipt gate OFF' not in outc
     return ('rc=%d gate-off=%s ok-receipt-line=%s control-ok-line=%s'
             % (rc, 'yes' if off else 'no', 'yes' if ok_line else 'no', 'yes' if ctl else 'no')), sha(out)
@@ -177,24 +146,14 @@ def row_r5(tree):
 
 
 def main():
-    if len(sys.argv) > 1:
-        print(USAGE)
-        return 64
-    tree_e = os.environ.get('LOOP_TREE')
-    home_e = os.environ.get('LOOP_ROWS_HOME')
-    work_e = os.environ.get('LOOP_WORK')
-    if not tree_e or not home_e or not work_e:
-        print(USAGE)
-        return 64
-    tree, home, work = fwd(tree_e), fwd(home_e), fwd(work_e)
-    os.makedirs(work, exist_ok=True)
+    tree, home, work = env_dirs(USAGE)
     py = fwd(os.environ.get('LOOP_PY') or sys.executable)
     standin = write_standin(work)
     clean_start(home)
-    env = make_env(home, standin)
+    env = make_env(home, {'LOOP_CLAUDE_BIN': standin, 'MAX_LEADERS': '99'}, LEADER_DROP)
     tool = tree + '/bin/loop_dispatch.py'
-    rows = load_rows(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'rows.txt'))
-    passed = failed = 0
+    rows = load_rows(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'rows.txt'), 2)
+    score = Score()
     for rid, expect, _what in rows:
         if rid in ('r1', 'r2'):
             # pure dry-runs: the shared rows home, with the fixture goal removed at the end of the row
@@ -213,11 +172,11 @@ def main():
         elif rid == 'r3':
             h3 = throwaway(work, 'home-r3')
             write_goal(h3, FIXTURE_GOAL)
-            actual, why = row_r3(py, tool, make_env(h3, standin))
+            actual, why = row_r3(py, tool, make_env(h3, {'LOOP_CLAUDE_BIN': standin, 'MAX_LEADERS': '99'}, LEADER_DROP))
         elif rid == 'r6':
             h6 = throwaway(work, 'home-r6')
             write_goal(h6, NOWALL_GOAL)
-            e6 = make_env(h6, standin)
+            e6 = make_env(h6, {'LOOP_CLAUDE_BIN': standin, 'MAX_LEADERS': '99'}, LEADER_DROP)
             e6['LEADER_TIMEOUT'] = '5555'
             e6['LOOP_LEADER_TIMEOUT'] = '5555'
             actual, why = dry_timeout(py, tool, e6, []) if os.path.isfile(tool) else ('no-tool', sha(''))
@@ -232,11 +191,8 @@ def main():
         else:
             actual, why = 'unknown-row', sha(rid)
         ok = actual == expect
-        passed += ok
-        failed += (not ok)
-        print('%s %s expected=%s actual=%s detail_sha=%s' % ('PASS' if ok else 'FAIL', rid, expect, actual, why))
-    print('rows=%d pass=%d fail=%d' % (len(rows), passed, failed))
-    return 1 if failed else 0
+        score.row(ok, rid, 'expected=%s actual=%s detail_sha=%s' % (expect, actual, why))
+    return score.done(rows)
 
 
 if __name__ == '__main__':

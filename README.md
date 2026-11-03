@@ -15,12 +15,14 @@ The first line installs into a home that holds nothing yet, the second brings an
 | An agent retries a denied command another way | The pre-tool hook denies the shape and fails closed | `pretool-guard.py` |
 | A change has no way back | The journal check fails a PASS that has no ROLLBACK line before it | `loop-journal --check` |
 | A plan row says PASS and no log shows it | Given `--log PATH`, the plan lint also checks each PASS row of a plan against that step log | `loop-card-lint --log PATH plan.md` |
-| A reviewer FAIL stops the whole run | A reviewer FAIL after its retries lands partial or drops under the goal's standing rules, and is a stop only when the GOAL has none | `loop-card-lint plan.md` |
+| A reviewer FAIL stops the whole run | A reviewer FAIL after its retries lands partial or drops as the GOAL's own ruling for it says, and is a stop only when the GOAL rules nothing for it (law in `templates/GOAL_PREAMBLE.md`) | `loop-card-lint plan.md` |
 | A leader dies and nothing says why | The dispatcher writes the leader's exit code beside the run log as `<GOAL>.<ts>.log.rc` | `loop-dispatch <GOAL-ID> --dry-run` |
 
 Start here: `AGENTS.md`, `docs/guides/install.md` and `docs/STATUS.md`.
 
-Kit files: 67, counted by `wc -l < MANIFEST.txt`.
+Kit files: 52, counted by `wc -l < MANIFEST.txt`.
+
+LOOP_HOME, when set to an absolute path before either install line, picks the loop home at install (bin, templates, config.env, goals and scratch go there); unset, the loop home is `~/.loop`.
 
 | Repository | Installed at |
 |---|---|
@@ -30,3 +32,10 @@ Kit files: 67, counted by `wc -l < MANIFEST.txt`.
 | `bin/` | `$LOOP_HOME/bin/` |
 | `templates/` | `$LOOP_HOME/templates/` |
 | `tests/` | `$LOOP_HOME/tests/`, only in an install with tests |
+
+| Folder | What it holds |
+|---|---|
+| `bin/` | The kit's command-line tools and the Python modules behind them, copied by install.sh into the home's .loop/bin. |
+| `docs/` | Project documents that state figures, each figure kept in step with what it measures. |
+| `skills/` | One folder per skill, each holding a SKILL.md that a role loads by name, copied by install.sh into the home's .claude/skills. |
+| `tests/rows/` | One folder per card, each holding rows.txt and a run.py that judges a tree against those rows. |

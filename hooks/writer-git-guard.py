@@ -47,13 +47,40 @@ deliberately blunt, because the writer never has a legitimate reason to say "git
 
 Never echoes the command. Any Exception fails closed. Register with "onFailure": "block".
 """
+import functools
 import json
 import os
 import re
 import shlex
 import sys
 
-REASON = "Writer role: git is the leader's. Ask the leader for any branch, commit or git read."
+# The shared library sits beside this file and is loaded by that path, so the load does not rest
+# on the script folder being on the module path (the hook runs under an isolated interpreter).
+# If it cannot be loaded the hook fails closed with the same deny JSON, exit 0.
+try:
+    _LIB = os.path.join(os.path.dirname(os.path.abspath(__file__)), '_guardlib.py')
+    _g = type(sys)('_guardlib')
+    _g.__file__ = _LIB
+    with open(_LIB, encoding='utf-8') as _fh:
+        exec(compile(_fh.read(), _LIB, 'exec'), _g.__dict__)
+except Exception:
+    print(json.dumps({'hookSpecificOutput': {
+        'hookEventName': 'PreToolUse', 'permissionDecision': 'deny',
+        'permissionDecisionReason': 'writer-git-guard could not load its library, so it fails closed.'}}))
+    sys.exit(0)
+
+# The shared shapes (bodies in _guardlib). This hook's output is always a deny, and its segment
+# splitter keeps a redirection (2>&1, &>f) inside its segment.
+_canon = _g.canon
+_is_abs = _g.is_abs
+_k = _g.fold
+is_assignment = _g.is_assignment
+tokenize = _g.tokenize
+base = _g.base
+split_segments = functools.partial(_g.split_segments, redirects=True)
+out = functools.partial(_g.out, 'deny')
+
+REASON ="Writer role: git is the leader's. Ask the leader for any branch, commit or git read."
 REASON_INLINE = 'Writer role: no inline interpreter or shell code (sh -c, eval, python -c). Run wrappers and script files by path.'
 REASON_DECODER = 'Writer role: no decoders (base64 -d, xxd -r, openssl enc). Encoded commands are not judged.'
 REASON_META = 'Writer role: a command word with $ ` { ? * [ or $\'...\' cannot be judged and is denied.'
@@ -72,81 +99,15 @@ KEYWORDS = {'then', 'do', 'else', 'elif', 'if', 'while', 'until', '!', '{', '}',
             'stdbuf', 'setsid', 'flock', 'watch'}
 
 
-def is_assignment(tok):
-    if '=' not in tok:
-        return False
-    head = tok.split('=', 1)[0]
-    return bool(head) and (head[0].isalpha() or head[0] == '_') and all(c.isalnum() or c == '_' for c in head)
-
-
-def tokenize(seg, posix=True):
-    try:
-        return shlex.split(seg, posix=posix)
-    except ValueError:
-        return seg.split()
-
-
-# Windows executable suffixes stripped before classification. PATHEXT order, not exhaustive
-# on purpose: only suffixes that make a token EXECUTABLE belong here, or a data file named
-# foo.js starts classifying as the command foo.
-WIN_EXEC_SUFFIXES = ('.exe', '.com', '.cmd', '.bat', '.ps1')
 # Read-only/writer roles have no business starting one of these. Each one reaches every
 # denied verb through an argument string this hook does not parse, so the class is denied
 # outright rather than walked like a POSIX launcher.
 DENIED_LAUNCHERS = {'powershell', 'pwsh', 'cmd', 'wscript', 'cscript'}
 
 
-def base(tok):
-    """Basename of a command token, separator- and suffix-normalised.
-
-    A bare rsplit('/') is POSIX-only, and on Windows a backslash separator OR an
-    executable suffix is INDEPENDENTLY enough to slip a denied verb past it: measured,
-    both `C:\\tools\\git commit` and `git.exe commit` were allowed while bare `git` was
-    denied. Lowercased because Windows command lookup is case-insensitive and every word
-    class in this file is lowercase.
-    """
-    tok = tok.replace('\\', '/').rsplit('/', 1)[-1]
-    # drive-relative spelling with no separator, e.g. C:git
-    tok = tok.rsplit(':', 1)[-1].lower()
-    for suf in WIN_EXEC_SUFFIXES:
-        if tok.endswith(suf) and len(tok) > len(suf):
-            return tok[:-len(suf)]
-    return tok
-
-
 def is_git_word(tok):
     b = base(tok)
     return b == 'git' or b.startswith('git-')
-
-
-def split_segments(cmd):
-    segments, buf = [], []
-    in_s = in_d = False
-    for idx, c in enumerate(cmd):
-        if c == '&' and not in_s and not in_d and (
-                (buf and buf[-1] in '<>') or cmd[idx + 1:idx + 2] == '>'):
-            buf.append(c)  # a redirection (2>&1, &>f), not a command separator
-        elif in_s:
-            buf.append(c)
-            if c == "'":
-                in_s = False
-        elif in_d:
-            buf.append(c)
-            if c == '"':
-                in_d = False
-        elif c == "'":
-            in_s = True
-            buf.append(c)
-        elif c == '"':
-            in_d = True
-            buf.append(c)
-        elif c in ';&|\n()`':
-            segments.append(''.join(buf))
-            buf = []
-        else:
-            buf.append(c)
-    segments.append(''.join(buf))
-    return [s for s in segments if s.strip()]
 
 
 def judge_tokens(toks, depth=0):
@@ -252,7 +213,6 @@ REASON_SUBST = ('Writer role: a command holding $( , a backtick or a backslash c
                 'is denied.')
 REASON_FLAG = 'Writer role: sed with an in-place flag edits files and is denied.'
 
-GOAL_RE = r'[A-Za-z0-9][A-Za-z0-9._-]{0,63}'
 SCRIPT_INTERPRETERS = {'sh', 'bash', 'zsh', 'dash', 'ksh', 'fish', 'python', 'python2', 'python3', 'py',
                        'perl', 'ruby', 'php', 'node', 'nodejs', 'lua', 'tclsh'}
 PLAIN_UTILS = {'cat', 'head', 'tail', 'wc', 'ls', 'sha256sum', 'cmp', 'diff', 'od', 'grep', 'find',
@@ -260,26 +220,6 @@ PLAIN_UTILS = {'cat', 'head', 'tail', 'wc', 'ls', 'sha256sum', 'cmp', 'diff', 'o
 FILE_UTILS = {'cp', 'mv', 'rm', 'touch', 'mkdir'}
 FIXED_WRAPPERS = {'loop-guard-run', 'loop-journal', 'loop-scan'}
 OPENER = re.compile(r"^loop-guard-run\s+<<-?\s*(['\"]?)([A-Za-z_][A-Za-z0-9_]*)\1$")
-_MSYS_DRIVE = re.compile(r'^/([A-Za-z])(?=/|$)')
-
-
-def _k(s):
-    return s.lower() if os.name == 'nt' else s
-
-
-def _is_abs(p):
-    return bool(p) and (p.startswith('/') or re.match(r'^[A-Za-z]:[\\/]', p) is not None)
-
-
-def _canon(path):
-    p = str(path or '').strip().replace('\\', '/')
-    if os.name == 'nt':
-        m = _MSYS_DRIVE.match(p)
-        if m:
-            p = m.group(1).upper() + ':' + p[2:]
-    return os.path.normpath(p).replace('\\', '/')
-
-
 def _real(p):
     r = os.path.realpath(p).replace('\\', '/')
     return r[4:] if r.startswith('//?/') else r
@@ -301,16 +241,7 @@ class Ctx(object):
 def load_ctx(d):
     c = Ctx()
     c.home = _canon(os.environ.get('LOOP_HOME') or os.path.expanduser('~/.loop'))
-    g = (os.environ.get('LOOP_GOAL') or '').strip()
-    if not g:
-        try:
-            with open(os.path.join(c.home, 'current_goal'), encoding='utf-8') as fh:
-                lines = fh.read().strip().splitlines()
-                g = lines[0].strip() if lines else ''
-        except OSError:
-            g = ''
-    if not re.fullmatch(GOAL_RE, g or ''):
-        g = ''
+    g = _g.current_goal(c.home, strict=True)
     c.goal, c.full, c.roots, c.wrappers = g, False, [], set()
     c.evidence = c.scratch = None
     cwd = d.get('cwd')
@@ -599,14 +530,7 @@ def strip_heredoc_data(cmd):
     return '\n'.join(lines)
 
 
-def out(reason):
-    print(json.dumps({'hookSpecificOutput': {'hookEventName': 'PreToolUse',
-                                             'permissionDecision': 'deny',
-                                             'permissionDecisionReason': reason}}))
-    sys.exit(0)
-
-
-def run():
+def run_writer_git():
     d = json.load(sys.stdin)
     if d.get('tool_name') != 'Bash':
         sys.exit(0)
@@ -637,12 +561,5 @@ def run():
     sys.exit(0)
 
 
-def main():
-    try:
-        run()
-    except Exception:
-        out('writer-git-guard hit an unexpected error, so it fails closed.')
-
-
 if __name__ == '__main__':
-    main()
+    _g.main(run_writer_git, 'writer-git-guard hit an unexpected error, so it fails closed.')

@@ -14,65 +14,20 @@ The hook judges the path string and never touches the disk, so no fixture file i
 folder of the hook process and its parent holds the names file path. The interpreter is the
 one running this file. Nothing is spawned in the background and nothing is killed.
 """
-import hashlib
 import json
 import os
 import subprocess
 import sys
+sys.dont_write_bytecode = True
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from _lib import dirs_or_args, fwd, hook_class, load_rows, make_env
 
 FIX = 'FIXTURE-C2'
 OTHER_GOAL = 'FIXTURE-C2-OTHER'
 
 
-def fwd(p):
-    return os.path.abspath(p).replace('\\', '/')
-
-
-def sha(s):
-    return hashlib.sha256(s.encode('utf-8', 'replace')).hexdigest()[:12]
-
-
-def load_rows(path):
-    rows = []
-    with open(path, encoding='utf-8') as fh:
-        for line in fh:
-            line = line.rstrip('\n')
-            if not line.strip() or line.lstrip().startswith('#'):
-                continue
-            rid, role, expect, body = [x.strip() for x in line.split(' :: ', 3)]
-            rows.append((rid, role, expect, body))
-    return rows
-
-
-def classify(cp, hide):
-    if cp.returncode == 0 and cp.stdout == '' and cp.stderr == '':
-        return 'allow', ''
-    if cp.returncode == 0 and cp.stderr == '':
-        try:
-            h = json.loads(cp.stdout)['hookSpecificOutput']
-            if h['permissionDecision'] == 'deny':
-                reason = str(h.get('permissionDecisionReason', ''))
-                if any(x and x in reason for x in hide):
-                    reason = 'sha256:' + sha(reason)
-                return 'deny', reason[:70]
-        except Exception:
-            pass
-    return 'other', 'rc=%s out=%s err=%s' % (cp.returncode, sha(cp.stdout), sha(cp.stderr))
-
-
 def main():
-    if len(sys.argv) == 1:
-        tree_e = os.environ.get('LOOP_TREE')
-        home_e = os.environ.get('LOOP_ROWS_HOME')
-        work_e = os.environ.get('LOOP_WORK')
-        if not tree_e or not home_e or not work_e:
-            print('usage: run.py <tree> <home> <work>   or   LOOP_TREE=<tree> LOOP_ROWS_HOME=<home> LOOP_WORK=<work> run.py')
-            return 64
-        sys.argv[1:] = [tree_e, home_e, work_e]
-    if len(sys.argv) != 4:
-        print('usage: run.py <tree> <home> <work>')
-        return 2
-    tree, home, work = fwd(sys.argv[1]), fwd(sys.argv[2]), fwd(sys.argv[3])
+    tree, home, work = dirs_or_args()
     real_home = fwd(os.path.expanduser('~'))
     names = os.path.dirname(work) + '/fixture-names.lst'
     hook = tree + '/hooks/readonly-guard.py'
@@ -95,14 +50,12 @@ def main():
         cmd = (body.replace('{EV}', ev).replace('{OTHER}', other).replace('{LH}', lhome)
                .replace('{FIX}', FIX))
         cmd = "loop-guard-run <<'LOOP'\n" + cmd + "\nLOOP"
-        env = dict(os.environ)
-        env.update({'HOME': home, 'USERPROFILE': home, 'LOOP_HOME': lhome,
-                    'LOOP_PY': fwd(sys.executable), 'LOOP_NAMES_FILE': names,
-                    'LOOP_GOAL': FIX, 'LOOP_ROLE': role, 'PYTHONDONTWRITEBYTECODE': '1'})
+        env = make_env(home, {'LOOP_PY': fwd(sys.executable), 'LOOP_NAMES_FILE': names, 'LOOP_GOAL': FIX,
+                              'LOOP_ROLE': role})
         payload = json.dumps({'tool_name': 'Bash', 'tool_input': {'command': cmd}, 'cwd': work})
         cp = subprocess.run([sys.executable, hook], input=payload, capture_output=True, text=True,
                             env=env, cwd=work)
-        actual, detail = classify(cp, hide)
+        actual, detail = hook_class(cp, hide)
         ok = actual == expect
         passed += ok
         failed += (not ok)

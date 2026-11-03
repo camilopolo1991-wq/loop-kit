@@ -1,96 +1,26 @@
 #!/usr/bin/env python3
 """S01-C5 rows runner: the decisions. Six ADRs under docs/adr/ and four out-of-scope notes under docs/out-of-scope/.
 
-Usage: run.py   (no positional argument; reads the environment)
-
 Environment: LOOP_TREE (the tree under test; every tree is judged against the same rows in rows.txt, so a tree without
 the decision files prints FAIL on every row that needs them), LOOP_ROWS_HOME (the home every child would get, with
 LOOP_HOME at that home plus /.loop), LOOP_WORK (a work folder, created when absent), LOOP_PY and LOOP_NAMES_FILE
 (accepted, unused here).
-Exits 64 with a usage line when a positional argument is given or when LOOP_TREE, LOOP_ROWS_HOME or LOOP_WORK is unset.
 The runner writes no fixture and starts no child process. It removes at its start only what its own manifest file
 (s01c5-manifest.txt in LOOP_WORK) lists from an earlier run, which is nothing today. Prints PASS or FAIL per row with
 expected and actual, an info line with the sha256 of the runner's own two files, then rows=N pass=N fail=N.
 Nothing is spawned in the background, nothing is killed, no timeout is set.
 """
-import hashlib
 import os
 import re
 import sys
+sys.dont_write_bytecode = True
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from _lib import clean_earlier, env_dirs, info_sha, load_rows, read_lines, row_present, tally
 
 USAGE = 'usage: LOOP_TREE=<tree> LOOP_ROWS_HOME=<home> LOOP_WORK=<work> LOOP_PY=<python> LOOP_NAMES_FILE=<file> python run.py (no positional argument)'
 MANIFEST = 's01c5-manifest.txt'
 HEADINGS = ['Context', 'Decision', 'Deliberately not', 'Consequences', 'Verification']
 ROOTS = ('bin/', 'hooks/', 'tests/rows/')
-
-
-def fwd(p):
-    return os.path.abspath(p).replace('\\', '/')
-
-
-def shafull(b):
-    return hashlib.sha256(b).hexdigest()
-
-
-def load_rows(path):
-    rows = []
-    with open(path, encoding='utf-8') as fh:
-        for line in fh:
-            line = line.rstrip('\n')
-            if not line.strip() or line.lstrip().startswith('#'):
-                continue
-            rows.append([x.strip() for x in line.split(' :: ', 3)])
-    return rows
-
-
-def read_bytes(p):
-    try:
-        with open(p, 'rb') as fh:
-            return fh.read()
-    except OSError:
-        return None
-
-
-def read_lines(ctx, rel):
-    b = read_bytes(ctx['tree'] + '/' + rel)
-    return None if b is None else b.decode('utf-8', 'replace').replace('\r\n', '\n').split('\n')
-
-
-def remove_path(p):
-    if os.path.isdir(p):
-        for root, dirs, files in os.walk(p, topdown=False):
-            for f in files:
-                fp = os.path.join(root, f)
-                os.chmod(fp, 0o600)
-                os.remove(fp)
-            for d in dirs:
-                os.rmdir(os.path.join(root, d))
-        os.rmdir(p)
-    elif os.path.exists(p):
-        os.chmod(p, 0o600)
-        os.remove(p)
-
-
-def clean_earlier(work):
-    mf = work + '/' + MANIFEST
-    data = read_bytes(mf)
-    if data is None:
-        return 0
-    n = 0
-    for p in data.decode('utf-8', 'replace').split('\n'):
-        p = p.strip()
-        if p and fwd(p).startswith(work + '/') and fwd(p) != work + '/' + MANIFEST and os.path.exists(p):
-            remove_path(p)
-            n += 1
-    os.remove(mf)
-    return n
-
-
-def row_present(ctx, expect, arg):
-    b = read_bytes(ctx['tree'] + '/' + arg)
-    if b is None:
-        return False, 'expected=%s present actual=absent' % arg
-    return len(b) > 0, 'expected=%s present and not empty actual=%d bytes sha256=%s' % (arg, len(b), shafull(b))
 
 
 def headings_of(lines):
@@ -196,40 +126,13 @@ KINDS = {'present': row_present, 'headings': row_headings, 'verifyfile': row_ver
 
 
 def main():
-    if len(sys.argv) > 1:
-        print(USAGE)
-        return 64
-    tree_e = os.environ.get('LOOP_TREE')
-    home_e = os.environ.get('LOOP_ROWS_HOME')
-    work_e = os.environ.get('LOOP_WORK')
-    if not tree_e or not home_e or not work_e:
-        print(USAGE)
-        return 64
-    tree, work = fwd(tree_e), fwd(work_e)
-    os.makedirs(work, exist_ok=True)
-    cleaned = clean_earlier(work)
-    print('cleaned %d path(s) listed by an earlier run' % cleaned)
-    ctx = {'tree': tree, 'work': work, 'home': fwd(home_e)}
+    tree, home, work = env_dirs(USAGE)
+    clean_earlier(work, MANIFEST, True)
+    ctx = {'tree': tree, 'work': work, 'home': home}
     here = os.path.dirname(os.path.abspath(__file__))
-    for label, p in (('tests/rows/S01-C5/run.py', here + '/run.py'), ('tests/rows/S01-C5/rows.txt', here + '/rows.txt')):
-        b = read_bytes(p)
-        print('info sha256 %s %s' % (label, shafull(b) if b is not None else 'absent'))
+    info_sha((('tests/rows/S01-C5/run.py', here + '/run.py'), ('tests/rows/S01-C5/rows.txt', here + '/rows.txt')))
     rows = load_rows(os.path.join(here, 'rows.txt'))
-    passed = failed = 0
-    for rid, kind, expect, arg in rows:
-        fn = KINDS.get(kind)
-        if fn is None:
-            ok, detail = False, 'unknown kind ' + kind
-        else:
-            try:
-                ok, detail = fn(ctx, expect, arg)
-            except Exception as exc:
-                ok, detail = False, 'expected=row runs actual=error %s' % type(exc).__name__
-        passed += ok
-        failed += (not ok)
-        print('%s %s %s' % ('PASS' if ok else 'FAIL', rid, detail))
-    print('rows=%d pass=%d fail=%d' % (len(rows), passed, failed))
-    return 1 if failed else 0
+    return tally(rows, KINDS, (ctx,), True, False)
 
 
 if __name__ == '__main__':

@@ -1,0 +1,28 @@
+# K06-C6 rows: the dead files out. Fields: id :: kind :: expected :: argument
+# Every row is judged the same on every tree; wt-main still holds the dead files, so its rows fail.
+# (a) the five removed paths are absent
+a-removed-loop-names-refresh :: path :: absent :: bin/loop-names-refresh
+a-removed-bin-description :: path :: absent :: bin/DESCRIPTION.md
+a-removed-docs-description :: path :: absent :: docs/DESCRIPTION.md
+a-removed-skills-description :: path :: absent :: skills/DESCRIPTION.md
+a-removed-rows-description :: path :: absent :: tests/rows/DESCRIPTION.md
+# (b) the three moved paths: the file at its new place has the expected sha256 (the bytes did not change) and the old place is absent
+b-moved-ticket-migrate-module :: moved :: 7c64b41e0ded0590dde2ba68b3ba1584cfdba02facf45443c6f972c47d96a348 :: tests/tools/loop_ticket_migrate.py|bin/loop_ticket_migrate.py
+b-moved-ticket-migrate-stub :: moved :: 73e43fe9b82aa7ef18d916aefb96ee67af51ff1c3512027f8d0e71bcc6119a70 :: tests/tools/loop-ticket-migrate|bin/loop-ticket-migrate
+b-moved-tripwire-selftest :: moved :: d2260b3331ce6642fb2d62cd38002f33f55803bad27bb014b24650d1bfefcb10 :: tests/tripwire_selftest.py|bin/tripwire_selftest.py
+b-docker-shim-stays-beside-the-selftest :: path :: present :: tests/docker
+b-moved-stub-launches-its-module :: launch :: 3 :: tests/tools/loop-ticket-migrate
+# (c) loop-tripwire selftest from bin/ finds the file at tests/tripwire_selftest.py and prints seventeen case lines; its exit and the sha256 of
+# its case-result lines equal wt-main's run the same way (the GOAL's exit 0 is refuted by the measurement: both trees exit 1 where the probe wrapper is absent)
+c-selftest-finds-the-moved-file-and-matches-wt-main :: selftest :: 17 :: bin/loop-tripwire|wt-main
+c-control-selftest-copy-without-tests-folder-fails-the-find-check :: selftest-control :: 17 :: bin
+# (d) the skill says the owner writes the names list by hand and names no refresh tool
+d-loop-pii-owner-writes-the-list-by-hand :: pii :: ok :: skills/loop-pii/SKILL.md
+# (e) the record of why stays
+e-out-of-scope-names-refresh-stays :: path :: present :: docs/out-of-scope/names-refresh.md
+# (f) the README folder table holds the four one-liners (separated by ' ;; ')
+f-readme-table-holds-the-four-one-liners :: liners :: four :: README.md|The kit's command-line tools and the Python modules behind them, copied by install.sh into the home's .loop/bin. ;; Project documents that state figures, each figure kept in step with what it measures. ;; One folder per skill, each holding a SKILL.md that a role loads by name, copied by install.sh into the home's .claude/skills. ;; One folder per card, each holding rows.txt and a run.py that judges a tree against those rows.
+# (g) the plain install with tests into a throwaway home places no retired command, no ticket migrate tool and no selftest file under bin
+g-install-with-tests-places-no-retired-command :: install :: none placed :: bin/loop-names-refresh|bin/loop-ticket-migrate|bin/loop_ticket_migrate.py|bin/tripwire_selftest.py|bin/DESCRIPTION.md
+# (h) control: a scratch copy of the README with one one-liner removed fails row (f)
+h-control-readme-without-a-one-liner-fails-row-f :: control :: copy fails :: README.md

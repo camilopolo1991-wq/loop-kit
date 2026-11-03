@@ -1,0 +1,21 @@
+# K06-C7 rows: a loop home per seat. Fields: id :: kind :: expected :: argument
+# H is a throwaway home under LOOP_WORK; the second home is H/.loop-second (a non-default name), the first is H/.loop.
+# Every row is judged the same on every tree; wt-main's install.sh ignores LOOP_HOME, so its rows that need the second home fail.
+# (a) the install of the tree with LOOP_HOME at the second home: bin, templates, goals, scratch and a config.env whose LOOP_HOME and
+# ENGINE_RECORD_DIR lines name that home land there; nothing lands under H/.loop; agents, hooks and skills land under the Claude home of H
+a-install-with-loop-home-lands-in-the-second-home :: install :: second home :: second
+# (b) the same install with LOOP_HOME unset (HOME and USERPROFILE at a throwaway home H2): the loop folder is H2/.loop and config.env keeps the ~/.loop spelling
+b-install-with-loop-home-unset-lands-in-the-default-home :: install :: default home :: default
+# (c) the writer's path hook with LOOP_HOME at the second home denies a write into H/.loop/goals and a path under H outside the second home's
+# writable trees (decision, first word of the reason); the control allows a write into the second home's own evidence folder
+c-hook-denies-a-write-into-the-first-home-goals :: hook :: deny Writer :: first-goals
+c-hook-denies-a-write-outside-the-writable-trees :: hook :: deny Writer :: outside
+c-control-hook-allows-a-write-into-the-second-home-evidence :: hook :: allow :: second-evidence
+# (d) the preflight run from the second home prints the same set of line kinds as from the first (the default home of row b), and its state line is OK in both
+d-preflight-prints-the-same-line-kinds-from-the-second-home :: preflight :: same line kinds :: second
+# (e) the dispatcher's --dry-run (stand-in claude binary, nothing launched) with LOOP_HOME at the second home prints a goal path under that home
+e-dry-run-prints-the-second-home-goal-path :: dispatch :: goal path under the second home :: second
+# (f) the K05-C1 upgrade form run against the second home exits 0, replaces and adds files there, keeps config.env as bytes and touches nothing under H/.loop
+f-upgrade-against-the-second-home-exits-0 :: upgrade :: exit 0 :: second
+# (g) control: a scratch copy of the second home's config.env with its LOOP_HOME line pointed at H/.loop fails row a's config check
+g-control-config-pointed-at-the-first-home-fails-row-a-check :: control :: copy fails :: second
