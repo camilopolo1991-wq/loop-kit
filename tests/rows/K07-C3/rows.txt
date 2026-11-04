@@ -1,0 +1,33 @@
+# K07-C3 rows:  id :: kind :: expect :: arg
+# Fixtures are built at run time by run.py under LOOP_WORK; every goal id, task id and path in them is constructed.
+# check rows: arg names a case built by run.py, expect is the exit code, then ':' and tokens that must be in the output
+# (comma separated); a token with a leading '!' must be absent from the output.
+# (a) a DISPATCH line whose return file is absent: two DISPATCH lines with one saved return against both saved.
+two-dispatch-one-return-saved :: check :: 1:FAIL line 3:,has no return file,!FAIL line 1:,!second DISPATCH :: two-one-saved
+two-dispatch-both-returns-saved :: check :: 0:!FAIL :: two-both-saved
+# (b) the rule judges writer DISPATCH lines.
+writer-dispatch-no-return :: check :: 1:FAIL line 1:,DISPATCH writer,has no return file :: writer-none
+writer-dispatch-return-saved :: check :: 0:!FAIL :: writer-saved
+# (c) a second DISPATCH of a task before that task's first return, FAIL or BLOCKED line.
+second-dispatch-before-return :: check :: 1:FAIL line 2:,second DISPATCH,!FAIL line 1:,!has no return file :: second-before-return
+second-dispatch-after-blocked :: check :: 0:!FAIL :: blocked-between
+second-dispatch-after-fail :: check :: 0:!FAIL :: fail-between
+second-dispatch-after-note-only :: check :: 1:FAIL line 3:,second DISPATCH :: note-between
+# (d) the one exemption: the goal's last DISPATCH line when it is the goal's last line in the log.
+last-dispatch-last-line-exempt :: check :: 0:!FAIL :: last-in-flight
+last-dispatch-with-later-line-judged :: check :: 1:FAIL line 3:,has no return file :: last-later-line
+last-dispatch-with-later-line-of-other-goal-exempt :: check :: 0:!FAIL :: last-later-other-goal
+only-dispatch-last-line-exempt :: check :: 0:!FAIL :: only-dispatch-last
+only-dispatch-then-other-goal-line-exempt :: check :: 0:!FAIL :: only-dispatch-then-other-goal
+dispatch-of-other-goal-not-judged :: check :: 0:!FAIL :: other-goal-dispatch-not-judged
+# (e) the readings: the card path, and where the return file is looked for.
+no-card-word-has-no-return-file :: check :: 1:FAIL line 1:,names no card path :: no-card-word
+card-path-is-the-last-md-word :: check :: 0:!FAIL :: last-md-word
+return-beside-an-earlier-md-word-is-not-enough :: check :: 1:FAIL line 1:,has no return file :: first-md-word-only
+relative-path-resolves-against-the-plan-folder :: check :: 1:FAIL line 1:,has no return file :: beside-log
+loop-home-path-expanded-return-saved :: check :: 0:!FAIL :: lh
+loop-home-path-expanded-return-absent :: check :: 1:FAIL line 1:,has no return file :: lh-none
+tilde-path-expanded-return-saved :: check :: 0:!FAIL :: home
+tilde-path-expanded-return-absent :: check :: 1:FAIL line 1:,has no return file :: home-none
+default-plan-folder-return-saved :: check :: 0:!FAIL :: defplan
+default-plan-folder-return-absent :: check :: 1:FAIL line 1:,has no return file :: defplan-none

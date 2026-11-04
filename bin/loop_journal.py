@@ -43,6 +43,17 @@
 #   position), a PASS line for a task never dispatched included; a goal with no DISPATCH line at all (the K03-C8 fixtures) is not
 #   judged by it.
 #
+#   K07-C3. Also exit 1 for each DISPATCH line of the goal (any role, writers included) whose return file is absent on disk,
+#   and for each second DISPATCH naming the same task id that sits before that task's first return, FAIL or BLOCKED line;
+#   each FAIL line names the line number in the log file. A DISPATCH line's text is DISPATCH <role> <card path>; the card
+#   path is the last word of the text ending in .md (a DISPATCH line with no such word has no return file) and the return
+#   file expected is return.md in that card path's own folder. ~ and $LOOP_HOME are expanded; a relative path resolves
+#   against the folder of --plan when --plan is given, otherwise against $LOOP_HOME/goals/<GOAL-ID>/. A return, FAIL or
+#   BLOCKED line is a line of the same task id whose text first word is RETURN, DONE, PARTIAL, FAIL or BLOCKED. One
+#   exemption, for a run mid-goal: the goal's last DISPATCH line is exempt from the return-file check when it is the
+#   goal's last line in the log (lines of other goals after it do not count). A DISPATCH followed by any later line of the
+#   same goal is judged. The order check has no exemption.
+#
 # loop-journal --active <GOAL-ID> [--file PATH]
 #   K03-C5. Read-only. The one instrument for a goal's active time. --file reads a log fixture
 #   instead of the step log the tool resolves. Over the goal's lines in order, a run starts at each
@@ -299,15 +310,63 @@ def check(gid, jf, plan):
             continue
         if not any(path_ok(w) for w in r[3].split()[1:] if "/" in w.strip("\x22\x60").replace("\\", "/")):
             passbad.append("line %d: the PASS line for %s names no path under evidence/" % (nums[k], r[2]))
+    # K07-C3. The DISPATCH-order rule. The card path of a DISPATCH line is the last word of its text ending in .md; the return
+    # file expected is return.md in that card path's own folder. ~ and $LOOP_HOME are expanded, a relative path resolves
+    # against the folder of the plan (the folder of --plan when given, otherwise goals/<GOAL-ID>/).
+    retbad = []
+    gks = [k for k, r in enumerate(jl) if r[1] == gid]
+    dks = [k for k in gks if re.match(r"DISPATCH(\s|$)", jl[k][3])]
+    planhome = os.path.dirname(os.path.abspath(plan))
+    hmraw = os.environ.get("HOME", "").replace("\\", "/").rstrip("/")
+    lhraw = loop_home().replace("\\", "/").rstrip("/")
+    if lhraw == "~" or lhraw.startswith("~/"):
+        lhraw = hmraw + lhraw[1:]
+
+    def card_word(text):
+        found = None
+        for w in text.split()[1:]:
+            w = w.strip("\x22\x60'()[],;")
+            if w.endswith(".md"):
+                found = w
+        return found
+
+    def card_folder(word):
+        q = word.replace("\\", "/")
+        for pre, base in (("${LOOP_HOME}", lhraw), ("$LOOP_HOME", lhraw), ("~", hmraw)):
+            if q == pre or q.startswith(pre + "/"):
+                q = base + q[len(pre):]
+                break
+        q = native(q)
+        if not os.path.isabs(q):
+            q = planhome + "/" + q
+        return os.path.dirname(q)
+    for k in dks:
+        if k == gks[-1] and k == dks[-1]:
+            continue
+        word = card_word(jl[k][3])
+        if word is None:
+            retbad.append("line %d: the %s for %s names no card path ending in .md, so it has no return file" % (nums[k], " ".join(jl[k][3].split()[:2]), jl[k][2]))
+        elif not os.path.isfile(card_folder(word) + "/return.md"):
+            retbad.append("line %d: the %s for %s has no return file return.md beside its card %s" % (nums[k], " ".join(jl[k][3].split()[:2]), jl[k][2], word))
+    retwords = ("RETURN", "DONE", "PARTIAL", "FAIL", "BLOCKED")
+    for tid in sorted(set(jl[k][2] for k in dks)):
+        tks = [k for k in gks if jl[k][2] == tid]
+        rets = [k for k in tks if (jl[k][3].split() or [""])[0] in retwords]
+        first_ret = rets[0] if rets else None
+        tds = [k for k in tks if k in dks]
+        for k in tds[1:]:
+            if first_ret is None or first_ret > k:
+                retbad.append("line %d: a second DISPATCH for %s sits before the first RETURN, DONE, PARTIAL, FAIL or BLOCKED line of that task" % (nums[k], tid))
+    retbad.sort(key=lambda s: int(s.split()[1].rstrip(":")))
     nolog = []
     for tid in passtasks:
         if not any(r[1] == tid and sl.is_pass_or_done(r[2]) for r in rows):
             nolog.append("%s is PASS in the plan but the journal has no PASS or DONE line for goal %s and task %s" % (tid, gid, tid))
     print("loop-journal --check %s: %d journal lines, writer tasks %d (%s), writer PASS %d, missing ROLLBACK %d, PASS tasks %d, missing PASS or DONE %d"
           % (gid, len(rows), len(writers), " ".join(writers) or "none", passed, len(bad), len(passtasks), len(nolog)))
-    for b in bad + nolog + badpath + dispbad + passbad:
+    for b in bad + nolog + badpath + dispbad + passbad + retbad:
         print("  FAIL " + b)
-    sys.exit(1 if (bad or nolog or badpath or dispbad or passbad) else 0)
+    sys.exit(1 if (bad or nolog or badpath or dispbad or passbad or retbad) else 0)
 
 
 # ---- --dispatches ----

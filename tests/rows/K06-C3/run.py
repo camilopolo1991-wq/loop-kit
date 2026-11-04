@@ -117,6 +117,18 @@ def write_fixtures(ctx):
                 name, text = line[len(FIX):].rstrip('\n').split(' :: ', 1)
                 os.makedirs(os.path.dirname(d + '/' + name), exist_ok=True)
                 write_text(d + '/' + name, text.replace('\\n', '\n'))
+                # K07-C3: the check also wants a return file beside the card of each DISPATCH line; the fixture saves one
+                # (the card path resolves against the folder of the plan, which is the folder of the log), so the check rows
+                # keep comparing the two trees on what they compared before.
+                if name.endswith('log.log'):
+                    for ln in text.replace('\\n', '\n').split('\n'):
+                        words = ln.split(' ', 4)
+                        if len(words) == 5 and words[4].startswith('DISPATCH '):
+                            card = [w for w in words[4].split()[1:] if w.endswith('.md')]
+                            if card:
+                                rdir = os.path.dirname(d + '/' + os.path.dirname(name) + '/' + card[-1])
+                                os.makedirs(rdir, exist_ok=True)
+                                write_text(rdir + '/return.md', 'fixture return\n')
     return d
 
 
