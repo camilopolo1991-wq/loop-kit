@@ -50,6 +50,15 @@
 #   silent. An unreadable verdict exits 2. The usage line and the unknown-kind message are unchanged on purpose (K06-C3 and
 #   the K07-C1 and K07-C2 rows hold their bytes).
 #
+# K07-C7. card.md kind, review cards: no writes under .claude from a review card. A review card is a card whose first
+#   non-empty line starts with `REVIEW `; the rule is silent on any other card. Outside Criteria and Done when (exempt, as the
+#   route rule has them), exit 1 for each line that holds a path under .claude (`.claude` as a path segment followed by a
+#   forward or back slash, any letter case) and names it as a write target: the line sits in an `Evidence to:` or `Return:`
+#   field, or holds a write word (write, writes, written, writing, save, saves, saved, saving, create, creates, append,
+#   appends, edit, edits, overwrite, overwrites, copy to, move to) or a redirect `>`. A line in a `Must not:` field states a
+#   limit and is not judged. A field runs from its heading to the next field. A bare read of such a path is not judged; a
+#   line that holds both a read and a write word is judged. Each hit names its line; the path is not echoed.
+#
 # K06-C3. The command file bin/loop-card-lint is the one launcher stub; this module is the tool. The logic below is the
 # text that used to be inline in that command file, moved without change.
 import os
@@ -70,6 +79,11 @@ GOAL = ("PLANNING", "RUNNING", "HELD", "DONE")
 DRIVEPATH = re.compile(r"(?<![A-Za-z0-9])[A-Za-z]:[\\/]")
 USERPATH = re.compile(r"(?i)(/Users/|\\Users\\|/c/Users/|/home/[A-Za-z0-9_.-])")
 HEADLEN = 30
+# K07-C7. The review-card write rule: a path under .claude, the write words, the fields that make a line a write target.
+CLAUDEPATH = re.compile(r"(?i)(?<![A-Za-z0-9_.\-])\.claude[\\/]")
+WRITEWORD = re.compile(r"(?i)(\b(?:writes?|written|writing|saves?|saved|saving|creates?|appends?|edits?|overwrites?|copy\s+to|move\s+to)\b|>)")
+WRITEFIELDS = ("evidence to", "return")
+LIMITFIELD = "must not"
 
 LOGROWS = None
 bad = 0
@@ -215,15 +229,21 @@ def main(argv):
             print("%s: unreadable (%s)" % (f, e.__class__.__name__)); worst = 2; continue
         if name.endswith("card.md"):
             exempt = False
+            field = ""
+            review = next((x for x in lines if x.strip()), "").startswith("REVIEW ")
             for n, l in enumerate(lines, 1):
                 m = FIELD.match(l)
                 if m:
                     exempt = (m.group(1) + ":").lower() in EXEMPT
+                    field = m.group(1).lower()
                 if exempt:
                     continue
                 r = ROUTE.search(l)
                 if r:
                     say(f, n, "routes the role to %s. Copy what the role needs into the card instead." % r.group(1))
+                # K07-C7: a review card names no write under .claude.
+                if review and field != LIMITFIELD and CLAUDEPATH.search(l) and (field in WRITEFIELDS or WRITEWORD.search(l)):
+                    say(f, n, "review card names a write under .claude. A review card writes only under its evidence folder.")
         elif name == "plan.md":
             live = None; hdr = None; inlive = False; passrows = []; named = set()
             for n, l in enumerate(lines, 1):
