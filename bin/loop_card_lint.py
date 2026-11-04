@@ -23,6 +23,11 @@
 #               resolved and read by bin/loop_steplog.py, the module loop-journal shares, so a loop_conf
 #               error is worded the same in both tools.
 #   report.md : the first line reads `VERDICT: DONE` or `VERDICT: HELD`, nothing after it in parentheses.
+#               K07-C1 close rule: when the first line reads `VERDICT: DONE` and a GOAL.md sits in the report's folder,
+#               each criterion of that GOAL (criteria(), the criterion rule) needs a line `- AC<n> <verdict>` (PASS, FAIL,
+#               PARTIAL or CANNOT DETERMINE, prose after a period). A criterion that is FAIL, PARTIAL, CANNOT DETERMINE or
+#               MALFORMED breaks the rule unless a RULING*.md in that folder names its AC<n> token. A GOAL.md argument is
+#               accepted only when a report.md from the same folder is given in the same run; alone it is an unknown kind.
 # Card and report linting ignore --log.
 # Exit 0 clean, 1 a rule broke (each named), 2 usage or unreadable or unknown file kind or unreadable log.
 # P33. Written after the RECORD-01 audits: a plan row read "DONE (closing)" and cards routed the
@@ -45,6 +50,92 @@ GOAL = ("PLANNING", "RUNNING", "HELD", "DONE")
 
 LOGROWS = None
 bad = 0
+
+# K07-C1. The criterion rule (shared: card C2 calls criteria() too) and the close rule.
+CRIT_OPEN = ("Acceptance criteria", "Acceptance criteria:")
+CRIT_LINE = re.compile(r"^(?:AC)?(\d+)\.(?:\s|$)")
+VERDICT_LINE = re.compile(r"^- AC(\d+)\s+(PASS|FAIL|PARTIAL|CANNOT DETERMINE)(?:\.|\s*$)")
+VERDICT_CAND = re.compile(r"^- AC(\d+)(?!\d)")
+NOT_PASS = ("FAIL", "PARTIAL", "CANNOT DETERMINE")
+
+
+def criteria(lines):
+    """The criterion rule. The section opens at a line whose whole text, trimmed, is `Acceptance criteria` with or
+    without a trailing colon. It ends at the first later line that is a heading (starts with #) or starts a new field
+    at column 0 (FIELD, as `Authority:`), or at the end of the file. A criterion is a line inside the section whose
+    first token at column 0 is `<n>.` or `AC<n>.`; its number is n. Indented lines are never criteria and nothing after
+    the section's end is read. Returns [(n, line number)] in file order."""
+    out = []
+    inside = False
+    for i, l in enumerate(lines, 1):
+        if not inside:
+            if l.strip() in CRIT_OPEN:
+                inside = True
+            continue
+        if l.startswith("#") or FIELD.match(l):
+            break
+        m = CRIT_LINE.match(l)
+        if m:
+            out.append((int(m.group(1)), i))
+    return out
+
+
+def ruling_names(folder, token):
+    """Names of the files RULING*.md in folder that carry token as a whole token."""
+    try:
+        names = sorted(x for x in os.listdir(folder) if x.startswith("RULING") and x.endswith(".md"))
+    except OSError:
+        return []
+    pat = re.compile(r"\b%s\b" % re.escape(token))
+    hits = []
+    for x in names:
+        try:
+            if pat.search(open(os.path.join(folder, x), encoding="utf-8", errors="replace").read()):
+                hits.append(x)
+        except OSError:
+            pass
+    return hits
+
+
+def close_rule(f, report_lines, folder):
+    """Close rule: the report beside a GOAL.md that reads VERDICT: DONE may not hold a criterion that is FAIL, PARTIAL,
+    CANNOT DETERMINE or MALFORMED unless a RULING*.md in the same folder names it by its AC<n> token."""
+    first = report_lines[0] if report_lines else ""
+    m = re.search(r"VERDICT:\s*(.*)$", first)
+    if not (m and m.group(1).strip() == "DONE"):
+        return
+    gpath = os.path.join(folder, "GOAL.md")
+    if not os.path.isfile(gpath):
+        return
+    try:
+        glines = open(gpath, encoding="utf-8").read().splitlines()
+    except (OSError, ValueError):
+        return
+    for n, _ in criteria(glines):
+        token = "AC%d" % n
+        cand = []
+        for ln, l in enumerate(report_lines, 1):
+            c = VERDICT_CAND.match(l)
+            if c and int(c.group(1)) == n:
+                cand.append((ln, l))
+        state = None; at = "-"
+        if not cand:
+            state = "MALFORMED (no verdict line `- %s <verdict>`)" % token
+        else:
+            bads = [(ln, l) for ln, l in cand if not VERDICT_LINE.match(l)]
+            if bads:
+                state = "MALFORMED (verdict line not `- %s PASS|FAIL|PARTIAL|CANNOT DETERMINE`)" % token; at = bads[0][0]
+            else:
+                vs = [(ln, VERDICT_LINE.match(l).group(2)) for ln, l in cand]
+                worst = [(ln, v) for ln, v in vs if v in NOT_PASS]
+                if worst:
+                    at, v = worst[0]
+                    state = v
+        if state is None:
+            continue
+        if ruling_names(folder, token):
+            continue
+        say(f, at, "criterion %s is %s under VERDICT: DONE; a file RULING.md or RULING-<n>.md in this folder would have to carry the token %s" % (token, state, token))
 
 
 def say(f, n, msg):
@@ -87,6 +178,8 @@ def main(argv):
     if not files:
         print(USAGE); sys.exit(2)
     bad = 0; worst = 0
+    # K07-C1. The folders that hold a report.md given in this run: a GOAL.md from the same folder is accepted beside it.
+    rfolders = set(os.path.normcase(os.path.dirname(os.path.abspath(x))) for x in files if os.path.basename(x).lower() == "report.md")
     for f in files:
         name = os.path.basename(f).lower()
         try:
@@ -151,6 +244,9 @@ def main(argv):
             v = m.group(1).strip() if m else ""
             if v not in ("DONE", "HELD"):
                 say(f, 1, "VERDICT %r is not DONE or HELD" % (v[:30] or "missing"))
+            close_rule(f, lines, os.path.dirname(os.path.abspath(f)))
+        elif name == "goal.md" and os.path.normcase(os.path.dirname(os.path.abspath(f))) in rfolders:
+            pass  # K07-C1: read by the close rule when the report beside it is linted; nothing else is checked
         else:
             print("%s: unknown kind, name it card.md, plan.md or report.md" % f); worst = 2
     print("loop-card-lint: %d file(s), %d rule(s) broken" % (len(files), bad))
