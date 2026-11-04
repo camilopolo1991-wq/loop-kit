@@ -39,6 +39,17 @@
 #   named by AC10); an unnamed criterion exits 1 naming AC<n>. An unreadable GOAL exits 2. Without --goal rule (b) is off.
 #   --goal and --log work together. The usage line is unchanged on purpose (K06-C3 compares it).
 #
+# K07-C6. return.md kind (a role's return), two rules of different reach.
+#   Path rule (every return, scout and writer returns included): exit 1 for any line that holds a drive-letter spelling of a
+#   path (one letter not preceded by a letter or digit, a colon, then a forward or back slash; so a URL scheme is no hit) or a
+#   user-folder spelling (/Users/, \Users\, /c/Users/ in any letter case, or /home/ followed by a name), instead of the ~ or
+#   $LOOP_HOME spelling. Each hit names its line number; the matched text is never echoed.
+#   Head rule (only when a file named verdict.md sits in the return's folder): exit 1 unless the return's lines are the first
+#   thirty lines of that verdict (all of them when it holds fewer), compared as a whole list, line by line, line endings
+#   removed and nothing else normalised; the FAIL line says which line first differs. No sibling verdict: the head rule is
+#   silent. An unreadable verdict exits 2. The usage line and the unknown-kind message are unchanged on purpose (K06-C3 and
+#   the K07-C1 and K07-C2 rows hold their bytes).
+#
 # K06-C3. The command file bin/loop-card-lint is the one launcher stub; this module is the tool. The logic below is the
 # text that used to be inline in that command file, moved without change.
 import os
@@ -55,6 +66,10 @@ EXEMPT = ("criteria:", "done when:")
 FIELD = re.compile(r"^([A-Z][A-Za-z ]{1,30}):")
 TASK = re.compile(r"^(TODO|RUNNING|PASS|FAIL\(\d+\)|BLOCKED|GATE)$")
 GOAL = ("PLANNING", "RUNNING", "HELD", "DONE")
+# K07-C6. The path rule's two spellings, and the head rule's length.
+DRIVEPATH = re.compile(r"(?<![A-Za-z0-9])[A-Za-z]:[\\/]")
+USERPATH = re.compile(r"(?i)(/Users/|\\Users\\|/c/Users/|/home/[A-Za-z0-9_.-])")
+HEADLEN = 30
 
 LOGROWS = None
 bad = 0
@@ -275,6 +290,36 @@ def main(argv):
             if v not in ("DONE", "HELD"):
                 say(f, 1, "VERDICT %r is not DONE or HELD" % (v[:30] or "missing"))
             close_rule(f, lines, os.path.dirname(os.path.abspath(f)))
+        elif name == "return.md":
+            # K07-C6 path rule: every return.
+            for n, l in enumerate(lines, 1):
+                if DRIVEPATH.search(l):
+                    say(f, n, "holds a drive-letter spelling of a path; spell it from ~ or $LOOP_HOME")
+                elif USERPATH.search(l):
+                    say(f, n, "holds a user-folder spelling of a path; spell it from ~ or $LOOP_HOME")
+            # K07-C6 head rule: only when a verdict.md sits in the same folder.
+            folder = os.path.dirname(os.path.abspath(f))
+            try:
+                vname = next((x for x in sorted(os.listdir(folder)) if x.lower() == "verdict.md"), None)
+            except OSError:
+                vname = None
+            if vname is not None:
+                try:
+                    vlines = open(os.path.join(folder, vname), encoding="utf-8").read().splitlines()
+                except (OSError, ValueError) as e:
+                    print("%s: unreadable (%s)" % (os.path.join(folder, vname), e.__class__.__name__)); worst = 2; continue
+                head = vlines[:HEADLEN]
+                if lines != head:
+                    k = 0
+                    while k < len(lines) and k < len(head) and lines[k] == head[k]:
+                        k += 1
+                    if k < len(lines) and k < len(head):
+                        why = "line %d differs from line %d of %s" % (k + 1, k + 1, vname)
+                    elif k < len(head):
+                        why = "line %d is missing; the return has %d line(s), the head of %s has %d" % (k + 1, len(lines), vname, len(head))
+                    else:
+                        why = "line %d is beyond the head of %s (%d line(s))" % (k + 1, vname, len(head))
+                    say(f, k + 1, "the return is not the first %d lines of %s: %s" % (HEADLEN, vname, why))
         elif name == "goal.md" and os.path.normcase(os.path.dirname(os.path.abspath(f))) in rfolders:
             pass  # K07-C1: read by the close rule when the report beside it is linted; nothing else is checked
         else:

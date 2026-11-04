@@ -1,0 +1,37 @@
+# K07-C6 rows:  id :: kind :: expect :: arg
+# Fixtures are built at run time by run.py under LOOP_WORK; every line, folder and path in them is constructed, and the
+# drive-letter and user-folder spellings are assembled at run time from parts.
+# lint rows: arg names a case built by run.py, expect is the exit code, then ':' and tokens that must be in the output
+# (comma separated); a token with a leading '!' must be absent from the output.
+# (a) the path rule: every return, a verdict beside it or not.
+drive-letter-path-exit-1-names-line :: lint :: 1:return.md:3:,drive-letter,1 rule(s) :: drive-fwd
+same-bytes-with-tilde-exit-0 :: lint :: 0:!drive-letter,0 rule(s) :: drive-tilde
+back-slash-drive-letter-exit-1 :: lint :: 1:return.md:2:,drive-letter :: drive-back
+user-folder-forward-exit-1 :: lint :: 1:return.md:4:,user-folder :: users-fwd
+user-folder-back-slash-exit-1 :: lint :: 1:return.md:4:,user-folder :: users-back
+user-folder-lower-case-exit-1 :: lint :: 1:return.md:2:,user-folder :: users-lower
+user-folder-c-form-exit-1 :: lint :: 1:return.md:2:,user-folder :: users-c
+user-folder-c-form-upper-case-exit-1 :: lint :: 1:return.md:2:,user-folder :: users-c-upper
+home-with-a-name-exit-1 :: lint :: 1:return.md:3:,user-folder :: home-name
+home-with-no-name-exit-0 :: lint :: 0:!user-folder :: home-bare
+https-url-and-no-path-exit-0 :: lint :: 0:!drive-letter,!user-folder,0 rule(s) :: url-only
+letter-after-letter-or-digit-is-no-drive-exit-0 :: lint :: 0:!drive-letter :: letter-after-letter
+two-hits-both-named :: lint :: 1:return.md:2:,return.md:4:,2 rule(s) :: two-hits
+kind-name-matches-in-any-case :: lint :: 1:RETURN.md:2:,drive-letter :: name-upper
+# (b) the head rule: a verdict.md in the same folder.
+one-line-longer-than-head-exit-1 :: lint :: 1:line 31,beyond the head :: longer-by-one
+same-return-truncated-to-head-exit-0 :: lint :: 0:!is not the first,0 rule(s) :: head-exact
+shorter-than-head-exit-1 :: lint :: 1:line 21,missing :: shorter
+verdict-of-31-lines-return-is-first-30-exit-0 :: lint :: 0:!is not the first :: verdict-31
+one-byte-change-on-line-7-exit-1-names-line :: lint :: 1:return.md:7:,line 7 differs :: one-byte
+verdict-shorter-than-30-compared-whole-exit-0 :: lint :: 0:!is not the first :: short-verdict-whole
+verdict-shorter-than-30-return-one-more-exit-1 :: lint :: 1:line 6,beyond the head :: short-verdict-one-more
+line-endings-removed-crlf-verdict-exit-0 :: lint :: 0:!is not the first :: crlf-verdict
+nothing-else-normalised-trailing-space-exit-1 :: lint :: 1:return.md:9:,line 9 differs :: trailing-space
+unreadable-verdict-exit-2 :: lint :: 2:unreadable,verdict.md :: verdict-bad-bytes
+verdict-alone-keeps-unknown-kind :: lint :: 2:unknown kind :: verdict-alone
+verdict-in-another-folder-head-rule-silent :: lint :: 0:!is not the first :: verdict-other-folder
+path-rule-and-head-rule-are-separate-equal-head-with-drive-path-names-only-path :: lint :: 1:return.md:5:,drive-letter,!is not the first :: drive-and-head-ok
+# (c) no sibling verdict (a scout-shaped return): the head rule is silent, the path rule is not.
+scout-return-clean-no-verdict-exit-0 :: lint :: 0:!is not the first,0 rule(s) :: scout-clean
+scout-return-with-drive-path-exit-1 :: lint :: 1:return.md:3:,drive-letter,!is not the first :: scout-drive
