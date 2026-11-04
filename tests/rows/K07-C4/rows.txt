@@ -1,0 +1,38 @@
+# K07-C4 rows:  id :: kind :: expect :: arg
+# Fixtures are built at run time by run.py under LOOP_WORK; every goal id, task id and path in them is constructed.
+# check rows: arg names a case built by run.py, expect is the exit code, then ':' and tokens that must be in the output
+# (comma separated); a token with a leading '!' must be absent from the output.
+# (a) a ROLLBACK line whose named file is absent on disk, against the same log naming a file written beside it.
+rollback-file-absent :: check :: 1:FAIL line 1:,absent on disk,!FAIL line 2: :: file-absent
+rollback-file-present :: check :: 0:!FAIL :: file-present
+second-rollback-line-judged-alone :: check :: 1:FAIL line 2:,absent on disk,!FAIL line 1: :: second-line-absent
+rollback-line-of-other-goal-not-judged :: check :: 0:!FAIL :: other-goal-not-judged
+# (b) --report: the named path in the Writes section of the report; the Writes section line removed, then present.
+report-writes-line-removed :: check :: 1:FAIL line 1:,appears nowhere in the Writes section,which has no Writes section,!absent on disk :: report-no-heading
+report-writes-line-present :: check :: 0:!FAIL :: report-ok
+report-without-writes-section :: check :: 1:FAIL line 1:,which has no Writes section,!absent on disk :: report-no-section
+path-only-outside-writes-section :: check :: 1:FAIL line 1:,appears nowhere in the Writes section :: report-outside
+path-only-under-a-later-heading :: check :: 1:FAIL line 1:,appears nowhere in the Writes section :: report-after-subheading
+path-only-before-the-section :: check :: 1:FAIL line 1:,appears nowhere in the Writes section :: report-before-section
+no-report-given-report-absent :: check :: 0:!FAIL,!Writes :: file-present
+report-written-but-not-passed-is-silent :: check :: 0:!FAIL,!Writes :: report-not-passed
+report-unreadable :: check :: 2:report unreadable :: report-unreadable
+file-absent-and-path-unnamed-both-reported :: check :: 1:FAIL line 1:,absent on disk,appears nowhere in the Writes section :: report-and-file-absent
+# (c) the readings: the Writes opener, the named path, where the file is looked for, the spellings.
+writes-opener-with-colon-no-hash :: check :: 0:!FAIL :: report-colon-opener
+writes-opener-plain-line :: check :: 0:!FAIL :: report-plain-opener
+writes-opener-case-as-written :: check :: 1:FAIL line 1:,which has no Writes section :: report-lowercase-opener
+second-writes-section-counts :: check :: 0:!FAIL :: report-second-writes
+rollback-line-with-no-word-is-absent-file :: check :: 1:FAIL line 1:,names no file path,so its file is absent on disk :: no-word
+rollback-line-with-no-word-is-unnamed :: check :: 1:FAIL line 1:,so its file is absent on disk,so it appears nowhere in the Writes section :: report-no-word
+quoted-path-word-is-unquoted :: check :: 0:!FAIL :: quoted-word
+only-the-first-word-is-the-path :: check :: 1:FAIL line 1:,absent on disk :: first-word-only
+tilde-path-expanded-file-present :: check :: 0:!FAIL :: home-present
+tilde-path-expanded-file-absent :: check :: 1:FAIL line 1:,absent on disk :: home-absent
+loop-home-path-expanded-file-present :: check :: 0:!FAIL :: lh-present
+loop-home-path-expanded-file-absent :: check :: 1:FAIL line 1:,absent on disk :: lh-absent
+default-plan-folder-file-present :: check :: 0:!FAIL :: defplan-present
+default-plan-folder-file-absent :: check :: 1:FAIL line 1:,absent on disk :: defplan-absent
+absolute-path-found-by-its-tilde-spelling :: check :: 0:!FAIL :: report-home-spelling
+absolute-path-found-by-its-loop-home-spelling :: check :: 0:!FAIL :: report-lh-spelling
+tilde-spelling-of-another-folder-is-not-found :: check :: 1:FAIL line 1:,appears nowhere in the Writes section :: report-spelling-elsewhere

@@ -64,6 +64,8 @@ def main():
             pdir = work + '/plan-' + rid
             os.makedirs(pdir, exist_ok=True)
             write_text(pdir + '/plan.md', PLAN)
+            # K07-C4: the file a ROLLBACK line names (rb.txt, relative to the plan folder) is on disk, as the rule needs.
+            write_text(pdir + '/rb.txt', 'fixture rollback\n')
             cmd += ['--plan', pdir + '/plan.md']
         cp = subprocess.run(cmd, capture_output=True, text=True, env=env, cwd=work)
         out = cp.stdout + cp.stderr

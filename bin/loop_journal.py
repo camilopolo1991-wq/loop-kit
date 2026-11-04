@@ -14,7 +14,7 @@
 #   Read-only. Prints "<scout> <writer> <reviewer>": the count of that goal's lines whose text
 #   starts DISPATCH and then the role word. Words after the card path do not change the count.
 #
-# loop-journal --check <GOAL-ID> [--file PATH] [--plan PATH]
+# loop-journal --check <GOAL-ID> [--file PATH] [--plan PATH] [--report PATH]
 #   P33. Read-only. Exit 1 when a writer task (plan.md owner column says writer) has a DONE or PASS
 #   line with no ROLLBACK line for the same task before the first of them. --file reads a log
 #   fixture instead of the journal, --plan a plan fixture instead of the goal's plan.md. Exit 2 when plan.md or the journal
@@ -53,6 +53,17 @@
 #   exemption, for a run mid-goal: the goal's last DISPATCH line is exempt from the return-file check when it is the
 #   goal's last line in the log (lines of other goals after it do not count). A DISPATCH followed by any later line of the
 #   same goal is judged. The order check has no exemption.
+#
+#   K07-C4. Also exit 1 for each ROLLBACK line of the goal whose named file is absent on disk, and, with --report PATH, for each
+#   ROLLBACK line whose named path appears nowhere in the Writes section of the report; each FAIL line names the line number
+#   in the log file. The named path is the first word after ROLLBACK in the line's text (outer quotes and backticks stripped);
+#   a ROLLBACK line with no such word is judged as naming an absent file, and, with --report, as unnamed. ~ and $LOOP_HOME are
+#   expanded; a relative path resolves as a K07-C3 card path does (against the folder of --plan when given, otherwise against
+#   $LOOP_HOME/goals/<GOAL-ID>/). The Writes section opens at a line whose text, trimmed of leading # marks and spaces and of a
+#   trailing colon, is Writes (case as written), and ends at the next line starting with # or the end of the file; a report with
+#   no such section leaves every ROLLBACK line unnamed. A path appears when its bytes as written in the log line occur in that
+#   section, or its ~ or $LOOP_HOME spelling does. Exit 2 when --report names a file that cannot be read. Without --report
+#   the report half is silent.
 #
 # loop-journal --active <GOAL-ID> [--file PATH]
 #   K03-C5. Read-only. The one instrument for a goal's active time. --file reads a log fixture
@@ -195,12 +206,13 @@ def mode_active(args):
 # ---- --check ----
 
 def mode_check(args):
-    usage = "usage: loop-journal --check <GOAL-ID> [--file PATH] [--plan PATH]"
+    usage = "usage: loop-journal --check <GOAL-ID> [--file PATH] [--plan PATH]"  # byte-equal to wt-main (K06-C3 fx-check-usage); --report is in the header
     if len(args) < 1:
         die(usage, 64)
     gid = args[0]
     check_file = ""
     check_plan = ""
+    check_report = ""
     rest = args[1:]
     while rest:
         if rest[0] == "--file":
@@ -213,14 +225,19 @@ def mode_check(args):
                 die(usage, 64)
             check_plan = rest[1]
             rest = rest[2:]
+        elif rest[0] == "--report":
+            if len(rest) < 2:
+                die(usage, 64)
+            check_report = rest[1]
+            rest = rest[2:]
         else:
             die(usage, 64)
     jf = check_file if check_file else resolve_jf()
     plan = check_plan if check_plan else "%s/goals/%s/plan.md" % (loop_home(), gid)
-    check(gid, jf, plan)
+    check(gid, jf, plan, check_report)
 
 
-def check(gid, jf, plan):
+def check(gid, jf, plan, report=""):
     try:
         pl = open(plan, encoding="utf-8").read().splitlines()
     except OSError:
@@ -330,7 +347,7 @@ def check(gid, jf, plan):
                 found = w
         return found
 
-    def card_folder(word):
+    def resolve_path(word):
         q = word.replace("\\", "/")
         for pre, base in (("${LOOP_HOME}", lhraw), ("$LOOP_HOME", lhraw), ("~", hmraw)):
             if q == pre or q.startswith(pre + "/"):
@@ -339,7 +356,10 @@ def check(gid, jf, plan):
         q = native(q)
         if not os.path.isabs(q):
             q = planhome + "/" + q
-        return os.path.dirname(q)
+        return q
+
+    def card_folder(word):
+        return os.path.dirname(resolve_path(word))
     for k in dks:
         if k == gks[-1] and k == dks[-1]:
             continue
@@ -358,15 +378,68 @@ def check(gid, jf, plan):
             if first_ret is None or first_ret > k:
                 retbad.append("line %d: a second DISPATCH for %s sits before the first RETURN, DONE, PARTIAL, FAIL or BLOCKED line of that task" % (nums[k], tid))
     retbad.sort(key=lambda s: int(s.split()[1].rstrip(":")))
+    # K07-C4. The ROLLBACK-file rule. The path a ROLLBACK line names is the first word after ROLLBACK (outer quotes and backticks
+    # stripped); the file must be on disk, resolved as the K07-C3 rule resolves a card path. With --report, the path must also
+    # appear in the Writes section of the report: as written in the log line, or in its ~ or $LOOP_HOME spelling.
+    wlines = None
+    if report:
+        try:
+            rl = open(report, encoding="utf-8", errors="replace").read().splitlines()
+        except OSError:
+            print("loop-journal --check %s: report unreadable at %s" % (gid, report)); sys.exit(2)
+        inw = False
+        for l in rl:
+            t = l.strip().lstrip("# ")
+            if t.endswith(":"):
+                t = t[:-1]
+            if t == "Writes":
+                inw = True
+                if wlines is None:
+                    wlines = []
+            elif l.startswith("#"):
+                inw = False
+            elif inw:
+                wlines.append(l)
+    wtext = "\n".join(wlines) if wlines is not None else None
+    hmbases = [b for b in dict.fromkeys([hmraw, native(hmraw)]) if b]
+    lhbases = [b for b in dict.fromkeys([lhraw, native(lhraw)]) if b]
+
+    def spellings(word, absq):
+        out = [word]
+        a = absq.replace("\\", "/")
+        for pre, bases in (("$LOOP_HOME", lhbases), ("~", hmbases)):
+            for b in bases:
+                if a.lower().startswith(b.lower() + "/") and pre + a[len(b):] not in out:
+                    out.append(pre + a[len(b):])
+        return out
+    rollbad = []
+    for k in gks:
+        if not jl[k][3].startswith("ROLLBACK"):
+            continue
+        parts = jl[k][3].split()
+        word = parts[1].strip("\x22\x60") if len(parts) > 1 else ""
+        if not word:
+            rollbad.append("line %d: the ROLLBACK line for %s names no file path, so its file is absent on disk" % (nums[k], jl[k][2]))
+            if report:
+                rollbad.append("line %d: the ROLLBACK line for %s names no file path, so it appears nowhere in the Writes section of the report" % (nums[k], jl[k][2]))
+            continue
+        absq = resolve_path(word)
+        if not os.path.isfile(absq):
+            rollbad.append("line %d: the ROLLBACK line for %s names a file that is absent on disk: %s" % (nums[k], jl[k][2], word))
+        if report:
+            if wtext is None:
+                rollbad.append("line %d: the ROLLBACK line for %s appears nowhere in the Writes section of the report, which has no Writes section: %s" % (nums[k], jl[k][2], word))
+            elif not any(s in wtext for s in spellings(word, absq)):
+                rollbad.append("line %d: the ROLLBACK line for %s names a path that appears nowhere in the Writes section of the report: %s" % (nums[k], jl[k][2], word))
     nolog = []
     for tid in passtasks:
         if not any(r[1] == tid and sl.is_pass_or_done(r[2]) for r in rows):
             nolog.append("%s is PASS in the plan but the journal has no PASS or DONE line for goal %s and task %s" % (tid, gid, tid))
     print("loop-journal --check %s: %d journal lines, writer tasks %d (%s), writer PASS %d, missing ROLLBACK %d, PASS tasks %d, missing PASS or DONE %d"
           % (gid, len(rows), len(writers), " ".join(writers) or "none", passed, len(bad), len(passtasks), len(nolog)))
-    for b in bad + nolog + badpath + dispbad + passbad + retbad:
+    for b in bad + nolog + badpath + dispbad + passbad + retbad + rollbad:
         print("  FAIL " + b)
-    sys.exit(1 if (bad or nolog or badpath or dispbad or passbad or retbad) else 0)
+    sys.exit(1 if (bad or nolog or badpath or dispbad or passbad or retbad or rollbad) else 0)
 
 
 # ---- --dispatches ----

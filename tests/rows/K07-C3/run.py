@@ -118,6 +118,11 @@ def build(ctx, name):
     for rel in c['returns']:
         os.makedirs(os.path.dirname(where + '/' + rel), exist_ok=True)
         write_text(where + '/' + rel, 'fixture return\n')
+    for g, s, t in c['lines']:
+        # K07-C4: the file a ROLLBACK line names (relative to the plan folder, as a card path is) is on disk, as the rule needs.
+        if t.startswith('ROLLBACK ') and t.split()[1].startswith('evidence/'):
+            os.makedirs(os.path.dirname(where + '/' + t.split()[1]), exist_ok=True)
+            write_text(where + '/' + t.split()[1], 'fixture rollback\n')
     for rel in c.get('beside_log', []):
         os.makedirs(os.path.dirname(base + '/log/' + rel), exist_ok=True)
         write_text(base + '/log/' + rel, 'fixture return\n')
