@@ -35,6 +35,10 @@ A fan-out that already ran "once per item" still collapsed eighteen results into
 
 The owner is usually right about his own system. Twice a fresh measurement contradicted him and the measurement was wrong, because of a fixture defect. Find the evidence before defending a claim, and before investigating any mechanism, search the existing goal evidence with Python for the mechanism word. A re-derivation is not cheaper than a lookup just because it does not interrupt anyone.
 
+## CLOSE
+
+Close rule: a goal is HELD on any criterion measured FAIL unless a ruling names that criterion and reads it otherwise. The rule keys on criterion verdicts, not on task rows.
+
 ## CONCURRENCY
 
 - Do not write under another goal's directory while any leader runs.

@@ -42,6 +42,16 @@ def row_log(ctx, rid, expect, arg):
             ts, rest = ln.split(' ', 1)
             fh.write('- %s %s %s\n' % (ts, goal, rest))
     write_text(journal, '')
+    # K07-C3: the check also wants a return file beside the card of each DISPATCH line, so the fixture saves one; the rows
+    # keep testing the tripwire window and the PASS evidence path, and no expected result changes.
+    for ln in body.split(LSEP):
+        words = ln.split(' ', 2)
+        if len(words) == 3 and words[2].startswith('DISPATCH '):
+            card = [w for w in words[2].split()[1:] if w.endswith('.md')]
+            if card:
+                rdir = os.path.dirname(folder + '/' + card[-1])
+                os.makedirs(rdir, exist_ok=True)
+                write_text(rdir + '/return.md', 'fixture return\n')
     cp = subprocess.run(['bash', ctx['tree'] + '/bin/loop-journal', '--check', goal, '--file', log, '--plan', plan],
                         capture_output=True, env=make_env(ctx['home'], {'JOURNAL_FILE': journal, 'LOOP_GOAL': GOAL, 'LOOP_PY': ctx['py']}), cwd=ctx['work'])
     out = (cp.stdout + cp.stderr).decode('utf-8', 'replace').replace('\r', '')

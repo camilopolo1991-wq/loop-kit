@@ -35,6 +35,11 @@ def run_check(tree, work, home, rid, expect, arg):
         lines.append('| %s | a task | %s | %s |' % (tid, owner, status))
     write_text(plan, '\n'.join(lines) + '\n')
     write_text(log, logtext.replace('@G', GOAL).replace('\\n', '\n') + '\n')
+    # K07-C4: the file a ROLLBACK line names (the first word after ROLLBACK, relative to the plan folder) is on disk, as the rule needs.
+    for ln in logtext.replace('\\n', '\n').split('\n'):
+        w = ln.split('ROLLBACK', 1)[1].split() if ' ROLLBACK ' in ln else []
+        if w:
+            write_text(folder + '/' + w[0], 'fixture rollback\n')
     cp = subprocess.run(['bash', tree + '/bin/loop-journal', '--check', GOAL, '--file', log, '--plan', plan],
                         capture_output=True, text=True, env=make_env(home, {'JOURNAL_FILE': journal_file(work)}, ('LOOP_GOAL',)), cwd=work)
     out = cp.stdout + cp.stderr

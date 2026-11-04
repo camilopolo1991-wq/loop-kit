@@ -117,6 +117,31 @@ def write_fixtures(ctx):
                 name, text = line[len(FIX):].rstrip('\n').split(' :: ', 1)
                 os.makedirs(os.path.dirname(d + '/' + name), exist_ok=True)
                 write_text(d + '/' + name, text.replace('\\n', '\n'))
+                # K07-C3: the check also wants a return file beside the card of each DISPATCH line; the fixture saves one
+                # (the card path resolves against the folder of the plan, which is the folder of the log), so the check rows
+                # keep comparing the two trees on what they compared before.
+                if name.endswith('log.log'):
+                    for ln in text.replace('\\n', '\n').split('\n'):
+                        words = ln.split(' ', 4)
+                        if len(words) == 5 and words[4].startswith('DISPATCH '):
+                            card = [w for w in words[4].split()[1:] if w.endswith('.md')]
+                            if card:
+                                rdir = os.path.dirname(d + '/' + os.path.dirname(name) + '/' + card[-1])
+                                os.makedirs(rdir, exist_ok=True)
+                                write_text(rdir + '/return.md', 'fixture return\n')
+                    # K07-C4: the check also wants the file a ROLLBACK line names to be on disk; the fixture saves one. A relative
+                    # path resolves against the folder of the plan (the folder of the log); a ~ path against the fixture home d/hm,
+                    # which the check cases are given as HOME (case_run), so the rows home is never written.
+                    for ln in text.replace('\\n', '\n').split('\n'):
+                        words = ln.split(' ', 4)
+                        if len(words) == 5 and words[4].startswith('ROLLBACK '):
+                            named = words[4].split()[1].replace('\\', '/')
+                            if named.startswith('~/'):
+                                rpath = d + '/hm/' + named[2:]
+                            else:
+                                rpath = d + '/' + os.path.dirname(name) + '/' + named
+                            os.makedirs(os.path.dirname(rpath), exist_ok=True)
+                            write_text(rpath, 'fixture rollback\n')
     return d
 
 
@@ -142,7 +167,9 @@ def case_run(ctx, base, name):
     fx = ctx['fix']
     full = [fx + '/' + a[1:] if a.startswith('@') else a for a in args]
     jpath = None if jf is None else spell(fx + '/' + jf[1:], how)
-    return run_bash(ctx, base + '/bin/' + tool, full, child_env(ctx, jpath))
+    # K07-C4: the check cases get the fixture home (fx/hm) as HOME, USERPROFILE and (plus /.loop) LOOP_HOME, so a ~ path of a
+    # ROLLBACK line fixture can name a file written there; every other case keeps the rows home.
+    return run_bash(ctx, base + '/bin/' + tool, full, child_env(ctx, jpath, fx + '/hm' if name.startswith('check-') else None))
 
 
 def row_pairs(ctx, rid, expect, arg):

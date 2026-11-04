@@ -1,0 +1,32 @@
+# K07-C1 rows:  id :: kind :: expect :: arg
+# Fixtures are built at run time by run.py under LOOP_WORK; every goal text, id and path in them is constructed.
+# lint rows: arg names a case built by run.py, expect is the exit code, then ':' and tokens that must be in the output
+# (comma separated); a token with a leading '!' must be absent from the output.
+# (a) the close rule: a report reading VERDICT: DONE with an AC4 FAIL line and no ruling file beside it.
+done-fail-no-ruling :: lint :: 1:AC4,FAIL,!AC1 :: fail-no-ruling
+done-fail-ruling-numbered :: lint :: 0:!AC4 :: fail-ruling-1
+done-fail-ruling-unnumbered :: lint :: 0:!AC4 :: fail-ruling-bare
+done-fail-ruling-other-content-exempts-nothing :: lint :: 1:AC4,FAIL :: fail-ruling-no-token
+done-ac4-line-malformed :: lint :: 1:AC4,MALFORMED :: malformed-comma
+done-ruling-names-ac40-not-ac4 :: lint :: 1:AC4,FAIL :: fail-ruling-ac40
+done-verdict-forms :: lint :: 0:!criterion :: verdict-forms
+done-prose-after-verdict-without-period-malformed :: lint :: 1:AC7,MALFORMED :: malformed-prose
+done-partial-and-cannot-determine :: lint :: 1:AC2,PARTIAL,AC3,CANNOT DETERMINE,!AC1 :: partial-cd
+done-missing-verdict-line :: lint :: 1:AC3,MALFORMED :: missing-line
+# (b) the criterion rule: the section ends at a field line or heading, so numbered standing rules are not criteria.
+section-ends-at-field :: lint :: 0:!AC4 :: section-ends
+section-runs-on-when-field-and-heading-removed :: lint :: 1:AC4,AC5,MALFORMED,!AC1,!AC2,!AC3 :: section-runs-on
+section-opens-with-colon-and-ends-at-heading :: lint :: 1:AC2,MALFORMED,!AC3 :: colon-heading
+indented-continuation-is-no-criterion :: lint :: 0:!criterion :: indented
+# (c) the folder rule and the readings of a GOAL.md argument.
+different-folders-rule-silent :: lint :: 0:!criterion,!AC4 :: other-folder
+goal-from-other-folder-keeps-unknown-kind :: lint :: 2:unknown kind,!criterion :: goal-other-folder
+goal-alone-keeps-unknown-kind :: lint :: 2:unknown kind :: goal-alone
+goal-and-report-same-folder-accepted-clean :: lint :: 0:2 file(s) :: pair-clean
+goal-and-report-same-folder-fails :: lint :: 1:AC4,FAIL,2 file(s) :: pair-fail
+held-report-rule-silent :: lint :: 0:!criterion :: held
+report-without-goal-linted-as-today :: lint :: 0:1 file(s) :: no-goal
+bad-verdict-line-still-reported :: lint :: 1:VERDICT :: bad-first-line
+# (d) the rule text is one sentence, byte-identical, in both files of the tree under test.
+rule-sentence-in-both-files :: sentence :: ok :: templates/GOAL_PREAMBLE.md agents/loop-leader.md
+rule-sentence-control-one-byte-differs :: sentencecontrol :: unequal :: templates/GOAL_PREAMBLE.md

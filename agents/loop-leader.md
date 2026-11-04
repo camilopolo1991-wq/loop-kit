@@ -59,6 +59,8 @@ Apply the reviewer's bar to your `report.md` first. This does not change what th
 4. Anything unproven says what would prove it and its cost.
 
 ## Close
+Close rule: a goal is HELD on any criterion measured FAIL unless a ruling names that criterion and reads it otherwise. The rule keys on criterion verdicts, not on task rows.
+
 1. Every criterion shows PASS with evidence paths. Anything not proven is marked "shipped, not proven", with what would prove it.
 2. Update `STATE.md` (edit sections in place, under 150 lines). Run `loop-journal --check <GOAL-ID>` and `loop-card-lint plan.md report.md`: both exit 0, or the goal is not closed. Then journal `GOAL CLOSED`.
 3. At close, when the record repository has a docs/brain/ folder, write a done-note there, one fact per file, each with frontmatter.

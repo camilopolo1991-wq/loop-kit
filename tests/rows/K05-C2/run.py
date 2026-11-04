@@ -14,6 +14,7 @@ expected and actual; a sha256 stands in for any text that could hold a home path
 nothing is killed, no timeout is set.
 """
 import os
+import posixpath
 import subprocess
 import sys
 sys.dont_write_bytecode = True
@@ -39,8 +40,19 @@ def row_check(ctx, rid, expect, arg):
         fh.write('- 2026-01-01T00:00:00Z %s T03 ROLLBACK %s sha256 0123456789abcdef\n' % (goal, named))
         fh.write('- 2026-01-01T00:01:00Z %s T03 DONE fixture change made\n' % goal)
     write_text(journal, '')
+    # K07-C4: the file a ROLLBACK line names is on disk, as the rule needs. A ~ path is expanded against a fixture home under the
+    # row folder (HOME, USERPROFILE and LOOP_HOME of the child point there), a relative path against the plan folder; the rows' own
+    # home is never written.
+    fhome = folder + '/hm'
+    q = named.replace('\\', '/')
+    q = fhome + q[1:] if (q == '~' or q.startswith('~/')) else (q if os.path.isabs(q) else folder + '/' + q)
+    q = posixpath.normpath(q)
+    os.makedirs(os.path.dirname(q), exist_ok=True)
+    write_text(q, 'fixture rollback\n')
+    env = make_env(ctx['home'], {'JOURNAL_FILE': journal, 'LOOP_GOAL': GOAL, 'LOOP_PY': ctx['py'], 'HOME': fhome, 'USERPROFILE': fhome,
+                                 'LOOP_HOME': fhome + '/.loop'})
     cp = subprocess.run(['bash', ctx['tree'] + '/bin/loop-journal', '--check', goal, '--file', log, '--plan', plan],
-                        capture_output=True, env=make_env(ctx['home'], {'JOURNAL_FILE': journal, 'LOOP_GOAL': GOAL, 'LOOP_PY': ctx['py']}), cwd=ctx['work'])
+                        capture_output=True, env=env, cwd=ctx['work'])
     out = (cp.stdout + cp.stderr).decode('utf-8', 'replace').replace('\r', '')
     bad = []
     for c in checks.split(SEP):

@@ -1,0 +1,41 @@
+# K07-C7 rows:  id :: kind :: expect :: arg
+# Fixtures are built at run time by run.py under LOOP_WORK; every line and path in them is constructed.
+# lint rows: arg names a card.md built by run.py, expect is the exit code, then ':' and tokens that must be in the output
+# (comma separated); a token with a leading '!' must be absent from the output.
+# (a) the rule against its control: the same write word, a path under .claude against a path under evidence/.
+review-card-write-under-claude-exit-1-names-line :: lint :: 1:card.md:4:,review card names a write under .claude,1 rule(s) :: write-claude
+same-card-write-under-evidence-exit-0 :: lint :: 0:!under .claude,0 rule(s) :: write-evidence
+# (b) Criteria and Done when stay exempt; a field runs to the next field.
+same-write-in-criteria-field-exit-0 :: lint :: 0:!under .claude,0 rule(s) :: criteria-field
+same-write-in-done-when-field-exit-0 :: lint :: 0:!under .claude,0 rule(s) :: done-when-field
+field-after-criteria-is-judged :: lint :: 1:card.md:6:,!card.md:4:,1 rule(s) :: after-criteria-judged
+field-after-done-when-is-judged :: lint :: 1:card.md:6:,!card.md:4:,1 rule(s) :: after-done-when-judged
+# (c) a Must not field states a limit and names no target.
+same-write-in-must-not-field-exit-0 :: lint :: 0:!under .claude,0 rule(s) :: must-not-field
+field-after-must-not-is-judged :: lint :: 1:card.md:6:,!card.md:4:,1 rule(s) :: after-must-not-judged
+must-not-heading-line-not-judged-evidence-to-after-it-clean :: lint :: 0:!under .claude :: must-not-line-with-claude-evidence-to
+# (d) a bare read is not judged.
+bare-read-of-claude-path-in-artefacts-exit-0 :: lint :: 0:!under .claude,0 rule(s) :: bare-read
+artefacts-continuation-with-no-write-word-exit-0 :: lint :: 0:!under .claude :: artefacts-continuation-no-write-word
+read-and-write-word-on-one-line-is-judged :: lint :: 1:card.md:4:,under .claude :: read-and-write-one-line
+# (e) the target fields make a line a write target with no write word.
+evidence-to-field-naming-claude-no-write-word-exit-1 :: lint :: 1:card.md:3:,under .claude :: evidence-to-claude
+evidence-to-continuation-line-exit-1 :: lint :: 1:card.md:4:,under .claude :: evidence-to-continuation
+return-field-naming-claude-exit-1 :: lint :: 1:card.md:3:,under .claude :: return-field
+# (f) spellings and write marks.
+back-slash-spelling-with-write-word-exit-1 :: lint :: 1:card.md:4:,under .claude :: back-slash
+upper-case-spelling-exit-1 :: lint :: 1:card.md:4:,under .claude :: upper-case
+redirect-mark-exit-1 :: lint :: 1:card.md:4:,under .claude :: redirect
+two-hits-both-named :: lint :: 1:card.md:4:,card.md:5:,2 rule(s) :: two-hits
+# (g) the rule is silent where it does not apply.
+task-card-same-write-exit-0 :: lint :: 0:!under .claude,0 rule(s) :: task-card
+claude-notes-file-with-write-word-exit-0 :: lint :: 0:!under .claude,0 rule(s) :: claude-notes-file
+claude-notes-folder-with-write-word-exit-0 :: lint :: 0:!under .claude :: claude-notes-folder
+name-ending-in-claude-is-no-path-segment-exit-0 :: lint :: 0:!under .claude :: prefixed-segment
+review-in-lower-case-is-no-review-card-exit-0 :: lint :: 0:!under .claude :: review-lower-case-first-word
+review-glued-to-a-word-is-no-review-card-exit-0 :: lint :: 0:!under .claude :: review-glued-word
+# (h) the first non-empty line decides.
+blank-lines-before-review-first-line-exit-1 :: lint :: 1:card.md:5:,under .claude :: blank-lines-before-review
+review-word-on-a-later-line-is-no-review-card-exit-0 :: lint :: 0:!under .claude :: review-word-not-first
+# (i) the route rule is kept on a review card.
+route-rule-still-fires-on-review-card :: lint :: 1:card.md:4:,routes the role,!under .claude :: route-rule-kept

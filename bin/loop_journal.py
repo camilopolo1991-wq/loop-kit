@@ -14,7 +14,7 @@
 #   Read-only. Prints "<scout> <writer> <reviewer>": the count of that goal's lines whose text
 #   starts DISPATCH and then the role word. Words after the card path do not change the count.
 #
-# loop-journal --check <GOAL-ID> [--file PATH] [--plan PATH]
+# loop-journal --check <GOAL-ID> [--file PATH] [--plan PATH] [--report PATH]
 #   P33. Read-only. Exit 1 when a writer task (plan.md owner column says writer) has a DONE or PASS
 #   line with no ROLLBACK line for the same task before the first of them. --file reads a log
 #   fixture instead of the journal, --plan a plan fixture instead of the goal's plan.md. Exit 2 when plan.md or the journal
@@ -42,6 +42,36 @@
 #   The PASS rule judges every such PASS line of a goal whose lines in the log hold at least one DISPATCH line (of any step, any
 #   position), a PASS line for a task never dispatched included; a goal with no DISPATCH line at all (the K03-C8 fixtures) is not
 #   judged by it.
+#
+#   K07-C3. Also exit 1 for each DISPATCH line of the goal (any role, writers included) whose return file is absent on disk,
+#   and for each second DISPATCH naming the same task id that sits before that task's first return, FAIL or BLOCKED line;
+#   each FAIL line names the line number in the log file. A DISPATCH line's text is DISPATCH <role> <card path>; the card
+#   path is the last word of the text ending in .md (a DISPATCH line with no such word has no return file) and the return
+#   file expected is return.md in that card path's own folder. ~ and $LOOP_HOME are expanded; a relative path resolves
+#   against the folder of --plan when --plan is given, otherwise against $LOOP_HOME/goals/<GOAL-ID>/. A return, FAIL or
+#   BLOCKED line is a line of the same task id whose text first word is RETURN, DONE, PARTIAL, FAIL or BLOCKED. One
+#   exemption, for a run mid-goal: the goal's last DISPATCH line is exempt from the return-file check when it is the
+#   goal's last line in the log (lines of other goals after it do not count). A DISPATCH followed by any later line of the
+#   same goal is judged. The order check has no exemption.
+#
+#   K07-C4. Also exit 1 for each ROLLBACK line of the goal whose named file is absent on disk, and, with --report PATH, for each
+#   ROLLBACK line whose named path appears nowhere in the Writes section of the report; each FAIL line names the line number
+#   in the log file. The named path is the first word after ROLLBACK in the line's text (outer quotes and backticks stripped);
+#   a ROLLBACK line with no such word is judged as naming an absent file, and, with --report, as unnamed. ~ and $LOOP_HOME are
+#   expanded; a relative path resolves as a K07-C3 card path does (against the folder of --plan when given, otherwise against
+#   $LOOP_HOME/goals/<GOAL-ID>/). The Writes section opens at a line whose text, trimmed of leading # marks and spaces and of a
+#   trailing colon, is Writes (case as written), and ends at the next line starting with # or the end of the file; a report with
+#   no such section leaves every ROLLBACK line unnamed. A path appears when its bytes as written in the log line occur in that
+#   section, or its ~ or $LOOP_HOME spelling does. Exit 2 when --report names a file that cannot be read. Without --report
+#   the report half is silent.
+#
+#   K07-C5. Also exit 1 for each malformed RULING line of the goal and for each HOLD line of the goal followed by no COMMIT line of
+#   the same goal; each FAIL line names the line number in the log file. A RULING line is a line whose text first word is RULING.
+#   One whose second word is leader and third word is on is a leader ruling and is not judged further. Any other is judged against
+#   the owner shape: RULING <n> <path> sha256 <hash> ledger row <n>: <text>, where <n> is digits, <path> one word and <hash> 64
+#   hexadecimal characters (a 16 character hash is malformed). A HOLD line is a line whose text first word is HOLD; a COMMIT line is
+#   one whose text first word is COMMIT; the COMMIT line must lie after the HOLD line in file order. The append form
+#   (loop-journal <GOAL-ID> <step> "RULING ...") refuses a malformed owner RULING line with exit 3 and appends nothing.
 #
 # loop-journal --active <GOAL-ID> [--file PATH]
 #   K03-C5. Read-only. The one instrument for a goal's active time. --file reads a log fixture
@@ -184,12 +214,13 @@ def mode_active(args):
 # ---- --check ----
 
 def mode_check(args):
-    usage = "usage: loop-journal --check <GOAL-ID> [--file PATH] [--plan PATH]"
+    usage = "usage: loop-journal --check <GOAL-ID> [--file PATH] [--plan PATH]"  # byte-equal to wt-main (K06-C3 fx-check-usage); --report is in the header
     if len(args) < 1:
         die(usage, 64)
     gid = args[0]
     check_file = ""
     check_plan = ""
+    check_report = ""
     rest = args[1:]
     while rest:
         if rest[0] == "--file":
@@ -202,14 +233,39 @@ def mode_check(args):
                 die(usage, 64)
             check_plan = rest[1]
             rest = rest[2:]
+        elif rest[0] == "--report":
+            if len(rest) < 2:
+                die(usage, 64)
+            check_report = rest[1]
+            rest = rest[2:]
         else:
             die(usage, 64)
     jf = check_file if check_file else resolve_jf()
     plan = check_plan if check_plan else "%s/goals/%s/plan.md" % (loop_home(), gid)
-    check(gid, jf, plan)
+    check(gid, jf, plan, check_report)
 
 
-def check(gid, jf, plan):
+OWNER_RULING = re.compile(r"RULING (\d+) (\S+) sha256 ([0-9A-Fa-f]{64}) ledger row (\d+):(?:\s|$)")
+
+
+def ruling_problem(text):
+    """K07-C5. None when the text (first word RULING) is well formed, else a short reason. A leader ruling (second word leader,
+    third word on) is not judged further. Any other is judged against the owner shape:
+    RULING <n> <path> sha256 <64 hexadecimal characters> ledger row <n>: <text>"""
+    w = text.split()
+    if len(w) >= 3 and w[0] == "RULING" and w[1] == "leader" and w[2] == "on":
+        return None
+    if OWNER_RULING.match(text):
+        return None
+    m = re.match(r"RULING\s+\S+\s+\S+\s+sha256\s+(\S+)", text)
+    if m and re.fullmatch(r"[0-9A-Fa-f]+", m.group(1)) and len(m.group(1)) != 64:
+        return "the sha256 field holds %d characters, not 64 hexadecimal characters" % len(m.group(1))
+    if not re.search(r"\bledger row \d+:(\s|$)", text):
+        return "no ledger row field of the form 'ledger row <n>:'"
+    return "not the owner shape RULING <n> <path> sha256 <64 hexadecimal characters> ledger row <n>: <text>"
+
+
+def check(gid, jf, plan, report=""):
     try:
         pl = open(plan, encoding="utf-8").read().splitlines()
     except OSError:
@@ -299,15 +355,133 @@ def check(gid, jf, plan):
             continue
         if not any(path_ok(w) for w in r[3].split()[1:] if "/" in w.strip("\x22\x60").replace("\\", "/")):
             passbad.append("line %d: the PASS line for %s names no path under evidence/" % (nums[k], r[2]))
+    # K07-C3. The DISPATCH-order rule. The card path of a DISPATCH line is the last word of its text ending in .md; the return
+    # file expected is return.md in that card path's own folder. ~ and $LOOP_HOME are expanded, a relative path resolves
+    # against the folder of the plan (the folder of --plan when given, otherwise goals/<GOAL-ID>/).
+    retbad = []
+    gks = [k for k, r in enumerate(jl) if r[1] == gid]
+    dks = [k for k in gks if re.match(r"DISPATCH(\s|$)", jl[k][3])]
+    planhome = os.path.dirname(os.path.abspath(plan))
+    hmraw = os.environ.get("HOME", "").replace("\\", "/").rstrip("/")
+    lhraw = loop_home().replace("\\", "/").rstrip("/")
+    if lhraw == "~" or lhraw.startswith("~/"):
+        lhraw = hmraw + lhraw[1:]
+
+    def card_word(text):
+        found = None
+        for w in text.split()[1:]:
+            w = w.strip("\x22\x60'()[],;")
+            if w.endswith(".md"):
+                found = w
+        return found
+
+    def resolve_path(word):
+        q = word.replace("\\", "/")
+        for pre, base in (("${LOOP_HOME}", lhraw), ("$LOOP_HOME", lhraw), ("~", hmraw)):
+            if q == pre or q.startswith(pre + "/"):
+                q = base + q[len(pre):]
+                break
+        q = native(q)
+        if not os.path.isabs(q):
+            q = planhome + "/" + q
+        return q
+
+    def card_folder(word):
+        return os.path.dirname(resolve_path(word))
+    for k in dks:
+        if k == gks[-1] and k == dks[-1]:
+            continue
+        word = card_word(jl[k][3])
+        if word is None:
+            retbad.append("line %d: the %s for %s names no card path ending in .md, so it has no return file" % (nums[k], " ".join(jl[k][3].split()[:2]), jl[k][2]))
+        elif not os.path.isfile(card_folder(word) + "/return.md"):
+            retbad.append("line %d: the %s for %s has no return file return.md beside its card %s" % (nums[k], " ".join(jl[k][3].split()[:2]), jl[k][2], word))
+    retwords = ("RETURN", "DONE", "PARTIAL", "FAIL", "BLOCKED")
+    for tid in sorted(set(jl[k][2] for k in dks)):
+        tks = [k for k in gks if jl[k][2] == tid]
+        rets = [k for k in tks if (jl[k][3].split() or [""])[0] in retwords]
+        first_ret = rets[0] if rets else None
+        tds = [k for k in tks if k in dks]
+        for k in tds[1:]:
+            if first_ret is None or first_ret > k:
+                retbad.append("line %d: a second DISPATCH for %s sits before the first RETURN, DONE, PARTIAL, FAIL or BLOCKED line of that task" % (nums[k], tid))
+    retbad.sort(key=lambda s: int(s.split()[1].rstrip(":")))
+    # K07-C4. The ROLLBACK-file rule. The path a ROLLBACK line names is the first word after ROLLBACK (outer quotes and backticks
+    # stripped); the file must be on disk, resolved as the K07-C3 rule resolves a card path. With --report, the path must also
+    # appear in the Writes section of the report: as written in the log line, or in its ~ or $LOOP_HOME spelling.
+    wlines = None
+    if report:
+        try:
+            rl = open(report, encoding="utf-8", errors="replace").read().splitlines()
+        except OSError:
+            print("loop-journal --check %s: report unreadable at %s" % (gid, report)); sys.exit(2)
+        inw = False
+        for l in rl:
+            t = l.strip().lstrip("# ")
+            if t.endswith(":"):
+                t = t[:-1]
+            if t == "Writes":
+                inw = True
+                if wlines is None:
+                    wlines = []
+            elif l.startswith("#"):
+                inw = False
+            elif inw:
+                wlines.append(l)
+    wtext = "\n".join(wlines) if wlines is not None else None
+    hmbases = [b for b in dict.fromkeys([hmraw, native(hmraw)]) if b]
+    lhbases = [b for b in dict.fromkeys([lhraw, native(lhraw)]) if b]
+
+    def spellings(word, absq):
+        out = [word]
+        a = absq.replace("\\", "/")
+        for pre, bases in (("$LOOP_HOME", lhbases), ("~", hmbases)):
+            for b in bases:
+                if a.lower().startswith(b.lower() + "/") and pre + a[len(b):] not in out:
+                    out.append(pre + a[len(b):])
+        return out
+    rollbad = []
+    for k in gks:
+        if not jl[k][3].startswith("ROLLBACK"):
+            continue
+        parts = jl[k][3].split()
+        word = parts[1].strip("\x22\x60") if len(parts) > 1 else ""
+        if not word:
+            rollbad.append("line %d: the ROLLBACK line for %s names no file path, so its file is absent on disk" % (nums[k], jl[k][2]))
+            if report:
+                rollbad.append("line %d: the ROLLBACK line for %s names no file path, so it appears nowhere in the Writes section of the report" % (nums[k], jl[k][2]))
+            continue
+        absq = resolve_path(word)
+        if not os.path.isfile(absq):
+            rollbad.append("line %d: the ROLLBACK line for %s names a file that is absent on disk: %s" % (nums[k], jl[k][2], word))
+        if report:
+            if wtext is None:
+                rollbad.append("line %d: the ROLLBACK line for %s appears nowhere in the Writes section of the report, which has no Writes section: %s" % (nums[k], jl[k][2], word))
+            elif not any(s in wtext for s in spellings(word, absq)):
+                rollbad.append("line %d: the ROLLBACK line for %s names a path that appears nowhere in the Writes section of the report: %s" % (nums[k], jl[k][2], word))
+    # K07-C5. The RULING shape and the HOLD rule. A RULING line (text first word RULING) is a leader ruling when its second word is
+    # leader and its third is on; any other is judged against the owner shape (ruling_problem). A HOLD line (text first word HOLD)
+    # needs a COMMIT line (text first word COMMIT) of the same goal after it in file order.
+    rulebad = []
+    for k in gks:
+        w = jl[k][3].split()
+        if w and w[0] == "RULING":
+            why = ruling_problem(jl[k][3])
+            if why:
+                rulebad.append("line %d: the RULING line for %s is malformed: %s" % (nums[k], jl[k][2], why))
+        elif w and w[0] == "HOLD":
+            if not any((jl[j][3].split() or [""])[0] == "COMMIT" for j in gks if j > k):
+                rulebad.append("line %d: the HOLD line for %s has no COMMIT line of goal %s after it" % (nums[k], jl[k][2], gid))
+    rulebad.sort(key=lambda s: int(s.split()[1].rstrip(":")))
     nolog = []
     for tid in passtasks:
         if not any(r[1] == tid and sl.is_pass_or_done(r[2]) for r in rows):
             nolog.append("%s is PASS in the plan but the journal has no PASS or DONE line for goal %s and task %s" % (tid, gid, tid))
     print("loop-journal --check %s: %d journal lines, writer tasks %d (%s), writer PASS %d, missing ROLLBACK %d, PASS tasks %d, missing PASS or DONE %d"
           % (gid, len(rows), len(writers), " ".join(writers) or "none", passed, len(bad), len(passtasks), len(nolog)))
-    for b in bad + nolog + badpath + dispbad + passbad:
+    for b in bad + nolog + badpath + dispbad + passbad + retbad + rollbad + rulebad:
         print("  FAIL " + b)
-    sys.exit(1 if (bad or nolog or badpath or dispbad or passbad) else 0)
+    sys.exit(1 if (bad or nolog or badpath or dispbad or passbad or retbad or rollbad or rulebad) else 0)
 
 
 # ---- --dispatches ----
@@ -437,6 +611,12 @@ def mode_append(argv):
     except Exception:
         err("loop-journal: the home-path rewrite failed; nothing was appended")
         sys.exit(4)
+    tw = text.split()
+    if tw and tw[0] == "RULING":
+        why = ruling_problem(text.lstrip())
+        if why:
+            err("loop-journal: the RULING line is malformed (%s); nothing was appended" % why)
+            sys.exit(3)
     line = "- %s %s %s %s" % (datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), argv[0], argv[1], text)
     payload = (line + "\n").encode("utf-8", "surrogateescape")
     try:
