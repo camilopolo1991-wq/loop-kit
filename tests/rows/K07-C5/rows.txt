@@ -1,0 +1,34 @@
+# K07-C5 rows:  id :: kind :: expect :: arg
+# Fixtures are built at run time by run.py under LOOP_WORK; every goal id, task id, path and hash in them is constructed.
+# check rows: arg names a case built by run.py, expect is the exit code, then ':' and tokens that must be in the output
+# (comma separated); a token with a leading '!' must be absent from the output.
+# append rows: expect is the exit code (nz = any non-zero), ':' and tokens; 'unchanged' = log bytes as before, 'appended' = one line added.
+# hook rows: the commit-msg template is run by bash on a message whose subject is the case named by arg.
+# (a) a HOLD line with no COMMIT line of that goal after it, against the same log with the COMMIT line appended.
+hold-without-commit-names-its-line :: check :: 1:FAIL line 2:,HOLD line :: hold-no-commit
+hold-then-commit-passes :: check :: 0:!FAIL :: hold-then-commit
+hold-then-commit-of-another-goal :: check :: 1:FAIL line 2:,HOLD line :: hold-commit-other-goal
+commit-only-before-the-hold :: check :: 1:FAIL line 3:,HOLD line :: commit-only-before-hold
+second-hold-after-the-commit-judged-alone :: check :: 1:FAIL line 4:,!FAIL line 2: :: two-holds-one-commit
+hold-must-be-the-first-word :: check :: 0:!FAIL :: hold-not-first-word
+hold-of-another-goal-not-judged :: check :: 0:!FAIL :: hold-of-other-goal-not-judged
+# (b) an owner RULING line: a 16 character hash against the full 64.
+owner-ruling-hash-of-16-characters :: check :: 1:FAIL line 2:,malformed :: ruling-hash-16
+owner-ruling-hash-of-64-characters :: check :: 0:!FAIL :: ruling-hash-64
+owner-ruling-hash-64-not-hexadecimal :: check :: 1:FAIL line 2:,malformed :: ruling-hash-not-hex
+owner-ruling-without-ledger-row :: check :: 1:FAIL line 2:,malformed,ledger row :: ruling-no-ledger-row
+leader-ruling-not-judged :: check :: 0:!FAIL :: ruling-leader
+leader-word-without-on-is-judged-as-owner :: check :: 1:FAIL line 2:,malformed :: ruling-leader-no-on
+ruling-must-be-the-first-word :: check :: 0:!FAIL :: ruling-not-first-word
+ruling-of-another-goal-not-judged :: check :: 0:!FAIL :: ruling-of-other-goal-not-judged
+# (c) the append form: a malformed owner line is refused and writes nothing, the well-formed line is appended.
+append-malformed-owner-ruling-refused :: append :: nz:malformed,unchanged :: ruling-hash-16
+append-owner-ruling-without-ledger-row-refused :: append :: nz:malformed,unchanged :: ruling-no-ledger-row
+append-well-formed-owner-ruling :: append :: 0:journaled,appended :: ruling-hash-64
+append-leader-ruling :: append :: 0:journaled,appended :: ruling-leader
+append-other-text-unjudged :: append :: 0:journaled,appended :: other-text
+# (d) the commit-msg template: the ruling kind accepted, a kind it does not list refused.
+commit-msg-ruling-kind-accepted :: hook :: 0: :: ruling-kind
+commit-msg-listed-kind-accepted :: hook :: 0: :: listed-kind
+commit-msg-unlisted-kind-refused :: hook :: 1:subject must be type(scope) :: unlisted-kind
+commit-msg-ruling-without-scope-refused :: hook :: 1:subject must be type(scope) :: ruling-no-scope

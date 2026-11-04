@@ -65,6 +65,14 @@
 #   section, or its ~ or $LOOP_HOME spelling does. Exit 2 when --report names a file that cannot be read. Without --report
 #   the report half is silent.
 #
+#   K07-C5. Also exit 1 for each malformed RULING line of the goal and for each HOLD line of the goal followed by no COMMIT line of
+#   the same goal; each FAIL line names the line number in the log file. A RULING line is a line whose text first word is RULING.
+#   One whose second word is leader and third word is on is a leader ruling and is not judged further. Any other is judged against
+#   the owner shape: RULING <n> <path> sha256 <hash> ledger row <n>: <text>, where <n> is digits, <path> one word and <hash> 64
+#   hexadecimal characters (a 16 character hash is malformed). A HOLD line is a line whose text first word is HOLD; a COMMIT line is
+#   one whose text first word is COMMIT; the COMMIT line must lie after the HOLD line in file order. The append form
+#   (loop-journal <GOAL-ID> <step> "RULING ...") refuses a malformed owner RULING line with exit 3 and appends nothing.
+#
 # loop-journal --active <GOAL-ID> [--file PATH]
 #   K03-C5. Read-only. The one instrument for a goal's active time. --file reads a log fixture
 #   instead of the step log the tool resolves. Over the goal's lines in order, a run starts at each
@@ -235,6 +243,26 @@ def mode_check(args):
     jf = check_file if check_file else resolve_jf()
     plan = check_plan if check_plan else "%s/goals/%s/plan.md" % (loop_home(), gid)
     check(gid, jf, plan, check_report)
+
+
+OWNER_RULING = re.compile(r"RULING (\d+) (\S+) sha256 ([0-9A-Fa-f]{64}) ledger row (\d+):(?:\s|$)")
+
+
+def ruling_problem(text):
+    """K07-C5. None when the text (first word RULING) is well formed, else a short reason. A leader ruling (second word leader,
+    third word on) is not judged further. Any other is judged against the owner shape:
+    RULING <n> <path> sha256 <64 hexadecimal characters> ledger row <n>: <text>"""
+    w = text.split()
+    if len(w) >= 3 and w[0] == "RULING" and w[1] == "leader" and w[2] == "on":
+        return None
+    if OWNER_RULING.match(text):
+        return None
+    m = re.match(r"RULING\s+\S+\s+\S+\s+sha256\s+(\S+)", text)
+    if m and re.fullmatch(r"[0-9A-Fa-f]+", m.group(1)) and len(m.group(1)) != 64:
+        return "the sha256 field holds %d characters, not 64 hexadecimal characters" % len(m.group(1))
+    if not re.search(r"\bledger row \d+:(\s|$)", text):
+        return "no ledger row field of the form 'ledger row <n>:'"
+    return "not the owner shape RULING <n> <path> sha256 <64 hexadecimal characters> ledger row <n>: <text>"
 
 
 def check(gid, jf, plan, report=""):
@@ -431,15 +459,29 @@ def check(gid, jf, plan, report=""):
                 rollbad.append("line %d: the ROLLBACK line for %s appears nowhere in the Writes section of the report, which has no Writes section: %s" % (nums[k], jl[k][2], word))
             elif not any(s in wtext for s in spellings(word, absq)):
                 rollbad.append("line %d: the ROLLBACK line for %s names a path that appears nowhere in the Writes section of the report: %s" % (nums[k], jl[k][2], word))
+    # K07-C5. The RULING shape and the HOLD rule. A RULING line (text first word RULING) is a leader ruling when its second word is
+    # leader and its third is on; any other is judged against the owner shape (ruling_problem). A HOLD line (text first word HOLD)
+    # needs a COMMIT line (text first word COMMIT) of the same goal after it in file order.
+    rulebad = []
+    for k in gks:
+        w = jl[k][3].split()
+        if w and w[0] == "RULING":
+            why = ruling_problem(jl[k][3])
+            if why:
+                rulebad.append("line %d: the RULING line for %s is malformed: %s" % (nums[k], jl[k][2], why))
+        elif w and w[0] == "HOLD":
+            if not any((jl[j][3].split() or [""])[0] == "COMMIT" for j in gks if j > k):
+                rulebad.append("line %d: the HOLD line for %s has no COMMIT line of goal %s after it" % (nums[k], jl[k][2], gid))
+    rulebad.sort(key=lambda s: int(s.split()[1].rstrip(":")))
     nolog = []
     for tid in passtasks:
         if not any(r[1] == tid and sl.is_pass_or_done(r[2]) for r in rows):
             nolog.append("%s is PASS in the plan but the journal has no PASS or DONE line for goal %s and task %s" % (tid, gid, tid))
     print("loop-journal --check %s: %d journal lines, writer tasks %d (%s), writer PASS %d, missing ROLLBACK %d, PASS tasks %d, missing PASS or DONE %d"
           % (gid, len(rows), len(writers), " ".join(writers) or "none", passed, len(bad), len(passtasks), len(nolog)))
-    for b in bad + nolog + badpath + dispbad + passbad + retbad + rollbad:
+    for b in bad + nolog + badpath + dispbad + passbad + retbad + rollbad + rulebad:
         print("  FAIL " + b)
-    sys.exit(1 if (bad or nolog or badpath or dispbad or passbad or retbad or rollbad) else 0)
+    sys.exit(1 if (bad or nolog or badpath or dispbad or passbad or retbad or rollbad or rulebad) else 0)
 
 
 # ---- --dispatches ----
@@ -569,6 +611,12 @@ def mode_append(argv):
     except Exception:
         err("loop-journal: the home-path rewrite failed; nothing was appended")
         sys.exit(4)
+    tw = text.split()
+    if tw and tw[0] == "RULING":
+        why = ruling_problem(text.lstrip())
+        if why:
+            err("loop-journal: the RULING line is malformed (%s); nothing was appended" % why)
+            sys.exit(3)
     line = "- %s %s %s %s" % (datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), argv[0], argv[1], text)
     payload = (line + "\n").encode("utf-8", "surrogateescape")
     try:
