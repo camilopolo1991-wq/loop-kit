@@ -1,0 +1,27 @@
+# K07-C2 rows:  id :: kind :: expect :: arg
+# Fixtures are built at run time by run.py under LOOP_WORK; every plan, GOAL, log text, id and path in them is constructed.
+# lint rows: arg names a case built by run.py, expect is the exit code, then ':' and tokens that must be in the output
+# (comma separated); a token with a leading '!' must be absent from the output.
+# (a) a PASS row whose evidence path names another task id.
+pass-evidence-names-other-task :: lint :: 1:T02,T03,1 rule(s) broken :: ev-other-task
+pass-row-t01-evidence-names-t03-the-old-c8-shape :: lint :: 1:T01,T03,1 rule(s) broken :: ev-c8-shape
+pass-evidence-names-own-task :: lint :: 0:0 rule(s) broken :: ev-own-task
+pass-evidence-other-task-lowercase-segment :: lint :: 1:T02,T03 :: ev-other-lower
+pass-without-evidence-path-keeps-today-clean :: lint :: 0:0 rule(s) broken :: ev-no-path
+pass-without-evidence-path-keeps-today-log-rule :: lint :: 1:task T02 is PASS but the step log has no PASS or DONE line :: ev-no-path-no-log-line
+non-pass-row-is-not-checked :: lint :: 0:0 rule(s) broken :: ev-non-pass-other
+# (b) --goal: every criterion of the GOAL is named by a task row.
+goal-four-criteria-plan-covers-three :: lint :: 1:AC4,1 rule(s) broken,!AC1,!AC3 :: goal4-plan3
+goal-four-criteria-plan-covers-four :: lint :: 0:0 rule(s) broken :: goal4-plan4
+no-goal-flag-gap-not-checked :: lint :: 0:0 rule(s) broken :: goal4-plan3-no-flag
+ac10-does-not-name-ac1 :: lint :: 1:AC1,!AC10 :: ac10-not-ac1
+ac1-does-not-name-ac10 :: lint :: 1:AC10,1 rule(s) broken,!AC9 :: ac1-not-ac10
+standing-rules-after-field-are-not-read :: lint :: 0:0 rule(s) broken :: standing-rules-after-field
+standing-rules-read-when-no-field-ends-section-control :: lint :: 1:AC4,AC5,!AC1 :: standing-rules-read-without-field
+token-in-another-cell-does-not-count :: lint :: 1:AC2,!AC1 :: token-in-other-cell
+# (c) --goal and --log together, and the usage readings.
+goal-and-log-together-clean :: lint :: 0:0 rule(s) broken :: goal-and-log
+goal-and-log-together-gap :: lint :: 1:AC2,!AC1 :: goal-and-log-gap
+goal-and-log-together-other-task :: lint :: 1:T01,T04,!criterion :: goal-and-log-other-task
+goal-file-unreadable-exits-2 :: lint :: 2:GOAL file unreadable :: goal-missing
+goal-without-value-exits-2 :: lint :: 2:usage: loop-card-lint :: goal-no-value

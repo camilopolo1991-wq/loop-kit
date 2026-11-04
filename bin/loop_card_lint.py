@@ -33,6 +33,12 @@
 # P33. Written after the RECORD-01 audits: a plan row read "DONE (closing)" and cards routed the
 # reviewer to plan.md and the journal.
 #
+# K07-C2. Plan rule (a): a PASS row whose status evidence path holds a path segment that is a task id (T<nn>) other than
+#   the row's own exits 1, naming both ids. Plan rule (b): --goal PATH (plan.md only) makes each criterion of that GOAL,
+#   read by criteria() below, need a task row whose text cell (the task column) holds the whole token AC<n> (AC1 is not
+#   named by AC10); an unnamed criterion exits 1 naming AC<n>. An unreadable GOAL exits 2. Without --goal rule (b) is off.
+#   --goal and --log work together. The usage line is unchanged on purpose (K06-C3 compares it).
+#
 # K06-C3. The command file bin/loop-card-lint is the one launcher stub; this module is the tool. The logic below is the
 # text that used to be inline in that command file, moved without change.
 import os
@@ -42,6 +48,8 @@ import sys
 import loop_steplog as sl
 
 USAGE = "usage: loop-card-lint [--log PATH] <card.md|plan.md|report.md>..."
+TASKID = re.compile(r"^T\d+$", re.I)
+ACTOKEN = re.compile(r"\bAC(\d+)\b")
 ROUTE = re.compile(r"(?i)(\bplan\.md\b|\bSTATE\.md\b|\bJOURNAL\.md\b|\bloop-journal\b|\bthe journal\b)")
 EXEMPT = ("criteria:", "done when:")
 FIELD = re.compile(r"^([A-Z][A-Za-z ]{1,30}):")
@@ -167,12 +175,16 @@ def main(argv):
         # the command file's own usage line was written by the shell: LF only
         sl.emit(USAGE)
         return 2
-    args = argv; files = []; logpath = None; i = 0
+    args = argv; files = []; logpath = None; goalpath = None; i = 0
     while i < len(args):
         if args[i] == "--log":
             if i + 1 >= len(args):
                 print(USAGE); sys.exit(2)
             logpath = args[i + 1]; i += 2
+        elif args[i] == "--goal":
+            if i + 1 >= len(args):
+                print(USAGE); sys.exit(2)
+            goalpath = args[i + 1]; i += 2
         else:
             files.append(args[i]); i += 1
     if not files:
@@ -198,7 +210,7 @@ def main(argv):
                 if r:
                     say(f, n, "routes the role to %s. Copy what the role needs into the card instead." % r.group(1))
         elif name == "plan.md":
-            live = None; hdr = None; inlive = False; passrows = []
+            live = None; hdr = None; inlive = False; passrows = []; named = set()
             for n, l in enumerate(lines, 1):
                 if re.match(r"^\s*(\d+[.)]|[-*])\s+T\d+\b", l):
                     say(f, n, "task written as prose, not a table row: %r" % l.strip()[:40])
@@ -220,6 +232,15 @@ def main(argv):
                             say(f, n, "task %s status %r has more after the status word than one evidence path (evidence/... or $LOOP_HOME/goals/...)" % (cells[0], st[:30]))
                     if first == "PASS":
                         passrows.append((n, cells[0], st.split()[1:]))
+                        # K07-C2 rule (a): the evidence path of a PASS row may name only the row's own task id.
+                        ev = st.split()[1:]
+                        if ev:
+                            for seg in re.split(r"[\\/]+", ev[0]):
+                                if TASKID.match(seg) and seg.upper() != cells[0].upper():
+                                    say(f, n, "task %s is PASS with an evidence path naming another task id, %s: %r" % (cells[0], seg.upper(), ev[0][:60]))
+                                    break
+                    # K07-C2 rule (b): the AC<n> tokens in the text cell of each task row.
+                    named.update(int(x) for x in ACTOKEN.findall(cells[hdr.index("task")] if "task" in hdr and len(cells) > hdr.index("task") else (cells[1] if len(cells) > 1 else "")))
             if hdr is None:
                 say(f, "-", "no task table: plan.md needs | T | task | ... | status | rows")
             if live is None:
@@ -229,8 +250,17 @@ def main(argv):
                 v = m.group(1).strip() if m else ""
                 if v not in GOAL:
                     say(f, live[0], "## Live status %r is not PLANNING, RUNNING, HELD or DONE (nothing in parentheses)" % (v[:30] or "missing"))
+            if goalpath is not None:
+                # K07-C2 rule (b): every criterion of the GOAL (criteria(), the criterion rule) is named by a task row.
+                try:
+                    glines = open(goalpath, encoding="utf-8").read().splitlines()
+                except (OSError, ValueError):
+                    print("loop-card-lint: GOAL file unreadable (%s)" % os.path.basename(goalpath)); sys.exit(2)
+                for cn, _ in criteria(glines):
+                    if cn not in named:
+                        say(f, "-", "criterion AC%d of the GOAL is named by no task row (a task text cell needs the token AC%d)" % (cn, cn))
             if passrows:
-                gm = re.search(r"\bgoal:\s*([^\s|]+)", live[1]) if live else None
+                gm =re.search(r"\bgoal:\s*([^\s|]+)", live[1]) if live else None
                 gid = gm.group(1) if gm else ""
                 rows = logrows(logpath)
                 for n, tid, rest in passrows:
