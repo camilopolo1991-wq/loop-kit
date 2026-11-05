@@ -16,7 +16,8 @@ three-command-files-are-the-stub :: three :: ok :: loop-journal loop-preflight l
 fx-check-pass :: fixture :: equal:0 :: check-pass
 fx-check-fail :: fixture :: equal:1 :: check-fail
 fx-check-no-plan :: fixture :: equal:2 :: check-no-plan
-fx-check-usage :: fixture :: equal:64 :: check-usage
+# K08-C1: the usage line gained ' [--runs DIR]', so this row pins the new bytes literally on the tree under test (raw stdout) and the exit 64, no longer against wt-main.
+fx-check-usage :: usagepin :: 64 :: check-usage
 fx-active-pass :: fixture :: equal:0 :: active-pass
 fx-active-no-start :: fixture :: equal:2 :: active-no-start
 fx-active-malformed :: fixture :: equal:2 :: active-malformed
