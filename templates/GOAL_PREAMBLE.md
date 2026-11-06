@@ -45,6 +45,7 @@ Close rule: a goal is HELD on any criterion measured FAIL unless a ruling names 
 - Do not create a new goal directory while a reviewer window is open; the tripwire reads it as out-of-scope change and quarantines the review.
 - Re-count the dirty-path baseline before finishing and attribute any change.
 - The goal's Standing rules section is law for the leader and is never a reason to stop.
+- Session-cut rule (templates/GOAL.md, Standing rule 1) and its resume step: When a goal resumes after a usage-limit cut, for every task whose last DISPATCH in the cut run has no RETURN, DONE, PARTIAL, FAIL or BLOCKED line after it, the leader writes `T<nn> BLOCKED leader record: cut by the usage limit, run log <name>, card <card path>` before it dispatches that task again, and never launches an agent whose DISPATCH line the step-log tool refused (a launch after a refused write is a FAIL under standing rule 1).
 
 ## GUARDS
 

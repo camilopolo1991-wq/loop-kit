@@ -75,6 +75,86 @@ def is_pass_or_done(text):
     return PASS_OR_DONE.match(text) is not None
 
 
+# K09-C1. The DISPATCH refusal of the append mode of loop-journal. A DISPATCH write for a task is refused when the same task
+# id's previous DISPATCH line of the goal has no RETURN, DONE, PARTIAL, FAIL or BLOCKED line of that task after it.
+CLOSERS = ("RETURN", "DONE", "PARTIAL", "FAIL", "BLOCKED")
+
+
+def read_numbered(path):
+    """The step lines of the log as (line number, timestamp, goal id, step, text), the line number counted over the same
+    splitlines() read_rows uses. OSError and ValueError from opening are left to the caller."""
+    text = open(path, encoding="utf-8", errors="replace").read().splitlines()
+    rows = []
+    for n, l in enumerate(text, 1):
+        t = l.split(None, 4)
+        if len(t) >= 4 and t[0] == "-":
+            rows.append((n, t[1], t[2], t[3], t[4] if len(t) > 4 else ""))
+    return rows
+
+
+def first_word(text):
+    w = text.split()
+    return w[0] if w else ""
+
+
+def open_dispatch(rows, gid, tid):
+    """None, or (the last DISPATCH row of goal gid and step tid, the goal's rows after it) when no row of that step whose
+    text first word is one of CLOSERS follows it."""
+    mine = [r for r in rows if r[2] == gid]
+    last = None
+    for i, r in enumerate(mine):
+        if r[3] == tid and first_word(r[4]) == "DISPATCH":
+            last = i
+    if last is None:
+        return None
+    later = mine[last + 1:]
+    if any(r[3] == tid and first_word(r[4]) in CLOSERS for r in later):
+        return None
+    return mine[last], later
+
+
+def card_word(text):
+    """The last word of the text after DISPATCH that ends in .md (outer quotes and brackets stripped), or None."""
+    found = None
+    for w in text.split()[1:]:
+        w = w.strip("\x22\x60'()[],;")
+        if w.endswith(".md"):
+            found = w
+    return found
+
+
+def cut_log_name(gid, later):
+    """The run log name (<GOAL-ID>.<YYYYMMDDTHHMMSSZ>.log) the latest usage-limit cut INCIDENT line among the rows names, or None."""
+    rx = re.compile(r"(?<![A-Za-z0-9_-])" + re.escape(gid) + r"\.\d{8}T\d{6}Z\.log(?![A-Za-z0-9_])")
+    name = None
+    for r in later:
+        if (r[3] == "INCIDENT" and r[4].startswith("usage-limit cut")) or r[4].startswith("INCIDENT usage-limit cut"):
+            m = rx.search(r[4])
+            if m:
+                name = m.group(0)
+    return name
+
+
+def refusal_lines(gid, tid, found):
+    """The lines the refusal prints. With a cut INCIDENT line naming a run log and a card path on the DISPATCH line, the last
+    line is the exact BLOCKED line to write (task id first, as the card words it). Without either, no BLOCKED line is printed:
+    it would claim a cut the log does not record."""
+    row, later = found
+    head = ("loop-journal: refused, nothing appended: line %d is the previous DISPATCH for %s and no RETURN, DONE, PARTIAL, "
+            "FAIL or BLOCKED line for %s follows it" % (row[0], tid, tid))
+    card = card_word(row[4])
+    name = cut_log_name(gid, later)
+    if card and name:
+        return [head + "; write this line first (loop-journal %s %s with the text after %s):" % (gid, tid, tid),
+                "%s BLOCKED leader record: cut by the usage limit, run log %s, card %s" % (tid, name, card)]
+    if name is None:
+        why = ("no usage-limit cut INCIDENT line after line %d names a run log, so the cut BLOCKED line is not printed; "
+               "record how that dispatch ended first" % row[0])
+    else:
+        why = "line %d names no card path ending in .md, so the cut BLOCKED line is not printed" % row[0]
+    return [head + "; " + why]
+
+
 def main(argv):
     if argv != ["resolve"]:
         emit("usage: loop_steplog.py resolve")

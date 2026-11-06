@@ -68,6 +68,13 @@
 #   INCIDENT is a DISPATCH or a ROLLBACK line. A DISPATCH with no card word, the second-DISPATCH order check, the K07-C3 last-line
 #   exemption, the ROLLBACK rules and every other rule are unchanged. --runs with no following word is a usage error (exit 64).
 #
+#   K09-C1. The order check above is unchanged; the refusal is in the append form. loop-journal <GOAL-ID> T<nn> "DISPATCH ..." reads
+#   the step log and exits 1 with nothing appended when that goal's previous DISPATCH line for the same task id has no RETURN, DONE,
+#   PARTIAL, FAIL or BLOCKED line of that task after it. It prints the previous DISPATCH's line number and, when a usage-limit cut
+#   INCIDENT line after it names a run log and the DISPATCH line names a card path, the BLOCKED line to write; with no such INCIDENT
+#   line it prints no BLOCKED line (the cut is not recorded) and says to record how that dispatch ended. Every other step kind writes
+#   as before.
+#
 #   K07-C4. Also exit 1 for each ROLLBACK line of the goal whose named file is absent on disk, and, with --report PATH, for each
 #   ROLLBACK line whose named path appears nowhere in the Writes section of the report; each FAIL line names the line number
 #   in the log file. The named path is the first word after ROLLBACK in the line's text (outer quotes and backticks stripped);
@@ -703,6 +710,17 @@ def mode_append(argv):
         if why:
             err("loop-journal: the RULING line is malformed (%s); nothing was appended" % why)
             sys.exit(3)
+    # K09-C1. A DISPATCH line for a task is refused (exit 1, nothing appended) while that task's previous DISPATCH line of the
+    # goal has no RETURN, DONE, PARTIAL, FAIL or BLOCKED line of the task after it. Every other step kind writes as before.
+    if tw and tw[0] == "DISPATCH" and re.match(r"T\d+$", argv[1]):
+        try:
+            found = sl.open_dispatch(sl.read_numbered(jf), argv[0], argv[1])
+        except (OSError, ValueError):
+            found = None
+        if found:
+            for ln in sl.refusal_lines(argv[0], argv[1], found):
+                lf(ln)
+            sys.exit(1)
     line = "- %s %s %s %s" % (datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), argv[0], argv[1], text)
     payload = (line + "\n").encode("utf-8", "surrogateescape")
     try:
