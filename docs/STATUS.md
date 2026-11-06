@@ -37,12 +37,12 @@ Row folders under tests/rows/:
 
 ```
 $ find tests/rows -mindepth 1 -maxdepth 1 -type d | wc -l
-54
+55
 ```
 
 Every row runner takes no argument and reads its environment. The folders on the second line below also take the tree, the home and the work folder as three arguments after the runner path, in that order, with the same fills.
 
-Row folders: C1 C10 C12 C2 C3 C4 C5 C6 C8 K03-C1 K03-C2 K03-C3 K03-C4 K03-C5 K03-C6 K03-C7 K03-C8 K04-C1 K04-C2 K04-C3 K04-C4 K04-C5 K04-C6 K04-C7 K04-C8 K05-C1 K05-C2 K05-C3 K05-C4 K05-C5 K05-C8 K06-C1 K06-C2 K06-C3 K06-C4 K06-C5 K06-C6 K06-C7 K07-C1 K07-C2 K07-C3 K07-C4 K07-C5 K07-C6 K07-C7 K08-C1 K09-C1 S01-C1 S01-C2 S01-C3 S01-C4 S01-C5 S01-C7 S01-C8
+Row folders: C1 C10 C12 C2 C3 C4 C5 C6 C8 K03-C1 K03-C2 K03-C3 K03-C4 K03-C5 K03-C6 K03-C7 K03-C8 K04-C1 K04-C2 K04-C3 K04-C4 K04-C5 K04-C6 K04-C7 K04-C8 K05-C1 K05-C2 K05-C3 K05-C4 K05-C5 K05-C8 K06-C1 K06-C2 K06-C3 K06-C4 K06-C5 K06-C6 K06-C7 K07-C1 K07-C2 K07-C3 K07-C4 K07-C5 K07-C6 K07-C7 K08-C1 K09-C1 K09-C2 S01-C1 S01-C2 S01-C3 S01-C4 S01-C5 S01-C7 S01-C8
 Positional form: C1 C10 C12 C2 C3 C4 C5 C6 C8
 
 ## Configuration keys
