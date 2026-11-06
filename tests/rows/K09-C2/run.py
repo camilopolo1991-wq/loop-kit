@@ -309,6 +309,42 @@ def d_sentfile(ctx):
         rc, shape, w.stub_out() is None)
 
 
+def deny_read(path):
+    """Make a file refuse reads for everyone (it still exists and can still be stat-ed). Returns (undo, how)."""
+    if os.name == 'nt':
+        subprocess.run(['icacls', path, '/deny', '*S-1-1-0:(RD)'], capture_output=True, check=True)
+        return (lambda: subprocess.run(['icacls', path, '/remove:d', '*S-1-1-0'], capture_output=True)), 'ACL deny read data'
+    os.chmod(path, 0o000)
+    return (lambda: os.chmod(path, 0o644)), 'mode 000'
+
+
+def d_unreadable(ctx):
+    w = World(ctx, 'd-unread')
+    w.report(R1)
+    rep = w.base + '/' + GID + '/report.md'
+    undo, how = deny_read(rep)
+    w.cleanups.append(undo)
+    try:
+        try:
+            with open(rep, 'rb') as fh:
+                fh.read(1)
+            return False, 'fixture defect: the report file could be read (%s did not take effect)' % how
+        except OSError as e:
+            refused = e.__class__.__name__
+        exists = os.path.isfile(rep)
+        rc, out = w.run()
+        ls = w.lines()
+        shape = len(ls) == 1 and re.fullmatch(LOGRE % 'NOT SENT' + r'hash failed: report unreadable sha256 none', ls[0]) is not None
+        sent = w.sent()
+        outfile = w.stub_out()
+    finally:
+        w.done()
+    intact = read_bytes(rep)  # after the deny is removed: the file was there, with the bytes written
+    ok, t = eq(intact or b'', R1)
+    return rc == 2 and exists and shape and sent is None and outfile is None and ok, 'exit %d, report file exists %s and a probe read refused by %s (%s), NOT SENT line with the hash-failure reason and sha256 none %s, sent folder absent %s, stub out absent %s, file bytes after the deny is removed: %s' % (
+        rc, exists, refused, how, shape, sent is None, outfile is None, t)
+
+
 def control_main(ctx):
     main = os.path.join(os.path.dirname(ctx['tree']), 'wt-main')
     if not os.path.isfile(main + '/bin/loop_report.py'):
