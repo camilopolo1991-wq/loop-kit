@@ -1,0 +1,41 @@
+# K09-C1 rows:  id :: kind :: expect :: arg
+# Fixtures are built at run time by run.py under LOOP_WORK; every goal id, task id, run log name and path in them is constructed.
+# append rows: arg names a case, expect is the exit code, then ':' and comma separated tokens that must be in the output (leading '!' = absent);
+# the log bytes must be unchanged after exit 1 and grow by one line after exit 0.
+# (a) the refusal and what it prints.
+refuse-cut-open :: append :: 1:line 1 is the previous DISPATCH for T01,T01 BLOCKED leader record: cut by the usage limit,run log K09-FIX.20260101T000000Z.log,card evidence/T01/writer/card.md :: cut-open
+refuse-fills-latest-incident :: append :: 1:run log K09-FIX.20260102T000000Z.log,!20260101T000000Z :: cut-two-incidents
+refuse-incident-text-form :: append :: 1:run log K09-FIX.20260101T000000Z.log,T01 BLOCKED leader record :: cut-incident-text-form
+refuse-reviewer-dispatch-too :: append :: 1:T01 BLOCKED leader record: cut by the usage limit,card evidence/T01/writer/card.md :: reviewer-after-open-writer
+refuse-no-incident :: append :: 1:line 1 is the previous DISPATCH for T01,no usage-limit cut INCIDENT line after line 1,!BLOCKED leader record: cut :: cut-no-incident
+refuse-incident-before-dispatch :: append :: 1:line 2 is the previous DISPATCH,no usage-limit cut INCIDENT line after line 2,!BLOCKED leader record: cut :: cut-incident-before
+refuse-incident-not-a-cut :: append :: 1:no usage-limit cut INCIDENT line,!BLOCKED leader record: cut :: cut-other-incident-kind
+refuse-incident-other-goal :: append :: 1:no usage-limit cut INCIDENT line,!BLOCKED leader record: cut :: cut-incident-other-goal
+refuse-no-card-word :: append :: 1:line 1 names no card path,!BLOCKED leader record: cut :: cut-no-card-word
+refuse-note-between :: append :: 1:line 1 is the previous DISPATCH,!BLOCKED leader record: cut :: note-only
+refuse-other-task-closer :: append :: 1:line 1 is the previous DISPATCH :: other-task-closer
+refuse-other-goal-closer :: append :: 1:line 1 is the previous DISPATCH :: other-goal-closer
+refuse-third-after-open-second :: append :: 1:line 3 is the previous DISPATCH :: third-after-closed-second
+# (b) the BLOCKED line (and each other closing line) lets the write through.
+write-after-blocked-leader-record :: append :: 0:journaled: K09-FIX T01 :: cut-blocked
+write-after-return :: append :: 0:journaled :: returned
+write-after-done :: append :: 0:journaled :: done
+write-after-partial :: append :: 0:journaled :: partial
+write-after-fail :: append :: 0:journaled :: failed
+write-after-blocked :: append :: 0:journaled :: blocked-plain
+# (c) every other write is as before.
+write-first-dispatch :: append :: 0:journaled :: first-dispatch
+write-other-task-dispatch :: append :: 0:journaled :: other-task-dispatch
+write-other-goal-dispatch-not-counted :: append :: 0:journaled :: other-goal-dispatch
+write-note-while-open :: append :: 0:journaled :: open-then-note-step
+write-rollback-while-open :: append :: 0:journaled :: open-then-rollback-step
+write-dispatch-text-on-goal-step :: append :: 0:journaled :: open-then-dispatch-step-not-task
+# (d) the printed line, appended, lets the same DISPATCH through (raw bytes equality).
+roundtrip-printed-line :: roundtrip :: ok :: cut-open
+roundtrip-reviewer :: roundtrip :: ok :: reviewer-after-open-writer
+# (e) the order check of --check is as before.
+check-blocked-before-second :: check :: absent :: chk-with-blocked
+check-no-blocked-names-second :: check :: present :: chk-without-blocked
+check-third-after-closed-unchanged :: check :: absent :: chk-third-unchanged
+# (f) the resume step, one sentence, in the leader file and the preamble.
+resume-sentence-both-files :: text :: found :: When a goal resumes after a usage-limit cut, for every task whose last DISPATCH in the cut run has no RETURN, DONE, PARTIAL, FAIL or BLOCKED line after it, the leader writes `T<nn> BLOCKED leader record: cut by the usage limit, run log <name>, card <card path>` before it dispatches that task again, and never launches an agent whose DISPATCH line the step-log tool refused (a launch after a refused write is a FAIL under standing rule 1).

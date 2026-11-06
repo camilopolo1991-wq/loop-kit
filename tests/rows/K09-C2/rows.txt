@@ -1,0 +1,27 @@
+# K09-C2 rows:  id :: kind :: expect :: arg
+# Every row builds its own throwaway home under LOOP_WORK, writes a constructed report, points REPORT_SEND_CMD (in that home's
+# config.env only) at stub_sender.py, runs LOOP_TREE/bin/loop_report.py by path, and judges report.log, the sent folder and the
+# stub's out file. kind is always check; arg names the check in run.py; expect is ok (the check's own conditions all hold).
+# Every byte comparison is made with a control: the same comparison against the expected value with one byte changed must be unequal.
+# (a) one send.
+a-log-line-sha :: check :: ok :: a_log_line
+a-sent-copy-bytes :: check :: ok :: a_copy
+a-stub-first-line :: check :: ok :: a_first_line
+a-bytes-not-normalised :: check :: ok :: a_binary
+a-file-mode :: check :: ok :: a_file_mode
+# (b) the second send, and the changed byte.
+b-unchanged-second-send-one-copy :: check :: ok :: b_same
+b-one-byte-changed-second-copy :: check :: ok :: b_changed
+b-existing-copy-other-bytes-never-overwritten :: check :: ok :: b_clash
+# (c) every other outcome carries the sha.
+c-sender-exit-1 :: check :: ok :: c_exit1
+c-kept-no-send-cmd :: check :: ok :: c_kept
+c-scan-hit :: check :: ok :: c_scan
+c-no-report-file :: check :: ok :: c_missing
+# (d) a sent folder that cannot be written.
+d-readonly-sent-folder :: check :: ok :: d_readonly
+d-sent-is-a-file :: check :: ok :: d_sentfile
+# (d) a report that exists but cannot be read, so its hash fails (ACL deny of read data on the file; a probe read must be refused first).
+d-report-unreadable-hash-fails :: check :: ok :: d_unreadable
+# Control: the tool of the sibling wt-main writes a log line with no sha (passes on both trees; the line is quoted).
+control-main-line-has-no-sha :: check :: ok :: control_main
