@@ -17,6 +17,8 @@ line feed). Rows (rows.txt, id :: kind :: expect :: arg):
   fixture     one tool case (arg) is run from LOOP_TREE and from wt-main on the same fixtures: stdout and exit equal as
               bytes, the exit equal to the number after expect 'equal:'. These rows pass on both trees: the tool of
               wt-main is the same behaviour, so a tree that moved it must not change one byte.
+  usagepin    K08-C1: one tool case (arg) run from LOOP_TREE alone: raw stdout equal to the pinned usage line, which names --runs,
+              and the exit equal to expect (the row fx-check-usage; wt-main does not name --runs)
   append      the step-log tool appends the same line to two copies of a fixture log from each tree: stdout, exit and
               the file (the timestamp field masked) equal
   preflight   the preflight run from each tree on a fresh fixture home: stdout equal as RAW bytes (no carriage return is
@@ -211,6 +213,18 @@ def row_fixture(ctx, rid, expect, arg):
         want, a.returncode, b.returncode, len(a.stdout), len(b.stdout), shafull(a.stdout)[:12], shafull(b.stdout)[:12])
 
 
+USAGE_PIN = b'usage: loop-journal --check <GOAL-ID> [--file PATH] [--plan PATH] [--runs DIR]\n'
+
+
+def row_usagepin(ctx, rid, expect, arg):
+    """K08-C1: the tree under test alone, its raw stdout equal to the pinned usage line (it names --runs, which wt-main does not) and
+    its exit equal to expect."""
+    a = case_run(ctx, ctx['tree'], arg)
+    ok = a.stdout == USAGE_PIN and a.returncode == int(expect)
+    return ok, 'expected=exit %s, stdout the pinned %d bytes sha256 %s actual=exit %d, stdout bytes %d sha256 %s' % (
+        expect, len(USAGE_PIN), shafull(USAGE_PIN)[:12], a.returncode, len(a.stdout), shafull(a.stdout)[:12])
+
+
 def row_append(ctx, rid, expect, arg):
     res = []
     for tag, base in (('tree', ctx['tree']), ('main', ctx['main'])):
@@ -323,7 +337,7 @@ def main():
     ctx = {'tree': tree, 'main': main_tree, 'home': home, 'work': work, 'py': fwd(os.environ.get('LOOP_PY') or sys.executable),
            'rows_file': here + '/rows.txt'}
     ctx['fix'] = write_fixtures(ctx)
-    kinds = {'pairs': row_pairs, 'modules': row_modules, 'three': row_three, 'fixture': row_fixture, 'append': row_append,
+    kinds = {'pairs': row_pairs, 'modules': row_modules, 'three': row_three, 'fixture': row_fixture, 'usagepin': row_usagepin, 'append': row_append,
              'preflight': row_preflight, 'nopy': row_nopy, 'upgrade': row_upgrade, 'control': row_control}
     return tally(load_rows(here + '/rows.txt'), kinds, (ctx,), True)
 

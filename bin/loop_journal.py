@@ -14,7 +14,7 @@
 #   Read-only. Prints "<scout> <writer> <reviewer>": the count of that goal's lines whose text
 #   starts DISPATCH and then the role word. Words after the card path do not change the count.
 #
-# loop-journal --check <GOAL-ID> [--file PATH] [--plan PATH] [--report PATH]
+# loop-journal --check <GOAL-ID> [--file PATH] [--plan PATH] [--report PATH] [--runs DIR]
 #   P33. Read-only. Exit 1 when a writer task (plan.md owner column says writer) has a DONE or PASS
 #   line with no ROLLBACK line for the same task before the first of them. --file reads a log
 #   fixture instead of the journal, --plan a plan fixture instead of the goal's plan.md. Exit 2 when plan.md or the journal
@@ -53,6 +53,20 @@
 #   exemption, for a run mid-goal: the goal's last DISPATCH line is exempt from the return-file check when it is the
 #   goal's last line in the log (lines of other goals after it do not count). A DISPATCH followed by any later line of the
 #   same goal is judged. The order check has no exemption.
+#
+#   K08-C1. The usage-limit-cut exemption, from the return-file check of K07-C3 only (the branch that reports "has no return file
+#   return.md beside its card"). A DISPATCH line of the goal is exempt, and prints "NOTE line <n>: usage-limit cut, run log <name>"
+#   without changing the exit code, when all of the following hold. (a) An INCIDENT line of the same goal (its step is INCIDENT and
+#   its text starts "usage-limit cut", or its text starts "INCIDENT usage-limit cut"; a numbered form such as "usage-limit cut 2:"
+#   meets it) names a run log by its file name, <GOAL-ID>.<YYYYMMDDTHHMMSSZ>.log. (b) That run log exists in the runs folder
+#   (--runs DIR, default $LOOP_HOME/dispatch) and its last non-empty line, trimmed, starts "You've hit your " and contains
+#   "limit"; a runs folder or log that is missing or unreadable makes (b) false and is never an exit 2. (c) The DISPATCH sits inside
+#   the run the INCIDENT names: after that run's START line, the first line of the goal with step GOAL or RESUME and text starting
+#   START whose timestamp is at or after the timestamp in the log's name (compared as instants), and before the goal's next START
+#   line or the INCIDENT line, whichever comes first. (d) No RETURN, DONE, PARTIAL, FAIL or BLOCKED line of the same task id follows
+#   the DISPATCH inside that run (a ROLLBACK line does not count). (e) Every line of the same goal between the DISPATCH and the
+#   INCIDENT is a DISPATCH or a ROLLBACK line. A DISPATCH with no card word, the second-DISPATCH order check, the K07-C3 last-line
+#   exemption, the ROLLBACK rules and every other rule are unchanged. --runs with no following word is a usage error (exit 64).
 #
 #   K07-C4. Also exit 1 for each ROLLBACK line of the goal whose named file is absent on disk, and, with --report PATH, for each
 #   ROLLBACK line whose named path appears nowhere in the Writes section of the report; each FAIL line names the line number
@@ -214,13 +228,14 @@ def mode_active(args):
 # ---- --check ----
 
 def mode_check(args):
-    usage = "usage: loop-journal --check <GOAL-ID> [--file PATH] [--plan PATH]"  # byte-equal to wt-main (K06-C3 fx-check-usage); --report is in the header
+    usage = "usage: loop-journal --check <GOAL-ID> [--file PATH] [--plan PATH] [--runs DIR]"  # K08-C1 added [--runs DIR] (K06-C3 fx-check-usage pins these bytes); --report is in the header
     if len(args) < 1:
         die(usage, 64)
     gid = args[0]
     check_file = ""
     check_plan = ""
     check_report = ""
+    check_runs = ""
     rest = args[1:]
     while rest:
         if rest[0] == "--file":
@@ -238,11 +253,16 @@ def mode_check(args):
                 die(usage, 64)
             check_report = rest[1]
             rest = rest[2:]
+        elif rest[0] == "--runs":
+            if len(rest) < 2:
+                die(usage, 64)
+            check_runs = rest[1]
+            rest = rest[2:]
         else:
             die(usage, 64)
     jf = check_file if check_file else resolve_jf()
     plan = check_plan if check_plan else "%s/goals/%s/plan.md" % (loop_home(), gid)
-    check(gid, jf, plan, check_report)
+    check(gid, jf, plan, check_report, check_runs)
 
 
 OWNER_RULING = re.compile(r"RULING (\d+) (\S+) sha256 ([0-9A-Fa-f]{64}) ledger row (\d+):(?:\s|$)")
@@ -265,7 +285,7 @@ def ruling_problem(text):
     return "not the owner shape RULING <n> <path> sha256 <64 hexadecimal characters> ledger row <n>: <text>"
 
 
-def check(gid, jf, plan, report=""):
+def check(gid, jf, plan, report="", runs=""):
     try:
         pl = open(plan, encoding="utf-8").read().splitlines()
     except OSError:
@@ -388,6 +408,67 @@ def check(gid, jf, plan, report=""):
 
     def card_folder(word):
         return os.path.dirname(resolve_path(word))
+    retwords = ("RETURN", "DONE", "PARTIAL", "FAIL", "BLOCKED")
+    # K08-C1. The usage-limit-cut exemption from the return-file check (conditions (a) to (e) in the header). cut_exempt(k)
+    # gives the run log name that exempts the DISPATCH at row k, or None.
+    runs_dir = runs if runs else loop_home() + "/dispatch"
+    lognames = re.compile(r"(?<![A-Za-z0-9_-])" + re.escape(gid) + r"\.(\d{8}T\d{6}Z)\.log(?![A-Za-z0-9_])")
+    logmemo = {}
+
+    def instant(text, fmt="%Y-%m-%dT%H:%M:%SZ"):
+        try:
+            return datetime.strptime(text, fmt).replace(tzinfo=timezone.utc)
+        except ValueError:
+            return None
+
+    def is_cut_incident(r):
+        return (r[2] == "INCIDENT" and r[3].startswith("usage-limit cut")) or r[3].startswith("INCIDENT usage-limit cut")
+
+    def is_start(r):
+        return r[2] in ("GOAL", "RESUME") and r[3].startswith("START")
+
+    def cut_log_ok(name):
+        if name not in logmemo:
+            ok = False
+            try:
+                with open(native(runs_dir.rstrip("/\\") + "/" + name), encoding="utf-8", errors="replace", newline="") as fh:
+                    data = fh.read()
+                lines = [x.strip() for x in data.splitlines() if x.strip()]
+                ok = bool(lines) and lines[-1].startswith("You've hit your ") and "limit" in lines[-1]
+            except (OSError, ValueError):
+                ok = False
+            logmemo[name] = ok
+        return logmemo[name]
+
+    def cut_exempt(k):
+        for ik in gks:
+            if ik <= k or not is_cut_incident(jl[ik]):
+                continue
+            m = lognames.search(jl[ik][3])
+            if m is None:
+                continue
+            t0 = instant(m.group(1), "%Y%m%dT%H%M%SZ")
+            if t0 is None or not cut_log_ok(m.group(0)):
+                continue
+            start = None
+            for s in gks:
+                ts = instant(jl[s][0])
+                if is_start(jl[s]) and ts is not None and ts >= t0:
+                    start = s
+                    break
+            if start is None or not start < k:
+                continue
+            nxt = next((s for s in gks if s > start and is_start(jl[s])), ik)
+            end = min(nxt, ik)
+            if not k < end:
+                continue
+            if any(jl[j][2] == jl[k][2] and (jl[j][3].split() or [""])[0] in retwords for j in gks if k < j < end):
+                continue
+            if any(re.match(r"(DISPATCH|ROLLBACK)(\s|$)", jl[j][3]) is None for j in gks if k < j < ik):
+                continue
+            return m.group(0)
+        return None
+    notes = []
     for k in dks:
         if k == gks[-1] and k == dks[-1]:
             continue
@@ -395,8 +476,11 @@ def check(gid, jf, plan, report=""):
         if word is None:
             retbad.append("line %d: the %s for %s names no card path ending in .md, so it has no return file" % (nums[k], " ".join(jl[k][3].split()[:2]), jl[k][2]))
         elif not os.path.isfile(card_folder(word) + "/return.md"):
-            retbad.append("line %d: the %s for %s has no return file return.md beside its card %s" % (nums[k], " ".join(jl[k][3].split()[:2]), jl[k][2], word))
-    retwords = ("RETURN", "DONE", "PARTIAL", "FAIL", "BLOCKED")
+            cut = cut_exempt(k)
+            if cut:
+                notes.append("NOTE line %d: usage-limit cut, run log %s" % (nums[k], cut))
+            else:
+                retbad.append("line %d: the %s for %s has no return file return.md beside its card %s" % (nums[k], " ".join(jl[k][3].split()[:2]), jl[k][2], word))
     for tid in sorted(set(jl[k][2] for k in dks)):
         tks = [k for k in gks if jl[k][2] == tid]
         rets = [k for k in tks if (jl[k][3].split() or [""])[0] in retwords]
@@ -479,6 +563,8 @@ def check(gid, jf, plan, report=""):
             nolog.append("%s is PASS in the plan but the journal has no PASS or DONE line for goal %s and task %s" % (tid, gid, tid))
     print("loop-journal --check %s: %d journal lines, writer tasks %d (%s), writer PASS %d, missing ROLLBACK %d, PASS tasks %d, missing PASS or DONE %d"
           % (gid, len(rows), len(writers), " ".join(writers) or "none", passed, len(bad), len(passtasks), len(nolog)))
+    for n in notes:
+        print(n)
     for b in bad + nolog + badpath + dispbad + passbad + retbad + rollbad + rulebad:
         print("  FAIL " + b)
     sys.exit(1 if (bad or nolog or badpath or dispbad or passbad or retbad or rollbad or rulebad) else 0)

@@ -1,0 +1,70 @@
+# K08-C1 rows:  id :: kind :: expect :: arg
+# Fixtures are built at run time by run.py under LOOP_WORK; every goal id, task id, run log and path in them is constructed.
+# check rows: arg names a case built by run.py, expect is the exit code, then ':' and the tokens that must be in the output
+# (separated by ' ;; '); a token with a leading '!' must be absent from the output.
+# Line 2 of each case is its DISPATCH line (no return.md on disk), line 4 or 5 its INCIDENT line, unless the case says otherwise.
+# (a) the INCIDENT line: its step and words, its goal, the run log it names.
+a-incident-step-form-exempt :: check :: 0:NOTE line 2: usage-limit cut, run log K08-FIX.20260101T100000Z.log ;; !FAIL :: a-pass
+a-incident-text-form-exempt :: check :: 0:NOTE line 2: usage-limit cut, run log K08-FIX.20260101T100000Z.log ;; !FAIL :: a-incident-text-form
+a-numbered-form-exempt :: check :: 0:NOTE line 2: usage-limit cut, run log K08-FIX.20260101T100000Z.log ;; !FAIL :: a-numbered-form
+a-no-incident-line-judged :: check :: 1:FAIL line 2: ;; has no return file ;; !NOTE :: a-no-incident
+a-incident-other-words-judged :: check :: 1:FAIL line 2: ;; has no return file ;; !NOTE :: a-incident-other-words
+a-incident-step-not-incident-judged :: check :: 1:FAIL line 2: ;; has no return file ;; !NOTE :: a-incident-step-not-incident
+a-incident-of-other-goal-judged :: check :: 1:FAIL line 2: ;; has no return file ;; !NOTE :: a-incident-other-goal
+a-log-of-other-goal-judged :: check :: 1:FAIL line 2: ;; has no return file ;; !NOTE :: a-log-of-other-goal
+a-log-name-bad-stamp-judged :: check :: 1:FAIL line 2: ;; has no return file ;; !NOTE :: a-log-bad-stamp
+a-incident-names-no-log-judged :: check :: 1:FAIL line 2: ;; has no return file ;; !NOTE :: a-incident-names-no-log
+# (b) the run log: it exists in the runs folder and its last non-empty line, trimmed, starts with the limit words.
+b-log-last-line-says-limit-exempt :: check :: 0:NOTE line 2: ;; !FAIL :: a-pass
+b-trailing-blank-lines-exempt :: check :: 0:NOTE line 2: ;; !FAIL :: b-trailing-blank-lines
+b-surrounding-spaces-exempt :: check :: 0:NOTE line 2: ;; !FAIL :: b-surrounding-spaces
+b-crlf-log-exempt :: check :: 0:NOTE line 2: ;; !FAIL :: b-crlf-log
+b-log-absent-judged :: check :: 1:FAIL line 2: ;; has no return file ;; !NOTE :: b-log-absent
+b-runs-folder-absent-judged-not-exit-2 :: check :: 1:FAIL line 2: ;; has no return file ;; !NOTE :: b-runs-folder-absent
+b-log-is-a-folder-judged-not-exit-2 :: check :: 1:FAIL line 2: ;; has no return file ;; !NOTE :: b-log-is-a-folder
+b-last-line-other-judged :: check :: 1:FAIL line 2: ;; has no return file ;; !NOTE :: b-last-line-other
+b-prefix-not-at-start-judged :: check :: 1:FAIL line 2: ;; has no return file ;; !NOTE :: b-prefix-not-at-start
+b-no-limit-word-judged :: check :: 1:FAIL line 2: ;; has no return file ;; !NOTE :: b-no-limit-word
+b-limit-line-not-last-judged :: check :: 1:FAIL line 2: ;; has no return file ;; !NOTE :: b-limit-line-not-last
+b-empty-log-judged :: check :: 1:FAIL line 2: ;; has no return file ;; !NOTE :: b-empty-log
+# (c) the DISPATCH sits inside the run the INCIDENT names.
+c-dispatch-after-start-exempt :: check :: 0:NOTE line 2: ;; !FAIL :: a-pass
+c-resume-start-exempt :: check :: 0:NOTE line 2: ;; !FAIL :: c-resume-start
+c-stamp-before-start-exempt :: check :: 0:NOTE line 2: ;; !FAIL :: c-stamp-before-start
+c-run-named-is-the-second-run-exempt :: check :: 0:NOTE line 3: usage-limit cut, run log K08-FIX.20260101T103000Z.log ;; !FAIL :: c-names-second-run
+c-two-cuts-two-notes :: check :: 0:NOTE line 2: usage-limit cut, run log K08-FIX.20260101T100000Z.log ;; NOTE line 6: usage-limit cut, run log K08-FIX.20260101T103000Z.log ;; !FAIL :: c-two-cuts
+c-two-cuts-second-log-bad-one-note :: check :: 1:NOTE line 2: ;; FAIL line 6: ;; !NOTE line 6: :: c-two-cuts-second-log-bad
+c-start-after-the-incident-judged :: check :: 1:FAIL line 1: ;; has no return file ;; !NOTE :: c-start-after-incident
+c-no-start-line-judged :: check :: 1:FAIL line 1: ;; has no return file ;; !NOTE :: c-no-start-line
+c-after-the-next-start-judged :: check :: 1:FAIL line 3: ;; has no return file ;; !NOTE :: c-after-next-start
+c-stamp-after-every-start-judged :: check :: 1:FAIL line 2: ;; has no return file ;; !NOTE :: c-stamp-after-every-start
+c-start-line-of-wrong-step-judged :: check :: 1:FAIL line 2: ;; has no return file ;; !NOTE :: c-start-wrong-step
+c-dispatch-after-the-incident-judged :: check :: 1:FAIL line 3: ;; has no return file ;; !NOTE :: c-dispatch-after-incident
+# (d) no return word of the same task follows the DISPATCH in the run; a ROLLBACK line does not count.
+d-rollback-line-does-not-count :: check :: 0:NOTE line 2: ;; !FAIL :: a-pass
+d-return-of-the-task-before-the-dispatch-does-not-count :: check :: 0:NOTE line 3: ;; !FAIL :: d-return-before-dispatch
+d-return-after-judged :: check :: 1:FAIL line 2: ;; has no return file ;; !NOTE :: d-return-after
+d-done-after-judged :: check :: 1:FAIL line 2: ;; has no return file ;; !NOTE :: d-done-after
+d-partial-after-judged :: check :: 1:FAIL line 2: ;; has no return file ;; !NOTE :: d-partial-after
+d-fail-after-judged :: check :: 1:FAIL line 2: ;; has no return file ;; !NOTE :: d-fail-after
+d-blocked-after-judged :: check :: 1:FAIL line 2: ;; has no return file ;; !NOTE :: d-blocked-after
+d-return-of-another-task-judged :: check :: 1:FAIL line 2: ;; has no return file ;; !NOTE :: d-return-of-other-task
+# (e) only DISPATCH and ROLLBACK lines of the goal between the DISPATCH and the INCIDENT.
+e-dispatch-and-rollback-lines-between-exempt :: check :: 0:NOTE line 2: ;; NOTE line 4: ;; !FAIL :: e-two-dispatches-two-rollbacks
+e-line-of-another-goal-between-exempt :: check :: 0:NOTE line 2: ;; !FAIL :: e-other-goal-between
+e-note-line-between-judged :: check :: 1:FAIL line 2: ;; has no return file ;; !NOTE :: e-note-between
+e-pass-line-between-judged :: check :: 1:FAIL line 2: ;; has no return file ;; !NOTE :: e-pass-line-between
+e-commit-line-between-judged :: check :: 1:FAIL line 2: ;; has no return file ;; !NOTE :: e-commit-between
+e-gap-judges-the-first-dispatch-only :: check :: 1:FAIL line 2: ;; NOTE line 4: ;; !FAIL line 4: ;; !NOTE line 2: :: e-gap-between-two-dispatches
+# the exemption replaces only the return-file branch; the rest of the check is unchanged.
+return-file-on-disk-prints-no-note :: check :: 0:!NOTE ;; !FAIL :: return-exists
+order-check-stays-in-force :: check :: 1:NOTE line 2: ;; NOTE line 3: ;; FAIL line 3: ;; second DISPATCH ;; !FAIL line 2: :: order-check-in-force
+no-card-word-is-not-exempt :: check :: 1:FAIL line 2: ;; names no card path ;; !NOTE :: no-card-word
+last-line-exemption-stays-no-note :: check :: 0:!NOTE ;; !FAIL :: last-line-exempt
+note-does-not-change-the-exit-code-another-failure-does :: check :: 1:NOTE line 2: ;; FAIL line 5: ;; has no return file ;; !FAIL line 2: :: cut-and-other-failure
+# the runs folder: the default under LOOP_HOME, the argument that replaces it, the argument with no value, the usage line.
+default-runs-folder-is-loop-home-dispatch :: check :: 0:NOTE line 2: ;; !FAIL :: default-runs-folder
+default-runs-folder-is-not-any-other-folder :: check :: 1:FAIL line 2: ;; has no return file ;; !NOTE :: default-runs-not-the-runs-folder
+runs-argument-replaces-the-default :: check :: 1:FAIL line 2: ;; has no return file ;; !NOTE :: runs-arg-overrides-default
+runs-with-no-value-is-usage-exit-64 :: check :: 64:usage: loop-journal --check ;; [--runs DIR] ;; !NOTE :: runs-no-value
+usage-line-names-runs :: check :: 64:usage: loop-journal --check <GOAL-ID> [--file PATH] [--plan PATH] [--runs DIR] :: usage-line
