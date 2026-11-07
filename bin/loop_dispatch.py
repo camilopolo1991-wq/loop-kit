@@ -15,6 +15,9 @@ a check that exits non-zero rather than a reminder:
   * one dispatch at a time: lock on LOOP_HOME/dispatch/.lock                    (exit 6)
   * after launch, a 60 s liveness poll: a leader that dies before plan.md is    (exit 5)
     reported, never assumed running (the "NEVER RUN all night" class)
+  * KIT-10 C4 (d): with a record repository configured (ENGINE_RECORD_DIR), the goal's worktrees are
+    opened when absent (loop_worktree.ensure) and exported to the leader as LOOP_RECORD_WT and, when
+    the GOAL's Authority names ~/loop-kit, LOOP_KIT_WT; a refusal launches nothing        (exit 7)
 
 Every path comes from LOOP_HOME (the environment, else a .loop folder in the user's home).
 The claude binary comes from LOOP_CLAUDE_BIN, else CLAUDE_BIN in config.env, else PATH.
@@ -341,6 +344,32 @@ def build(goal_id, timeout_s, dry=False):
     return cmd, prompt
 
 
+def open_worktrees(goal_id):
+    """KIT-10 C4 (d). Open the goal's worktrees when absent (bin/loop_worktree.py ensure) and return the variables the leader is
+    started with: LOOP_RECORD_WT, and LOOP_KIT_WT when the GOAL's Authority names the kit. Returns ({}, '') and prints nothing when no
+    record repository is configured (ENGINE_RECORD_DIR empty), so a home without one dispatches as before. Returns (None, why) on a
+    refusal or a failure: the dispatch then exits 7 and launches nothing."""
+    if HERE not in sys.path:
+        sys.path.insert(0, HERE)
+    try:
+        import loop_worktree
+    except Exception as exc:
+        return None, 'worktrees: cannot load bin/loop_worktree.py (%s). Refusing rather than starting a leader with no worktree.' % type(exc).__name__
+    try:
+        if not loop_worktree.configured():
+            return {}, ''
+        rec, kit, made = loop_worktree.ensure(goal_id)
+    except loop_worktree.Refused as exc:
+        return None, 'worktrees: ' + exc.msg
+    except Exception as exc:
+        return None, 'worktrees: failed (%s)' % type(exc).__name__
+    out = {'LOOP_RECORD_WT': rec}
+    if kit:
+        out['LOOP_KIT_WT'] = kit
+    return out, 'worktrees: %s (made %s)' % (' and '.join(sorted(k.replace('LOOP_', '').replace('_WT', '').lower() for k in out)),
+                                              ','.join(made) or 'none, already there')
+
+
 def supervise(logp, cmd):
     """Run cmd with its output appended to logp, wait for it, and write its exit code to
     logp + '.rc' (a temporary name, then renamed, so a reader never sees half a number).
@@ -548,6 +577,14 @@ def main():
     ts = time.strftime('%Y%m%dT%H%M%SZ', time.gmtime())
     logp = os.path.join(DISPATCH, '%s.%s.log' % (goal_id, ts))
     env = dict(os.environ, LOOP_GOAL=goal_id, LOOP_HOME=LOOP_HOME)
+    env.pop('LOOP_RECORD_WT', None)   # never inherited from the caller: only this goal's own worktrees are exported
+    env.pop('LOOP_KIT_WT', None)
+    wtvars, wtmsg = open_worktrees(goal_id)
+    if wtvars is None:
+        say('FAIL', wtmsg); return 7
+    if wtmsg:
+        say('ok', wtmsg)
+    env.update(wtvars)
     # KIT-10 C2 (a): one file per dispatched goal under current/, and current_goal kept as
     # "last dispatched" for the readers that still read it.
     os.makedirs(CURRENT, exist_ok=True)

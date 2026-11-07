@@ -21,7 +21,7 @@ Sections, in this order. Edit a section in place and never append history (histo
 2. Keep-list: branches the owner keeps (only by his word).
 3. Open gates: what waits on the owner, one line each.
 4. Standing traps found by goals, that are not yet in a skill. Move them into the skill when possible.
-5. Drift log: at most 10 lines, newest first. Older lines go to the journal.
+5. Running goals: section 5 holds one "### <GOAL-ID>" subsection per running goal, which only that goal's leader edits, with that goal's current status and its drift lines, at most 10 lines each, newest first.
 Over 150 lines means something belongs in the journal or a skill. Move it before closing the goal.
 
 ## Line endings in the record repo
