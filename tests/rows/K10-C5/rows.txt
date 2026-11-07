@@ -1,0 +1,8 @@
+# K10-C5 rows: tripwire peers (loop-tripwire start <GOAL> <W> --peers <ids>). Format: id :: kind :: expect :: arg
+# FIX-01 is the window's goal (A), FIX-02 the peer (B), FIX-03 a goal that is not named as a peer (C).
+K10-C5-PEER :: check :: a window for A naming B, while B commits to its record branch, edits its plan and writes its current file, reads PEER-NOISE naming B and exits 0 :: peer
+K10-C5-CONTROL :: check :: control, same window and baseline: a planted file under A's own goal folder outside evidence exits 1 and stays a FILE difference :: control
+K10-C5-TRAILER :: check :: a commit on the record branch carrying a Goal trailer other than the peer's, and then one carrying none, each stays a GIT difference (exit 1) :: trailer
+K10-C5-STRANGER :: check :: a current file of a goal that is not a peer stays a difference (exit 1), and A's own STATE.md subsection edit too :: stranger
+K10-C5-NOPEERS :: check :: a window without --peers reads B's same changes as differences (exit 1), no PEER-NOISE, no peers key in the baseline :: nopeers
+K10-C5-BADPEER :: check :: --peers naming the window's own goal, or an id with a character outside letters digits and dash, exits 2 and writes no baseline :: badpeer
