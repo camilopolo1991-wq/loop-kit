@@ -61,6 +61,19 @@ def fold(s):
     return s.lower() if os.name == 'nt' else s
 
 
+def _current_files(loop_home):
+    """The files under <loop_home>/current/ (one per dispatched goal, KIT-10 C2). A missing
+    folder holds none. A folder that cannot be listed returns two placeholders, which reads
+    as the multi-goal case and so fails closed."""
+    try:
+        return [n for n in os.listdir(os.path.join(loop_home, 'current'))
+                if os.path.isfile(os.path.join(loop_home, 'current', n))]
+    except (FileNotFoundError, NotADirectoryError):
+        return []
+    except OSError:
+        return ['?', '?']
+
+
 def current_goal(loop_home, strict=False):
     """The dispatched goal id: LOOP_GOAL from the environment, else the first line of
     <loop_home>/current_goal, which the leader writes at goal start.
@@ -70,8 +83,17 @@ def current_goal(loop_home, strict=False):
     read error gives ''.
     strict=True (writer-git-guard): the first line is stripped, whichever source it came
     from must match the goal pattern, and only an OSError is read as no file; any other
-    error propagates, so the hook fails closed."""
+    error propagates, so the hook fails closed.
+
+    KIT-10 C2 (d). When <loop_home>/current/ holds more than one file, several goals are live
+    and no file can say which one this caller belongs to: only LOOP_GOAL is read (still
+    pattern-checked in strict mode), and with LOOP_GOAL unset the answer is '' (no goal), so
+    the guards fail closed. A current/ folder that exists but cannot be listed counts as
+    holding more than one file, so the failure is a denial and never a fall back."""
     g = os.environ.get('LOOP_GOAL') or ''
+    if len(_current_files(loop_home)) > 1:
+        g = g.strip()
+        return g if (g and (not strict or re.fullmatch(GOAL_RE, g))) else ''
     if g and not strict:
         return g.strip()
     g = g.strip()

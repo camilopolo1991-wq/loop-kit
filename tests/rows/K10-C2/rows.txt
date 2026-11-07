@@ -1,0 +1,17 @@
+# K10-C2 rows. id :: kind :: expect :: arg. Run in this order: the dispatch rows share one throwaway home (two fixture goals).
+# kind check: arg names a function in run.py. expect is the sentence the row must come out as; the runner prints what it measured.
+C2e-1 :: check :: a child started with LOOP_GOAL unset reads unset (control for the inheritance measure) :: inherit_control
+C2a-1 :: check :: two dispatches by the stub launcher leave current/FIX-01 and current/FIX-02, current_goal reads FIX-02 :: dispatch_two
+C2e-2 :: check :: a child started by the stub leader of FIX-01 reads LOOP_GOAL=FIX-01, and so does the stub itself :: inherit_stub
+C2b-1 :: check :: preflight lists both current files with verdict and counted leader, and the running=N max=M line :: preflight_lists
+C2b-2 :: check :: preflight on a home with no current folder prints no current line (control) :: preflight_none
+C2c-1 :: check :: settle FIX-02 with no report.md exits 3 and keeps its file :: settle_no_report
+C2c-2 :: check :: settle FIX-02 with report DONE and a FIX-02 leader counted exits 3 and keeps its file :: settle_b_counted
+C2c-3 :: check :: settle with no id keeps current_goal while a leader of that goal is counted (today's rule) :: settle_legacy_kept
+C2c-4 :: check :: settle FIX-01 with report DONE, FIX-01 leader gone, FIX-02 leader alive exits 0, FIX-01 file gone, FIX-02 file stays :: settle_a_done
+C2c-5 :: check :: settle FIX-02 after its leader is gone exits 0 (same command as C2c-2, so C2c-2 was the counted leader) :: settle_b_after
+C2c-6 :: check :: settle with no id clears current_goal when its goal is DONE and not counted (today's rule) :: settle_legacy_clear
+C2d-1 :: check :: guard call with two current files and LOOP_GOAL unset is DENIED (control) :: guard_two_unset
+C2d-2 :: check :: same two files with LOOP_GOAL set: allowed; one file and LOOP_GOAL unset: allowed (no loosening, no regression) :: guard_set_and_single
+C2d-3 :: check :: _guardlib.current_goal reads only LOOP_GOAL with two files, strict and not, and fails closed when it is unset :: lib_goal
+C1-eq :: check :: shim and kit copy print the same --dry-run output for one fixture goal :: dry_run_equal

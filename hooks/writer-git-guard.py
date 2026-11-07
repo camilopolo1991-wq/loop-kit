@@ -39,7 +39,8 @@ deliberately blunt, because the writer never has a legitimate reason to say "git
      is judged only by its resolved prefix against the roots, never by its characters.
   8. (KIT-02 C1, ruling 7b) Any command holding $( , a backtick or a backslash is denied
      whatever else it holds, checked on the whole body before any segment is split.
-     The goal is LOOP_GOAL, else the first line of LOOP_HOME/current_goal; with neither, or
+     The goal is LOOP_GOAL, else the first line of LOOP_HOME/current_goal (KIT-10 C2: when
+     LOOP_HOME/current/ holds more than one file only LOOP_GOAL is read); with neither, or
      with no writable.txt, A has no file utilities, no wrappers and no script clause.
      Leading VAR=value assignments are skipped before the command word is judged. A
      redirection (2>&1, > file) is not part of the command word or its operands; sed with an

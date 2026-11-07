@@ -98,9 +98,15 @@ def main():
     # P07: pgrep does not exist on Windows and `|| echo 0` turned that into a false zero. loop_procs.py is the one
     # instrument the dispatcher uses too, and it says UNKNOWN rather than 0 when it cannot measure. P30: read here,
     # before the goal line, because STALE needs it. Printed below on the leaders line, unchanged.
+    rows = []
     try:
         cp = subprocess.run([sys.executable, os.path.join(BIN, "loop_procs.py")], stdout=subprocess.PIPE,
-                            stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL)
+                            stderr=subprocess.PIPE, stdin=subprocess.DEVNULL)
+        # KIT-10 C2 (b): the helper prints one "<pid> <goal>" row per counted leader on stderr; the per-goal count reads them.
+        for ln in cp.stderr.decode("utf-8", "surrogateescape").splitlines():
+            parts = ln.split()
+            if len(parts) == 2:
+                rows.append(parts[1])
         # The process helper prints CRLF lines on this host; the shell's command substitution dropped the CR, so it goes here too.
         lead = cp.stdout.decode("utf-8", "surrogateescape").rstrip("\r\n") if cp.returncode == 0 else "UNKNOWN"
     except OSError:
@@ -131,6 +137,26 @@ def main():
             out("goal     current_goal=" + g1)
     else:
         out("goal     current_goal not set (loop_dispatch.py writes %s before it launches the leader)" % cg)
+    # KIT-10 C2 (b). Every file under current/ is one dispatched goal: its report verdict and the leaders counted for THAT
+    # goal (per goal, never the total, which the leaders line below still prints).
+    cdir = lh + "/current"
+    if os.path.isdir(cdir):
+        for name in sorted(os.listdir(cdir)):
+            if not os.path.isfile(os.path.join(cdir, name)):
+                continue
+            verdict = "none"
+            try:
+                with open("%s/goals/%s/report.md" % (lh, name), "rb") as fh:
+                    head = fh.read(4000)
+                for ln in head.split(b"\n"):
+                    m = re.search(rb"VERDICT:[ \t\r\f\v]*(DONE|HELD)", ln)
+                    if m:
+                        verdict = m.group(1).decode("ascii")
+                        break
+            except OSError:
+                pass
+            n = "UNKNOWN" if lead == "UNKNOWN" else str(sum(1 for g in rows if g == name.upper()))
+            out("current  %s verdict=%s leaders=%s" % (name, verdict, n))
     # The goal id is read as the command file read it ($(head -1 ...) with the carriage return dropped), the same g1 as above.
     pl = "%s/goals/%s/plan.md" % (lh, g1 if os.path.isfile(cg) else "")
     if os.path.isfile(pl):

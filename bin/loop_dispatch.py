@@ -37,6 +37,8 @@ HELD, the prompt is "Resume goal <ID>" and the ruling path is named.
 Usage:
   loop_dispatch.py <GOAL-ID> [--timeout SEC] [--min-free-mb MB] [--dry-run] [--no-poll]
   loop_dispatch.py --selftest     (proves the gates can FAIL inside a temp root)
+  loop_dispatch.py --settle [GOAL-ID]   (KIT-10 C2: with an id, clears only current/<GOAL-ID>, counted per goal;
+                                         with none, today's current_goal rule)
 """
 import argparse
 import hashlib
@@ -90,6 +92,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 LOOP_HOME = os.environ.get('LOOP_HOME') or os.path.join(os.path.expanduser('~'), '.loop')
 GOALS = os.path.join(LOOP_HOME, 'goals')
 DISPATCH = os.path.join(LOOP_HOME, 'dispatch')
+CURRENT = os.path.join(LOOP_HOME, 'current')   # KIT-10 C2: one file per dispatched goal
 RECEIPTS = os.path.join(LOOP_HOME, 'cache', 'recall-receipts.json')
 LINTS = [os.path.join(LOOP_HOME, 'scripts', 'loop_goal_lint.py'),
          os.path.join(LOOP_HOME, 'scripts', 'goal_file_lint.py')]
@@ -278,7 +281,19 @@ def resolve_claude():
     existing file is a refusal, never a fall back to PATH. A harness probe that meant to
     launch a stand-in once launched the real binary as a leader on a fixture goal, and
     the dispatcher was the only line left to stop it.
+
+    KIT-10 C2 launcher override: LOOP_LEADER_STUB, a path to a Python script. When it is set
+    it wins over every pin below, and the leader argv becomes <timeout> <secs> <this
+    interpreter> <stub> <the same claude arguments>, so the stub carries the role marker and
+    the "Run goal <ID>" prompt and loop_procs counts it as that goal's leader. A value that
+    is not an existing file is a refusal, never a fall back to the real binary. Only a row
+    sets it; no install does.
     """
+    stub = os.environ.get('LOOP_LEADER_STUB', '').strip()
+    if stub:
+        if not os.path.isfile(stub):
+            return None, 'LOOP_LEADER_STUB pins the leader launcher to %s, which is not an existing file. Refused, no fall back.' % stub
+        return os.path.abspath(stub), 'LOOP_LEADER_STUB'
     for key, val in (('LOOP_CLAUDE_BIN', os.environ.get('LOOP_CLAUDE_BIN', '')), ('CLAUDE_BIN', conf('CLAUDE_BIN', ''))):
         val = (val or '').strip()
         if val:
@@ -317,7 +332,8 @@ def build(goal_id, timeout_s, dry=False):
                       'TIMEOUT.EXE, which never runs the command, so the wall-time ceiling '
                       'cannot be enforced. Set TIMEOUT_BIN in config.env to a coreutils timeout. '
                       'Refusing rather than dispatching an unbounded leader.')
-    cmd = [tmo, str(timeout_s), claude,
+    launch = [sys.executable, claude] if src == 'LOOP_LEADER_STUB' else [claude]
+    cmd = [tmo, str(timeout_s)] + launch + [
            '--permission-mode', 'dontAsk',
            '--permission-prompts', 'none',
            '--allowedTools', ALLOWED_TOOLS,
@@ -417,6 +433,32 @@ def settle():
     say('FAIL', msg); return 3
 
 
+def settle_goal(gid):
+    """KIT-10 C2 (c). Clear current/<gid> and nothing else. Exit 0 cleared or nothing to clear,
+    3 kept. The same rule as settle_core, counted per goal: that goal's report.md reads VERDICT
+    DONE or HELD and no leader is counted for THAT goal. A leader of another goal never keeps
+    it, and the count is never a total."""
+    cf = os.path.join(CURRENT, gid)
+    if not os.path.isfile(cf):
+        say('ok', 'current/%s absent, nothing to settle' % gid); return 0
+    try:
+        head = open(os.path.join(GOALS, gid, 'report.md'), encoding='utf-8', errors='replace').read(4000)
+    except OSError:
+        head = ''
+    m = re.search(r'VERDICT:\s*(DONE|HELD)\b', head)
+    if not m:
+        say('FAIL', 'kept current/%s: its report.md does not read VERDICT DONE or HELD' % gid); return 3
+    running = leaders_running()
+    if running is None:
+        say('FAIL', 'kept current/%s: leader count UNKNOWN, never read as zero' % gid); return 3
+    mine = [p for p, g in running if g == gid]
+    if mine:
+        say('FAIL', 'kept current/%s: %d leader(s) counted for this goal' % (gid, len(mine))); return 3
+    os.remove(cf)
+    say('ok', 'cleared current/%s: report.md VERDICT %s, 0 leaders counted for this goal' % (gid, m.group(1)))
+    return 0
+
+
 def main():
     if len(sys.argv) > 3 and sys.argv[1] == '--supervise' and sys.argv[3] == '--':
         return supervise(sys.argv[2], sys.argv[4:])
@@ -429,14 +471,19 @@ def main():
     ap.add_argument('--dry-run', action='store_true')
     ap.add_argument('--no-poll', action='store_true')
     ap.add_argument('--selftest', action='store_true')
-    ap.add_argument('--settle', action='store_true',
-                    help='clear a stale current_goal: only when its report.md reads DONE or HELD '
-                         'and no leader is counted')
+    ap.add_argument('--settle', nargs='?', const='', default=None, metavar='GOAL-ID',
+                    help='with no id: clear a stale current_goal (only when its report.md reads DONE or '
+                         'HELD and no leader is counted). With an id: clear only current/<GOAL-ID>, '
+                         'only when that goal reads DONE or HELD and no leader is counted for it')
     a = ap.parse_args()
     if a.selftest:
         return selftest()
-    if a.settle:
+    if a.settle == '':
         return settle()
+    if a.settle is not None:
+        if not ID_RE.match(a.settle):
+            say('FAIL', 'goal id must match %s' % ID_RE.pattern); return 2
+        return settle_goal(a.settle.upper())
     if not a.goal or not ID_RE.match(a.goal):
         say('FAIL', 'goal id must match %s' % ID_RE.pattern); return 2
     goal_id = a.goal.upper()
@@ -501,6 +548,11 @@ def main():
     ts = time.strftime('%Y%m%dT%H%M%SZ', time.gmtime())
     logp = os.path.join(DISPATCH, '%s.%s.log' % (goal_id, ts))
     env = dict(os.environ, LOOP_GOAL=goal_id, LOOP_HOME=LOOP_HOME)
+    # KIT-10 C2 (a): one file per dispatched goal under current/, and current_goal kept as
+    # "last dispatched" for the readers that still read it.
+    os.makedirs(CURRENT, exist_ok=True)
+    with open(os.path.join(CURRENT, goal_id), 'w') as fh:
+        fh.write(goal_id + '\n')
     with open(os.path.join(LOOP_HOME, 'current_goal'), 'w') as fh:
         fh.write(goal_id + '\n')
     sup = [sys.executable, os.path.abspath(__file__), '--supervise', logp, '--'] + cmd
