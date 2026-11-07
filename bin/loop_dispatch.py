@@ -93,6 +93,16 @@ DISPATCH = os.path.join(LOOP_HOME, 'dispatch')
 RECEIPTS = os.path.join(LOOP_HOME, 'cache', 'recall-receipts.json')
 LINTS = [os.path.join(LOOP_HOME, 'scripts', 'loop_goal_lint.py'),
          os.path.join(LOOP_HOME, 'scripts', 'goal_file_lint.py')]
+# Carried from the profile dispatcher: where a Hermes profile (HERMES_HOME set) keeps its recall
+# receipts and goal lints. LOOP_HOME paths win; the profile paths apply only when HERMES_HOME is
+# set and the LOOP_HOME file is absent. With HERMES_HOME unset nothing here changes.
+_HH = os.environ.get('HERMES_HOME')
+if _HH:
+    if not os.path.exists(RECEIPTS):
+        RECEIPTS = os.path.join(_HH, 'cache', 'recall-receipts.json')
+    LINTS += [os.path.join(_HH, 'scripts', 'loop_goal_lint.py'),
+              os.path.join(_HH, 'skills', 'autonomous-ai-agents', 'agent-loop-orchestration',
+                           'scripts', 'goal_file_lint.py')]
 ID_RE = re.compile(r'^[A-Za-z][A-Za-z0-9]{1,11}-\d{2,3}$')
 WALL_RE = re.compile(r'wall\s+time\s*[:=]?\s*(\d+)\s*min', re.IGNORECASE)
 WALL_PAD_S = 600
