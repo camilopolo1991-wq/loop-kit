@@ -1,0 +1,70 @@
+#!/usr/bin/env bash
+# loop-py <script> [args...]: run one script with the interpreter LOOP_PY names, as: "$LOOP_PY" -I <script> [args...],
+# and return the script's exit code. KIT-10 C9, ruling 3 (3).
+#
+# This file is POSIX shell on purpose and is NOT the launcher text of the other commands in bin/: the launcher shim needs an
+# interpreter before any module runs, so this one cannot rest on a module. There is no loop_py.py.
+#
+# It runs only a script whose real path (links resolved, .. folded) is a file under <loop home>/scratch/ or under
+# <loop home>/goals/<id>/evidence/. Anything else is refused with one line on stderr and a non-zero exit:
+#   exit 2  usage (no script given)
+#   exit 3  LOOP_PY is absent, or does not name an existing file (environment first, then config.env under the loop home;
+#           no fallback to python on PATH, by design)
+#   exit 4  the script is not under an allowed root, or is not a file
+# Any other exit code is the script's own.
+set -uo pipefail
+NAME="loop-py"
+if [ "$#" -lt 1 ]; then
+  echo "$NAME: usage: $NAME <script> [args...]" >&2
+  exit 2
+fi
+LOOP_HOME_D="${LOOP_HOME:-$HOME/.loop}"
+if [ -z "${LOOP_PY:-}" ] && [ -f "$LOOP_HOME_D/config.env" ]; then
+  LOOP_PY="$(sed -n 's/^[[:space:]]*LOOP_PY=//p' "$LOOP_HOME_D/config.env" | tail -1)"
+  LOOP_PY="${LOOP_PY%%#*}"
+  LOOP_PY="$(printf '%s' "$LOOP_PY" | sed 's/[[:space:]]*$//')"
+  case "$LOOP_PY" in
+    \"*\") LOOP_PY="${LOOP_PY#\"}"; LOOP_PY="${LOOP_PY%\"}";;
+    \'*\') LOOP_PY="${LOOP_PY#\'}"; LOOP_PY="${LOOP_PY%\'}";;
+  esac
+fi
+PY="${LOOP_PY:-}"
+if [ -z "$PY" ]; then
+  echo "$NAME: refused, LOOP_PY is not set (environment or config.env under the loop home)." >&2
+  exit 3
+fi
+if [ ! -f "$PY" ]; then
+  echo "$NAME: refused, LOOP_PY does not name an existing file." >&2
+  exit 3
+fi
+SCRIPT="$1"
+shift
+REAL="$(readlink -f -- "$SCRIPT" 2>/dev/null)"
+LH="$(readlink -f -- "$LOOP_HOME_D" 2>/dev/null)"
+if [ -z "$REAL" ] || [ -z "$LH" ] || [ ! -f "$REAL" ]; then
+  echo "$NAME: refused, the script does not resolve to an existing file." >&2
+  exit 4
+fi
+ALLOWED=no
+case "$REAL" in
+  "$LH"/scratch/?*) ALLOWED=yes;;
+  "$LH"/goals/?*)
+    REST="${REAL#"$LH"/goals/}"
+    ID="${REST%%/*}"
+    AFTER="${REST#*/}"
+    if [ -n "$ID" ] && [ "$ID" != "$REST" ]; then
+      case "$AFTER" in
+        evidence/?*) ALLOWED=yes;;
+      esac
+    fi;;
+esac
+if [ "$ALLOWED" != yes ]; then
+  echo "$NAME: refused, the script's real path is not under the loop home's scratch/ or goals/<id>/evidence/." >&2
+  exit 4
+fi
+case "$(uname -s 2>/dev/null)" in
+  MINGW*|MSYS*|CYGWIN*) REAL_NATIVE="$(cygpath -m "$REAL" 2>/dev/null || printf '%s' "$REAL")";;
+  *) REAL_NATIVE="$REAL";;
+esac
+"$PY" -I "$REAL_NATIVE" "$@"
+exit $?

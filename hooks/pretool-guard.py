@@ -212,6 +212,43 @@ DISPATCH_DENY = [
 REVIEW_LEAK = re.compile(r'^\s*(RESULT:|proof:|writes:|not proven:|findings outside the card:)', re.I | re.M)
 CARD_FIELDS = (r'Done when', r'Return')
 
+# KIT-10 C9 (b): main's rule is kept (the prompt holds both 'evidence/T' and '/writer'), with both slash
+# spellings folded, after removing exactly one named exception: a hook file in the hooks folder whose base
+# name starts with 'writer' and ends in '.py' (hooks/writer-git-guard.py). Nothing else is exempt.
+HOOK_WRITER_FILE = re.compile(r'hooks/writer[^/\s"\'`]*\.py')
+DQ_SPAN = re.compile(r'"([^"]*)"')
+
+
+def names_writer_evidence(prompt):
+    """True when the prompt, minus the hook-file exception, holds both evidence/T and /writer."""
+    text = HOOK_WRITER_FILE.sub(' ', _fwd(prompt))
+    return 'evidence/T' in text and '/writer' in text
+
+
+def report_md_only_quoted(prompt):
+    """KIT-10 C9 (a): True when every occurrence of report.md lies inside a double-quoted span of the
+    prompt that is a byte-for-byte substring of the current goal's GOAL.md. No report.md: True. No
+    resolvable goal or an unreadable GOAL.md: False (an occurrence stays denied)."""
+    hits = [m.start() for m in re.finditer(re.escape('report.md'), prompt)]
+    if not hits:
+        return True
+    try:
+        goal = _g.current_goal(LOOP_HOME)
+        if not goal or not re.fullmatch(_g.GOAL_RE, goal):
+            return False
+        with open(os.path.join(LOOP_HOME, 'goals', goal, 'GOAL.md'), 'rb') as fh:
+            goal_bytes = fh.read()
+    except Exception:
+        return False
+    # A span counts only when it is criterion-sized: at least 40 characters and at least five words other
+    # than report.md itself, so a bare quoted file name ("report.md") never passes, and it is a
+    # byte-for-byte substring of GOAL.md.
+    spans = [(m.start(1), m.end(1)) for m in DQ_SPAN.finditer(prompt)
+             if len(m.group(1)) >= 40
+             and len(m.group(1).replace('report.md', ' ').split()) >= 5
+             and m.group(1).encode('utf-8', 'surrogatepass') in goal_bytes]
+    return all(any(a <= h and h + len('report.md') <= b for a, b in spans) for h in hits)
+
 
 def dispatch_card_reason(ti):
     """Reviewer independence and card completeness, enforced on the Agent payload."""
@@ -220,9 +257,9 @@ def dispatch_card_reason(ti):
     if sub == 'loop-reviewer':
         if REVIEW_LEAK.search(prompt):
             return 'A reviewer dispatch carries writer output (RESULT/proof/writes lines). Send criteria, artefact ids and paths only.'
-        if 'evidence/T' in prompt and '/writer' in prompt:
+        if names_writer_evidence(prompt):
             return 'A reviewer dispatch points at the writer\'s evidence subfolder. The reviewer re-measures from the live system.'
-        if 'report.md' in prompt:
+        if not report_md_only_quoted(prompt):
             return 'A reviewer dispatch may not hand over report.md. Criteria and artefacts only.'
         if not re.search(r'^\s*REVIEW\b', prompt, re.M):
             return 'A reviewer dispatch starts with a REVIEW card (skill loop-goal).'
