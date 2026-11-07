@@ -1,0 +1,7 @@
+# id :: kind :: expect :: arg   (see run.py)
+K10-C3-LOCKED :: locked :: whole :: two appenders through the locked tool
+K10-C3-CONTROL :: control :: quoted :: the same two appenders without the lock
+K10-C3-FAULT-REDACTOR :: fault_redactor :: named :: a fixture redactor exits non-zero on one chosen call
+K10-C3-FAULT-LOCK :: fault_lock :: named :: a lock held past the bound, parallel appenders
+K10-C3-TIMEOUT-JOURNAL :: timeout_journal :: exit5 :: held lock, loop-journal
+K10-C3-TIMEOUT-REPORT :: timeout_report :: exit2 :: held lock, loop-report keeps the send's exit code

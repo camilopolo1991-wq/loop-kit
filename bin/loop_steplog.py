@@ -18,9 +18,11 @@ conf_line(err)     the one line that reports a loop_conf failure. It names no to
 Run as a script: `loop_steplog.py resolve` prints the resolved path (no newline) and exits 0; on a loop_conf
 failure it prints conf_line, LF only, on stdout and exits 2. Any other usage exits 64.
 """
+import contextlib
 import os
 import re
 import sys
+import time
 
 PASS_OR_DONE = re.compile(r"(?:PASS|DONE)\b")
 
@@ -73,6 +75,74 @@ def read_rows(path):
 
 def is_pass_or_done(text):
     return PASS_OR_DONE.match(text) is not None
+
+
+# KIT-10 C3. The append lock. Every append to the step log (loop-journal) and to report.log (loop-report) is taken under an
+# exclusive lock on a sibling file named as the log plus ".lock", in the log's own folder, so parallel appenders write whole
+# lines one after the other. The lock is the dispatcher's lock_exclusive() (non-blocking; msvcrt on Windows, flock elsewhere),
+# retried every LOCK_POLL_S until the wait bound runs out. The bound is LOCK_WAIT_DEFAULT seconds, or the number in
+# LOOP_STEPLOG_LOCK_WAIT_S when that is a positive number. A lock not taken in time, or a lock file that cannot be opened,
+# raises LockFailure; the tool prints lock_failure_line() (one line, no stack trace, no path) and exits LOCK_EXIT.
+LOCK_WAIT_ENV = "LOOP_STEPLOG_LOCK_WAIT_S"
+LOCK_WAIT_DEFAULT = 30.0
+LOCK_POLL_S = 0.02
+LOCK_EXIT = 5
+
+
+class LockFailure(Exception):
+    def __init__(self, reason, waited):
+        Exception.__init__(self, reason)
+        self.reason = reason
+        self.waited = waited
+
+
+def lock_wait():
+    try:
+        v = float(os.environ.get(LOCK_WAIT_ENV, ""))
+    except ValueError:
+        return LOCK_WAIT_DEFAULT
+    return v if v > 0 else LOCK_WAIT_DEFAULT
+
+
+def lock_failure_line(tool, what, err):
+    """The one line a tool prints when the lock was not taken. It names the lock path class (the sibling .lock of the
+    log), the wait, and that nothing was appended; it holds no path."""
+    return ("%s: the %s lock was not taken (%s; lock path class: sibling .lock file of the %s, waited %.1f s); "
+            "nothing was appended" % (tool, what, err.reason, what, err.waited))
+
+
+@contextlib.contextmanager
+def append_lock(path):
+    """Hold the exclusive lock on path + '.lock' for the duration of the with block."""
+    here = os.path.dirname(os.path.abspath(__file__))
+    if here not in sys.path:
+        sys.path.insert(0, here)
+    import loop_dispatch  # the one lock_exclusive(); importing it runs no gate (its main is guarded)
+    wait = lock_wait()
+    try:
+        fh = open(path + ".lock", "a+b")
+    except OSError as e:
+        raise LockFailure("the lock file could not be opened: %s" % e.__class__.__name__, 0.0)
+    start = time.monotonic()
+    try:
+        while True:
+            try:
+                loop_dispatch.lock_exclusive(fh)
+                break
+            except OSError:
+                waited = time.monotonic() - start
+                if waited >= wait:
+                    raise LockFailure("the lock stayed held", waited)
+                time.sleep(LOCK_POLL_S)
+        try:
+            yield
+        finally:
+            try:
+                loop_dispatch.unlock(fh)
+            except OSError:
+                pass
+    finally:
+        fh.close()
 
 
 # K09-C1. The DISPATCH refusal of the append mode of loop-journal. A DISPATCH write for a task is refused when the same task

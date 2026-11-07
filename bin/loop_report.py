@@ -31,6 +31,7 @@ import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
 import loop_conf  # noqa: E402
+import loop_steplog  # noqa: E402
 
 C = loop_conf.load()
 LOG = os.path.join(C['LOOP_HOME'], 'report.log')
@@ -44,8 +45,13 @@ def log(outcome, label, path, detail=''):
     K09-C2. `<utc> <outcome> <label> <path> [<reason> ]sha256 <64 hex>`: the line always ends in the sha (none when unhashed)."""
     ts = datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
     try:
-        with open(LOG, 'a', encoding='utf-8') as fh:
-            fh.write('%s %s %s %s %ssha256 %s\n' % (ts, outcome, label or '-', path, (detail + ' ') if detail else '', SHA or 'none'))
+        with loop_steplog.append_lock(LOG):  # KIT-10 C3: one appender at a time, on the sibling lock file
+            with open(LOG, 'a', encoding='utf-8') as fh:
+                fh.write('%s %s %s %s %ssha256 %s\n' % (ts, outcome, label or '-', path, (detail + ' ') if detail else '', SHA or 'none'))
+    except loop_steplog.LockFailure as e:
+        # KIT-10 C3 r1. A lock not taken names its cause on one line and carries on, as a failed append always did: the tool's exit
+        # code stays the send's own (a caller may resend a report that was already sent), and no report.log line is written.
+        print(loop_steplog.lock_failure_line('loop-report', 'report log', e))
     except OSError as e:
         print('loop-report: could not append to %s (%s)' % (LOG, e.__class__.__name__))
 

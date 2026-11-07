@@ -710,27 +710,45 @@ def mode_append(argv):
         if why:
             err("loop-journal: the RULING line is malformed (%s); nothing was appended" % why)
             sys.exit(3)
-    # K09-C1. A DISPATCH line for a task is refused (exit 1, nothing appended) while that task's previous DISPATCH line of the
-    # goal has no RETURN, DONE, PARTIAL, FAIL or BLOCKED line of the task after it. Every other step kind writes as before.
-    if tw and tw[0] == "DISPATCH" and re.match(r"T\d+$", argv[1]):
-        try:
-            found = sl.open_dispatch(sl.read_numbered(jf), argv[0], argv[1])
-        except (OSError, ValueError):
-            found = None
-        if found:
-            for ln in sl.refusal_lines(argv[0], argv[1], found):
-                lf(ln)
-            sys.exit(1)
-    line = "- %s %s %s %s" % (datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), argv[0], argv[1], text)
-    payload = (line + "\n").encode("utf-8", "surrogateescape")
+    # KIT-10 C3. The refusal check and the append run under one exclusive lock on the sibling lock file (the step log's name plus
+    # .lock), so two appenders write whole lines one after the other. A lock not taken within the bound prints one line and
+    # exits 5 with nothing appended.
     try:
-        out = open(jf, "ab")
-    except OSError as e:
-        err("loop-journal: cannot append to the step log (%s)" % e.__class__.__name__)
-        sys.exit(1)
-    with out:
-        cp = subprocess.run([sys.executable, os.path.join(BIN, "loop_redact.py")], input=payload, stdout=out)
+        with sl.append_lock(jf):
+            # K09-C1. A DISPATCH line for a task is refused (exit 1, nothing appended) while that task's previous DISPATCH line of the
+            # goal has no RETURN, DONE, PARTIAL, FAIL or BLOCKED line of the task after it. Every other step kind writes as before.
+            if tw and tw[0] == "DISPATCH" and re.match(r"T\d+$", argv[1]):
+                try:
+                    found = sl.open_dispatch(sl.read_numbered(jf), argv[0], argv[1])
+                except (OSError, ValueError):
+                    found = None
+                if found:
+                    for ln in sl.refusal_lines(argv[0], argv[1], found):
+                        lf(ln)
+                    sys.exit(1)
+            line = "- %s %s %s %s" % (datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), argv[0], argv[1], text)
+            payload = (line + "\n").encode("utf-8", "surrogateescape")
+            try:
+                out = open(jf, "ab")
+            except OSError as e:
+                err("loop-journal: cannot append to the step log (%s)" % e.__class__.__name__)
+                sys.exit(1)
+            with out:
+                try:
+                    cp = subprocess.run([sys.executable, os.path.join(BIN, "loop_redact.py")], input=payload, stdout=out)
+                except OSError as e:
+                    # KIT-10 C3 r1. The redactor child could not be started: one named line, never a stack trace.
+                    err("loop-journal: the redactor child could not be started (class: redactor, %s; log path class: step log); "
+                        "the line was not appended" % e.__class__.__name__)
+                    sys.exit(1)
+    except sl.LockFailure as e:
+        err(sl.lock_failure_line("loop-journal", "step log", e))
+        sys.exit(sl.LOCK_EXIT)
     if cp.returncode != 0:
+        # KIT-10 C3 r1. A non-zero exit of the redactor child (run inside the lock) used to return with no message and the line
+        # lost or cut. One line names the class, the exit code and the log path class; the exit code is kept.
+        err("loop-journal: the redactor child exited %d (class: redactor, exit code %d; log path class: step log); "
+            "the line may be missing or partial" % (cp.returncode, cp.returncode))
         sys.exit(cp.returncode)
     lf("journaled: %s %s" % (argv[0], argv[1]))
     if rewrote:
