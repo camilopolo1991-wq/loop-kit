@@ -1,0 +1,9 @@
+# K11-C8: --check reads a BLOCKED leader record as the outcome of a dispatch with no return.md. id :: kind :: expect :: arg
+# expect is <exit>:<token> ;; <token>, a token with a leading ! must be absent from the output
+r1-blocked-record-no-return :: check :: 0:!FAIL ;; NOTE line 2: dispatch ended by the BLOCKED leader record on line 3 :: blocked-no-return
+r2-control-neither :: check :: 1:FAIL line 2: the DISPATCH writer for T01 has no return file return.md beside its card :: neither
+r3-return-saved :: check :: 0:!FAIL ;; !NOTE :: return-saved
+r4-blocked-record-of-other-task :: check :: 1:FAIL line 2: the DISPATCH writer for T01 has no return file :: blocked-other-task
+r5-blocked-without-leader-record-words :: check :: 1:FAIL line 2: the DISPATCH writer for T01 has no return file :: blocked-not-leader-record
+r6-blocked-record-before-dispatch :: check :: 1:FAIL line 3: the DISPATCH writer for T01 has no return file :: blocked-before-dispatch
+r7-blocked-record-after-next-dispatch :: check :: 1:FAIL line 2: the DISPATCH writer for T01 has no return file :: blocked-after-next-dispatch

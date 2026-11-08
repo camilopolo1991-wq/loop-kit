@@ -75,6 +75,11 @@
 #   line it prints no BLOCKED line (the cut is not recorded) and says to record how that dispatch ended. Every other step kind writes
 #   as before.
 #
+#   K11-C8. The BLOCKED-record exemption, from the return-file check of K07-C3 only. A DISPATCH line of the goal with no return.md
+#   beside its card is exempt, and prints "NOTE line <n>: dispatch ended by the BLOCKED leader record on line <m>", when a later line
+#   of the same goal and the same task id, before that task's next DISPATCH line, has a text starting "BLOCKED leader record:" (a
+#   hook-denied dispatch, or one cut by the usage limit). A DISPATCH with neither a return.md nor such a line prints FAIL as before.
+#
 #   K07-C4. Also exit 1 for each ROLLBACK line of the goal whose named file is absent on disk, and, with --report PATH, for each
 #   ROLLBACK line whose named path appears nowhere in the Writes section of the report; each FAIL line names the line number
 #   in the log file. The named path is the first word after ROLLBACK in the line's text (outer quotes and backticks stripped);
@@ -483,8 +488,14 @@ def check(gid, jf, plan, report="", runs=""):
         if word is None:
             retbad.append("line %d: the %s for %s names no card path ending in .md, so it has no return file" % (nums[k], " ".join(jl[k][3].split()[:2]), jl[k][2]))
         elif not os.path.isfile(card_folder(word) + "/return.md"):
-            cut = cut_exempt(k)
-            if cut:
+            # K11-C8. A leader line "BLOCKED leader record: ..." of the same task after this DISPATCH, and before the task's next
+            # DISPATCH, is the outcome of the dispatch (hook-denied, or cut by the usage limit): no FAIL line, a NOTE line.
+            nd = next((j for j in dks if j > k and jl[j][2] == jl[k][2]), len(jl))
+            blk = next((j for j in gks if k < j < nd and jl[j][2] == jl[k][2] and jl[j][3].startswith("BLOCKED leader record:")), None)
+            cut = None if blk is not None else cut_exempt(k)
+            if blk is not None:
+                notes.append("NOTE line %d: dispatch ended by the BLOCKED leader record on line %d" % (nums[k], nums[blk]))
+            elif cut:
                 notes.append("NOTE line %d: usage-limit cut, run log %s" % (nums[k], cut))
             else:
                 retbad.append("line %d: the %s for %s has no return file return.md beside its card %s" % (nums[k], " ".join(jl[k][3].split()[:2]), jl[k][2], word))
