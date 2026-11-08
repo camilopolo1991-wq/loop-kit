@@ -3,7 +3,10 @@
 
 Environment (no positional argument; exit 64 with the usage line when one is given or one of the first three is unset):
   LOOP_TREE        the tree under test
-  LOOP_ROWS_HOME   the rows home; never written (the install row's child gets a fresh home under LOOP_WORK instead)
+  LOOP_ROWS_HOME   the rows home; written only with the base exported by git when no LOOP_MAIN and no wt-main beside LOOP_TREE is
+                   there (the install row's child gets a fresh home under LOOP_WORK instead)
+  LOOP_MAIN        optional: the comparison tree (else wt-main beside LOOP_TREE, else the first parent of "Merge kit-06" exported
+                   by git from LOOP_TREE; exit 64 naming LOOP_MAIN when none is found)
   LOOP_WORK        the work folder; every fixture is written under it and listed in k06c2-manifest.txt
   LOOP_PY, LOOP_NAMES_FILE   handed to the install child (LOOP_PY defaults to the interpreter running this file)
 
@@ -27,7 +30,7 @@ import sys
 ROWS = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.dont_write_bytecode = True
 sys.path.insert(0, ROWS)
-from _lib import clean_earlier, env_dirs, fwd, info_sha, load_rows, make_env, read_bytes, register, sha, tally
+from _lib import clean_earlier, env_dirs, find_base, fwd, info_sha, load_rows, make_env, read_bytes, register, sha, tally
 
 USAGE = ('usage: LOOP_TREE=<tree> LOOP_ROWS_HOME=<home> LOOP_WORK=<work> [LOOP_PY=<python>] [LOOP_NAMES_FILE=<file>] '
          'python run.py (no positional argument)')
@@ -79,14 +82,27 @@ def later_folder(name):
     return m is not None and int(m.group(1)) >= 3
 
 
-def count_lines(base, only_c2_population):
-    """Lines under base/tests/rows; with only_c2_population the folders named K06-C3 and later at the top are left out."""
+def card_folder(name):
+    """K06-C1 and K06-C2: the folders of this goal's cards up to C2, which the base does not hold."""
+    return re.match(r'^K06-C[12]$', name) is not None
+
+
+def top_folders(base):
+    root0 = base + '/tests/rows'
+    return set(d for d in os.listdir(root0) if os.path.isdir(root0 + '/' + d)) if os.path.isdir(root0) else set()
+
+
+def count_lines(base, only_c2_population, keep=None):
+    """Lines under base/tests/rows; with only_c2_population the folders named K06-C3 and later at the top are left out, and with
+    keep (a set of folder names) the top folders outside keep that are not K06-C1 or K06-C2 are left out too (KIT-11 T08: the folders
+    later goals added are not the population card C2 refactored)."""
     n = 0
     root0 = base + '/tests/rows'
     if not os.path.isdir(root0):
         return None
     for root, dirs, files in os.walk(root0):
-        dirs[:] = [d for d in dirs if d != '__pycache__' and not (only_c2_population and root == root0 and later_folder(d))]
+        dirs[:] = [d for d in dirs if d != '__pycache__' and not (
+            only_c2_population and root == root0 and (later_folder(d) or (keep is not None and d not in keep and not card_folder(d))))]
         n += sum((read_bytes(os.path.join(root, f)) or b'').count(b'\n') for f in files)
     return n
 
@@ -94,8 +110,8 @@ def count_lines(base, only_c2_population):
 def row_lines(ctx, rid, expect, arg):
     """Judged: the population card C2 refactored (tests/rows without the folders named K06-C3 and later) against the same
     count measured on wt-main now. Printed, not judged: the literal full-tree count on both trees and its difference."""
-    n = count_lines(ctx['tree'], True)
-    main_tree = os.path.dirname(ctx['tree']) + '/wt-main'
+    main_tree = ctx['main']
+    n = count_lines(ctx['tree'], True, top_folders(main_tree))
     lit_here = count_lines(ctx['tree'], False)
     lit_main = count_lines(main_tree, False)
     pop_main = count_lines(main_tree, True)
@@ -110,9 +126,11 @@ def row_lines(ctx, rid, expect, arg):
 def main():
     tree, home, work = env_dirs(USAGE)
     here = os.path.dirname(os.path.abspath(__file__))
+    # KIT-11 T08: the comparison tree is LOOP_MAIN, else wt-main beside the tree, else the first parent of "Merge kit-06" exported by git
+    main_tree = find_base(tree, home, 'kit-06')
     clean_earlier(work, MANIFEST, True)
     info_sha((('tests/rows/K06-C2/run.py', here + '/run.py'), ('tests/rows/K06-C2/rows.txt', here + '/rows.txt')))
-    ctx = {'tree': tree, 'work': work, 'py': fwd(os.environ.get('LOOP_PY') or sys.executable)}
+    ctx = {'tree': tree, 'work': work, 'py': fwd(os.environ.get('LOOP_PY') or sys.executable), 'main': main_tree}
     kinds = {'count': row_count, 'install': row_install, 'lines': row_lines}
     return tally(load_rows(here + '/rows.txt'), kinds, (ctx,), True)
 

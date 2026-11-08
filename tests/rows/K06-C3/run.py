@@ -6,7 +6,8 @@ Environment (no positional argument; exit 64 with the usage line when one is giv
   LOOP_ROWS_HOME   the rows home: HOME, USERPROFILE and (plus /.loop) LOOP_HOME of every child; never written
   LOOP_WORK        the work folder; every fixture is written under it and listed in k06c3-manifest.txt
   LOOP_PY, LOOP_NAMES_FILE   handed to the children (LOOP_PY defaults to the interpreter running this file)
-The comparison tree is the sibling folder wt-main of LOOP_TREE (exit 64 with the usage line when it is absent).
+The comparison tree is LOOP_MAIN, else the sibling folder wt-main of LOOP_TREE, else the first parent of "Merge kit-06" exported by
+git from LOOP_TREE under LOOP_ROWS_HOME (exit 64 naming LOOP_MAIN when none is found).
 
 Fixtures are written by the runner from the '#fixture <name> :: <text>' lines of rows.txt (the two characters \\n stand for a
 line feed). Rows (rows.txt, id :: kind :: expect :: arg):
@@ -46,10 +47,10 @@ import time
 ROWS = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.dont_write_bytecode = True
 sys.path.insert(0, ROWS)
-from _lib import clean_earlier, env_dirs, fwd, info_sha, load_rows, make_env, read_bytes, register, sha, shafull, tally, write_text
+from _lib import clean_earlier, env_dirs, find_base, fwd, info_sha, load_rows, make_env, read_bytes, register, sha, shafull, tally, write_text
 
 USAGE = ('usage: LOOP_TREE=<tree> LOOP_ROWS_HOME=<home> LOOP_WORK=<work> [LOOP_PY=<python>] [LOOP_NAMES_FILE=<file>] '
-         'python run.py (no positional argument; the folder wt-main beside LOOP_TREE is the comparison tree)')
+         'python run.py (no positional argument; LOOP_MAIN, else the folder wt-main beside LOOP_TREE, else main found by git, is the comparison tree)')
 MANIFEST = 'k06c3-manifest.txt'
 FIX = '#fixture '
 DROP = ('LOOP_UPGRADE', 'LOOP_UPGRADE_HOOKS', 'LOOP_BACKUP_DIR', 'LOOP_OWNER', 'LOOP_OWNER_HANDLE', 'LOOP_GOAL', 'JOURNAL_FILE',
@@ -328,10 +329,8 @@ def row_control(ctx, rid, expect, arg):
 def main():
     tree, home, work = env_dirs(USAGE)
     here = os.path.dirname(os.path.abspath(__file__))
-    main_tree = os.path.dirname(tree) + '/wt-main'
-    if not os.path.isdir(main_tree):
-        print(USAGE)
-        return 64
+    # KIT-11 T08: the comparison tree is LOOP_MAIN, else wt-main beside the tree, else the first parent of "Merge kit-06" exported by git
+    main_tree = find_base(tree, home, 'kit-06')
     clean_earlier(work, MANIFEST, True)
     info_sha((('tests/rows/K06-C3/run.py', here + '/run.py'), ('tests/rows/K06-C3/rows.txt', here + '/rows.txt')))
     ctx = {'tree': tree, 'main': main_tree, 'home': home, 'work': work, 'py': fwd(os.environ.get('LOOP_PY') or sys.executable),

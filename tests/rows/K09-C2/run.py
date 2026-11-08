@@ -6,7 +6,8 @@ Environment (no positional argument; exit 64 with the usage line when one is giv
   LOOP_ROWS_HOME   a folder the runner may read; every child gets its own throwaway home under LOOP_WORK instead
   LOOP_WORK        the work folder; every fixture is written under it and listed in k09c2-manifest.txt
   LOOP_PY          the interpreter the tool and the stub are run with (defaults to the one running this file)
-The comparison tree for the control row is the sibling folder wt-main of LOOP_TREE.
+The comparison tree for the control row is LOOP_MAIN, else the sibling folder wt-main of LOOP_TREE, else the first parent of
+"Merge kit-09" exported by git from LOOP_TREE under LOOP_ROWS_HOME (exit 64 naming LOOP_MAIN when none is found).
 
 Each row (rows.txt, id :: kind :: expect :: arg) builds a throwaway home (HOME, USERPROFILE and LOOP_HOME inside it, bytecode
 off, REPORT_SEND_CMD only in that home's config.env), writes a constructed report, runs LOOP_TREE/bin/loop_report.py by
@@ -24,7 +25,7 @@ import time
 ROWS = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.dont_write_bytecode = True
 sys.path.insert(0, ROWS)
-from _lib import clean_earlier, env_dirs, fwd, info_sha, load_rows, make_env, read_bytes, register, shafull, tally
+from _lib import clean_earlier, env_dirs, find_base, fwd, info_sha, load_rows, make_env, read_bytes, register, shafull, tally
 
 USAGE = ('usage: LOOP_TREE=<tree> LOOP_ROWS_HOME=<home> LOOP_WORK=<work> [LOOP_PY=<python>] python run.py '
          '(no positional argument)')
@@ -346,9 +347,9 @@ def d_unreadable(ctx):
 
 
 def control_main(ctx):
-    main = os.path.join(os.path.dirname(ctx['tree']), 'wt-main')
+    main = ctx['main']
     if not os.path.isfile(main + '/bin/loop_report.py'):
-        return False, 'wt-main absent'
+        return False, 'the comparison tree holds no bin/loop_report.py'
     w = World(ctx, 'ctl-main', tree=fwd(main))
     w.report(R1)
     rc, out = w.run()
@@ -367,10 +368,12 @@ def row_check(ctx, rid, expect, arg):
 
 def main():
     tree, home, work = env_dirs(USAGE)
+    # KIT-11 T08: the comparison tree is LOOP_MAIN, else wt-main beside the tree, else the first parent of "Merge kit-09" exported by git
+    main_tree = find_base(tree, home, 'kit-09')
     clean_earlier(work, MANIFEST, True)
     info_sha((('tests/rows/K09-C2/run.py', HERE + '/run.py'), ('tests/rows/K09-C2/rows.txt', HERE + '/rows.txt'),
               ('tests/rows/K09-C2/stub_sender.py', HERE + '/stub_sender.py')))
-    ctx = {'tree': tree, 'home': home, 'work': work, 'py': fwd(os.environ.get('LOOP_PY') or sys.executable)}
+    ctx = {'tree': tree, 'home': home, 'work': work, 'py': fwd(os.environ.get('LOOP_PY') or sys.executable), 'main': main_tree}
     return tally(load_rows(HERE + '/rows.txt'), {'check': row_check}, (ctx,), True)
 
 

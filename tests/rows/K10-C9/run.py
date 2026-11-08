@@ -3,7 +3,9 @@
 
 Run as one plain command, `<python> -I <this file>`, with no argument and no environment prefix. Every default is derived:
   LOOP_TREE   the tree under test; default the tree this file lives in (its hooks/ and bin/ are the files run)
-  LOOP_MAIN   main's checkout, the "before" copy of hooks/pretool-guard.py and bin/; default ~/loop-kit
+  LOOP_MAIN   the "before" copy of hooks/pretool-guard.py and bin/ (main before this goal's change); when unset: wt-main beside
+              LOOP_TREE, else by git from LOOP_TREE the commit this goal was cut from (no "Merge kit-10" commit exists on main, so
+              the "Merge kit-09" commit), exported under LOOP_ROWS_HOME (default LOOP_WORK); exit 64 naming LOOP_MAIN when none is found
   LOOP_WORK   fixture folder; default ~/.loop/scratch/KIT-10/T15/work
   LOOP_EVID   the folder the output file is written to; default ~/.loop/goals/KIT-10/evidence/T15/writer
   LOOP_OUT    the output file name inside LOOP_EVID; default rows-output.txt
@@ -26,13 +28,13 @@ import time
 ROWS = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.dont_write_bytecode = True
 sys.path.insert(0, ROWS)
-from _lib import clean_earlier, fwd, make_env, read_bytes, register, shafull, sha, write_text
+from _lib import clean_earlier, find_base, fwd, make_env, read_bytes, register, shafull, sha, write_text
 
 HERE = fwd(os.path.dirname(os.path.abspath(__file__)))
 HOME0 = fwd(os.path.expanduser('~'))
 TREE = fwd(os.environ.get('LOOP_TREE') or os.path.dirname(os.path.dirname(os.path.dirname(HERE))))
-MAIN = fwd(os.environ.get('LOOP_MAIN') or HOME0 + '/loop-kit')
 WORK = fwd(os.environ.get('LOOP_WORK') or HOME0 + '/.loop/scratch/KIT-10/T15/work')
+MAIN = None  # KIT-11 T08: found by main() with find_base (LOOP_MAIN, else wt-main beside LOOP_TREE, else git), never a default folder
 EVID = fwd(os.environ.get('LOOP_EVID') or HOME0 + '/.loop/goals/KIT-10/evidence/T15/writer')
 OUT_NAME = os.environ.get('LOOP_OUT') or 'rows-output.txt'
 PY = fwd(sys.executable)
@@ -198,7 +200,9 @@ def mk_link(w):
 
 
 def main():
+    global MAIN
     os.makedirs(WORK, exist_ok=True)
+    MAIN = find_base(TREE, fwd(os.environ.get('LOOP_ROWS_HOME') or WORK), 'kit-10', True)
     if not os.path.isdir(EVID):
         print('usage: the evidence folder must exist: ' + show(EVID))
         return 64

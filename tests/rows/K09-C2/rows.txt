@@ -23,5 +23,5 @@ d-readonly-sent-folder :: check :: ok :: d_readonly
 d-sent-is-a-file :: check :: ok :: d_sentfile
 # (d) a report that exists but cannot be read, so its hash fails (ACL deny of read data on the file; a probe read must be refused first).
 d-report-unreadable-hash-fails :: check :: ok :: d_unreadable
-# Control: the tool of the sibling wt-main writes a log line with no sha (passes on both trees; the line is quoted).
+# Control: the tool of the comparison tree (the first parent of "Merge kit-09" when found by git) writes a log line with no sha (passes on both trees; the line is quoted).
 control-main-line-has-no-sha :: check :: ok :: control_main

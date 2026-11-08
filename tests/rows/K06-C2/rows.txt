@@ -3,5 +3,7 @@ count-no-runner-defines-a-library-name :: count :: 0 :: tests/rows
 install-places-the-library-under-the-home :: install :: placed :: rows/_lib.py
 fewer-lines-than-wt-main :: lines :: 1500 :: wt-main
 # lines: the wt-main count is measured at run time on the sibling folder wt-main (arg is a label); expect is the least fall
+# Reading (KIT-11 T08): on the tree under test the population is further limited to the top folders the base also holds, plus K06-C1 and
+# K06-C2 (the folders the cards up to C2 added); folders later goals added are not what card C2 refactored. The base is found by find_base.
 # Reading (K06-C3): the judged count is the population card C2 refactored, tests/rows without the folders named K06-C3 and later
 # (folders this goal adds after C2); the literal full-tree count on both trees and its difference are printed beside it, not judged.

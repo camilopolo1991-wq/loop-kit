@@ -1,16 +1,22 @@
 """One library under the row runners (tests/rows/*/run.py): the helpers they used to copy, in one place.
 
 A runner imports it by a path relative to its own file (not on the script folder being on the module path) and defines
-none of the names defined here. Nothing here spawns a process or writes outside the folders a runner hands it.
+none of the names defined here. Nothing here spawns a process or writes outside the folders a runner hands it, except
+find_base and its two helpers (KIT-11 T08): the one place that finds the comparison tree of a runner, spawning only short
+foreground git reads under LOOP_TREE and writing only the exported base folder under the home it is handed.
 
 The runners that call env_dirs are run as `python run.py`, with no positional argument, and read LOOP_TREE (the tree
 under test), LOOP_ROWS_HOME and LOOP_WORK from the environment; given a positional argument or with one of the three
 unset they print their usage line and exit 64.
 """
 import hashlib
+import io
 import json
 import os
+import re
+import subprocess
 import sys
+import tarfile
 import time
 
 SEP = ' ;; '
@@ -290,6 +296,99 @@ def safe(ctx, s):
         if h and h in s:
             return 'sha256:' + shatext(s)[:12]
     return s
+
+
+def git_out(tree, home, *args):
+    """(exit code, stdout bytes) of one git read under tree, in the foreground, with HOME, USERPROFILE and LOOP_HOME at home and
+    core.autocrlf=false. Git missing or not runnable gives (127, b'')."""
+    try:
+        cp = subprocess.run(['git', '-c', 'core.autocrlf=false', '-C', tree] + list(args), capture_output=True,
+                            env=make_env(home, drop=('LOOP_GOAL',)), timeout=600)
+    except (OSError, subprocess.SubprocessError):
+        return 127, b''
+    return cp.returncode, cp.stdout
+
+
+def base_commit(tree, home, goal, cut_from=False):
+    """(commit, how) of the base a row of goal (a word such as kit-06) was written against, found by git from tree: the first
+    parent of the commit "Merge <goal>" on main. With no such merge: when cut_from is true, the "Merge" commit of the goal before
+    it (the commit the goal was cut from); else main itself. (None, why) when git cannot answer."""
+    rc, out = git_out(tree, home, 'log', 'main', '--merges', '--format=%H%x09%P%x09%s')
+    if rc != 0:
+        return None, 'git could not read main from the tree'
+    merges = {}
+    for ln in out.decode('utf-8', 'replace').splitlines():
+        p = ln.split('\t')
+        m = re.match(r'^Merge kit-0*(\d+)\b', p[2]) if len(p) == 3 else None
+        if m:
+            merges.setdefault('kit-%02d' % int(m.group(1)), (p[0], p[1].split()))
+    n = int(goal.split('-')[1])
+    if goal in merges and merges[goal][1]:
+        return merges[goal][1][0], 'first parent of "Merge %s"' % goal
+    prev = 'kit-%02d' % (n - 1)
+    if cut_from and prev in merges:
+        return merges[prev][0], 'the commit "Merge %s", which %s was cut from (no "Merge %s" on main)' % (prev, goal, goal)
+    rc, out = git_out(tree, home, 'rev-parse', '--verify', 'main')
+    cid = out.decode('utf-8', 'replace').strip()
+    if rc != 0 or not re.fullmatch(r'[0-9a-f]{40}', cid):
+        return None, 'git could not name main'
+    return cid, 'main (no "Merge %s" on main)' % goal
+
+
+def export_commit(tree, home, commit):
+    """The commit exported by git archive from tree to <home>/base-<12 hex> (reused when its marker names the commit);
+    the folder, or None."""
+    dest = home + '/base-' + commit[:12]
+    mark = dest + '/.base-commit'
+    if read_bytes(mark) == commit.encode():
+        return dest
+    if os.path.isdir(dest):
+        remove_path(dest)
+    rc, data = git_out(tree, home, 'archive', '--format=tar', commit)
+    if rc != 0 or not data:
+        return None
+    os.makedirs(dest)
+    with tarfile.open(fileobj=io.BytesIO(data)) as tf:
+        for m in tf.getmembers():
+            parts = m.name.split('/')
+            if m.name.startswith('/') or '..' in parts:
+                continue
+            target = dest + '/' + m.name
+            if m.isdir():
+                os.makedirs(target, exist_ok=True)
+            elif m.isfile():
+                os.makedirs(os.path.dirname(target), exist_ok=True)
+                with open(target, 'wb') as fh:
+                    fh.write(tf.extractfile(m).read())
+    with open(mark, 'wb') as fh:
+        fh.write(commit.encode())
+    return dest
+
+
+def find_base(tree, home, goal, cut_from=False):
+    """The comparison tree (main as the row was written against it) of a runner, in this order: the folder LOOP_MAIN names, when set
+    (a set variable naming no folder exits 64); else the folder wt-main beside tree; else, by git from tree, the base commit of goal
+    (base_commit) exported under home. Prints one info line saying which and the commit. Exits 64 with one line naming LOOP_MAIN when
+    none is found. Never defaults to a checkout in the user folder."""
+    var = os.environ.get('LOOP_MAIN')
+    if var:
+        if os.path.isdir(var):
+            print('info base source=LOOP_MAIN')
+            return fwd(var)
+        print('usage: LOOP_MAIN=<main checkout> names no folder')
+        sys.exit(64)
+    sib = os.path.dirname(tree) + '/wt-main'
+    if os.path.isdir(sib):
+        print('info base source=wt-main beside LOOP_TREE')
+        return fwd(sib)
+    commit, how = base_commit(tree, home, goal, cut_from)
+    dest = export_commit(tree, home, commit) if commit else None
+    if dest:
+        print('info base source=git commit=%s (%s), exported under LOOP_ROWS_HOME' % (commit[:12], how))
+        return dest
+    print('usage: LOOP_MAIN=<main checkout> is needed: no wt-main beside LOOP_TREE and git found no base commit for %s (%s)' % (
+        goal, how))
+    sys.exit(64)
 
 
 def emit(ctx, rid, ok, expected, actual):

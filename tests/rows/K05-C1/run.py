@@ -8,8 +8,9 @@ without the upgrade mode prints FAIL on the rows it adds), LOOP_ROWS_HOME (used 
 targets a fresh home under LOOP_WORK), LOOP_WORK (a work folder, created when absent), LOOP_PY (the interpreter the
 installs are given), LOOP_NAMES_FILE (passed through untouched).
 Exits 64 with a usage line when a positional argument is given, when LOOP_TREE, LOOP_ROWS_HOME or LOOP_WORK is unset, or
-when the base bundle, the sibling folder wt-main of LOOP_TREE, is absent.
-The base bundle is always wt-main's install.sh: the fixture home is installed from it, then the tree's install.sh runs in the
+when the base bundle is not found (LOOP_MAIN, else the sibling folder wt-main of LOOP_TREE, else main exported by git from
+LOOP_TREE under LOOP_ROWS_HOME; the exit-64 line names LOOP_MAIN).
+The base bundle is always the base's install.sh: the fixture home is installed from it, then the tree's install.sh runs in the
 upgrade form against that home. Every spawned process gets HOME and USERPROFILE at the home the row targets, LOOP_HOME at
 that home plus /.loop, and PYTHONDONTWRITEBYTECODE=1. Every install runs as bash <tree>/install.sh in the environment form
 with no positional argument. The runner writes its fixtures under LOOP_WORK and, at its start, removes only what its own
@@ -24,14 +25,16 @@ import sys
 import time
 sys.dont_write_bytecode = True
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from _lib import clean_earlier, fwd, load_rows, make_env, read_bytes, register, sha, shafull, tally
+from _lib import clean_earlier, find_base, fwd, load_rows, make_env, read_bytes, register, sha, shafull, tally
 
 USAGE = 'usage: LOOP_TREE=<tree> LOOP_ROWS_HOME=<home> LOOP_WORK=<work> [LOOP_PY=<python>] [LOOP_NAMES_FILE=<file>] python run.py (no positional argument)'
 WORD = 'Omicronfixture'
 WORD2 = 'Sigmafixture'
-DIRS = [('agents', '.claude/agents'), ('skills', '.claude/skills'), ('bin', '.loop/bin'), ('templates', '.loop/templates')]
+# KIT-11 T08: install.sh MAP also places shims/ under .loop/shims (kit-10), so the upgrade counts those files too
+DIRS = [('agents', '.claude/agents'), ('skills', '.claude/skills'), ('bin', '.loop/bin'), ('templates', '.loop/templates'),
+        ('shims', '.loop/shims')]
 HOOKS = ('hooks', '.claude/hooks')
-ROOTS = ['.claude/agents', '.claude/skills', '.claude/hooks', '.loop/bin', '.loop/templates']
+ROOTS = ['.claude/agents', '.claude/skills', '.claude/hooks', '.loop/bin', '.loop/templates', '.loop/shims']
 LEADER = '.claude/agents/loop-leader.md'
 CNT = re.compile(r'^upgrade: replaced (\d+), added (\d+), unchanged (\d+), hooks skipped (\d+)$', re.M)
 LINE = re.compile(r'^(replaced|added) (\S+) sha256 before (\S+) after (\S+)$', re.M)
@@ -420,10 +423,11 @@ def main():
         print(USAGE)
         return 64
     tree, work = fwd(tree_e), fwd(work_e)
-    base_dir = fwd(os.path.join(os.path.dirname(tree), 'wt-main'))
+    # KIT-11 T08: the base bundle is LOOP_MAIN, else wt-main beside the tree, else main exported by git from the tree (no merge
+    # commit of kit-05 exists on main, so the base is main itself)
+    base_dir = find_base(tree, fwd(home_e), 'kit-05')
     if not os.path.isfile(base_dir + '/install.sh'):
-        print('the base bundle (the sibling folder wt-main of the tree) is absent')
-        print(USAGE)
+        print('usage: LOOP_MAIN=<main checkout> holds no install.sh')
         return 64
     os.makedirs(work, exist_ok=True)
     py = fwd(os.environ.get('LOOP_PY') or sys.executable)

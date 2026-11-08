@@ -15,8 +15,9 @@ Rows (rows.txt, id :: kind :: expect :: arg):
   selftest  arg is 'command file|reference tree folder name'; bash runs 'selftest' from LOOP_TREE/bin with HOME, USERPROFILE
             and LOOP_HOME at a throwaway home under LOOP_WORK. It passes when tests/tripwire_selftest.py is there, the command
             prints expect (seventeen) case lines without a not-found message, and its exit code and the sha256 of its case-result
-            lines (result and case name, no path) equal those of the same command run from the reference tree (the folder of
-            that name beside LOOP_TREE, wt-main, which holds the file at the old path). Both exits and both sha256 are printed.
+            lines (result and case name, no path) equal those of the same command run from the reference tree (which holds the
+            file at the old path: LOOP_MAIN, else wt-main beside LOOP_TREE, else the first parent of "Merge kit-06" exported by git
+            from LOOP_TREE under LOOP_ROWS_HOME; exit 64 naming LOOP_MAIN when none is found). Both exits and both sha256 are printed.
             On a host without the probe wrapper both trees exit 1; the criterion's exit 0 is not reached there.
   selftest-control   a scratch copy of LOOP_TREE/bin under LOOP_WORK with no tests folder beside it fails the same find check;
             printed as FAIL on a control line; the row passes when the tree passes the check and the copy fails it
@@ -41,7 +42,7 @@ import sys
 ROWS = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.dont_write_bytecode = True
 sys.path.insert(0, ROWS)
-from _lib import SEP, clean_earlier, env_dirs, fwd, info_sha, load_rows, make_env, read_bytes, register, shafull, tally
+from _lib import SEP, clean_earlier, env_dirs, find_base, fwd, info_sha, load_rows, make_env, read_bytes, register, shafull, tally
 
 USAGE = ('usage: LOOP_TREE=<tree> LOOP_ROWS_HOME=<home> LOOP_WORK=<work> [LOOP_PY=<python>] [LOOP_NAMES_FILE=<file>] '
          'python run.py (no positional argument)')
@@ -124,7 +125,9 @@ def find_check(ctx, root, name, want):
 
 def row_selftest(ctx, rid, expect, arg):
     rel, ref = arg.split('|')
-    ref_root = os.path.dirname(ctx['tree']) + '/' + ref
+    # KIT-11 T08: the reference tree (still holding the file at the old path) is LOOP_MAIN, else the folder named ref beside the tree,
+    # else the first parent of "Merge kit-06" exported by git from the tree
+    ref_root = ctx['ref'] if ctx.get('ref') else os.path.dirname(ctx['tree']) + '/' + ref
     ok, rc, cases, digest, detail = find_check(ctx, ctx['tree'], 'k06c6-selftest-home', int(expect))
     rrc, rcases, rdigest, _ = selftest_run(ctx, ref_root, 'k06c6-selftest-ref-home')
     same = rc is not None and rc == rrc and digest == rdigest and len(rcases) == int(expect)
@@ -225,10 +228,11 @@ def row_control(ctx, rid, expect, arg):
 def main():
     tree, home, work = env_dirs(USAGE)
     here = os.path.dirname(os.path.abspath(__file__))
+    ref_root = find_base(tree, home, 'kit-06')
     clean_earlier(work, MANIFEST, True)
     info_sha((('tests/rows/K06-C6/run.py', here + '/run.py'), ('tests/rows/K06-C6/rows.txt', here + '/rows.txt')))
     rows = load_rows(here + '/rows.txt')
-    ctx = {'tree': tree, 'home': home, 'work': work, 'py': fwd(os.environ.get('LOOP_PY') or sys.executable)}
+    ctx = {'tree': tree, 'home': home, 'work': work, 'py': fwd(os.environ.get('LOOP_PY') or sys.executable), 'ref': ref_root}
     kinds = {'path': lambda r, e, a: row_path(ctx, r, e, a), 'moved': lambda r, e, a: row_moved(ctx, r, e, a),
              'launch': lambda r, e, a: row_launch(ctx, r, e, a), 'selftest': lambda r, e, a: row_selftest(ctx, r, e, a),
              'selftest-control': lambda r, e, a: row_selftest_control(ctx, r, e, a),

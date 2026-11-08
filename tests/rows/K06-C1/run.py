@@ -171,6 +171,7 @@ def row_upgrade(ctx):
     register(ctx['work'], MANIFEST, bk)
     shutil.copytree(ctx['home'], up)
     if not os.path.isfile(up + '/.loop/config.env'):
+        os.makedirs(up + '/.loop', exist_ok=True)
         write_text(up + '/.loop/config.env', '# fixture config for the upgrade row\n')
     env = child_env(ctx, home=up, extra={'LOOP_UPGRADE': '1', 'LOOP_UPGRADE_HOOKS': '1', 'LOOP_BACKUP_DIR': bk})
     cp = subprocess.run(['bash', ctx['tree'] + '/install.sh'], capture_output=True, text=True, encoding='utf-8',

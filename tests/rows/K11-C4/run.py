@@ -54,7 +54,7 @@ def hide(ctx, s):
     return USERPATH.sub('~', s)
 
 
-def clean_earlier(ctx):
+def clean_prior_worlds(ctx):
     """Remove the worlds an earlier run listed in its manifest (only paths under LOOP_ROWS_HOME/k11c4-fixtures/)."""
     mf = ctx['work'] + '/' + MANIFEST
     data = read_bytes(mf)
@@ -287,7 +287,7 @@ def row_check(ctx, rid, expect, arg):
 def main():
     tree, home, work = env_dirs(USAGE)
     ctx = {'tree': tree, 'home': home, 'work': work, 'py': fwd(os.environ.get('LOOP_PY') or sys.executable)}
-    clean_earlier(ctx)
+    clean_prior_worlds(ctx)
     info_sha((('tests/rows/K11-C4/run.py', HERE + '/run.py'), ('tests/rows/K11-C4/rows.txt', HERE + '/rows.txt'),
               ('bin/loop_record_commit.py', tree + '/bin/loop_record_commit.py'), ('bin/loop_record_merge.py', tree + '/bin/loop_record_merge.py')))
     print('info worlds are constructed homes and record repositories under the rows home, never a clone of a real one')
