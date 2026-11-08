@@ -1,0 +1,7 @@
+# K11-C4 rows: the planted control and the step-log commit place (FIXTURE-01 gates 1 and 3). Format: id :: kind :: expect :: arg
+# Every world is a throwaway home under LOOP_ROWS_HOME with its own record repository and goal worktree, made by the runner.
+K11-C4-A-WORDS :: words :: templates/GOAL.md (standing rule 6) and templates/GOAL_PREAMBLE.md (a CONCURRENCY bullet) carry one wording that names the leader as the writer of a planted control, as that one Write, inside a window that brackets no other role, the check naming it as the planted INCIDENT :: words
+K11-C4-A :: check :: a fixture goal's planted control, written by the leader's step inside its bracketing window (no peers listed), reads as a difference: check exit 1 and a FILE line naming the file, after a control check of the same window that exited 0 :: plant
+K11-C4-B1 :: refuse :: loop-record-commit <GOAL-ID> with no path, with the goal's record worktree present, refuses: non-zero exit, one line naming the cause, no commit, the pending step-log line still uncommitted :: refuse
+K11-C4-B2 :: merge :: loop-record-merge <GOAL-ID> run from the goal's record worktree lands the pending step-log and state lines and the merge, and a range scan over the landed range gives 0 hits (the scanner's own control fired; a planted range shows a hit) :: merge
+K11-C4-B3 :: control :: control, no goal worktree: loop-record-commit <GOAL-ID> with no path still commits the step-log line with the Goal trailer :: control

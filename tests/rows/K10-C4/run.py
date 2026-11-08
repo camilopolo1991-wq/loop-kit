@@ -44,8 +44,9 @@ GITENV = {'GIT_AUTHOR_NAME': 'Omicron Fixture', 'GIT_AUTHOR_EMAIL': 'fixture@exa
 STUB = fwd(HERE + '/stub_leader.py')
 SENT = ("Every record commit outside the step log and STATE.md happens in the goal's own record worktree, `$LOOP_RECORD_WT` (and, when "
         "GOAL.md's Authority names the kit, the kit worktree `$LOOP_KIT_WT`), made with `loop-record-commit <GOAL-ID> -m <message> -- <path>`; "
-        "the step log and STATE.md are committed only on the record branch's own work tree, by `loop-record-commit <GOAL-ID>` with no path, "
-        "never in a goal worktree, and a leader edits only its own `### <GOAL-ID>` subsection of STATE.md section 5; `loop-record-merge "
+        "the step log and STATE.md commit lands through `loop-record-merge <GOAL-ID>` run from the goal's record worktree, and "
+        "`loop-record-commit <GOAL-ID>` with no path refuses while a goal worktree exists, so the step log and STATE.md are never committed in "
+        "a goal worktree; a leader edits only its own `### <GOAL-ID>` subsection of STATE.md section 5; `loop-record-merge "
         "<GOAL-ID>` is the one step that lands the goal's branch on the record branch.")
 NEW_BIN = ('bin/loop-worktree', 'bin/loop-record-commit', 'bin/loop-record-merge', 'bin/loop_worktree.py', 'bin/loop_record_commit.py',
            'bin/loop_record_merge.py')
@@ -196,14 +197,18 @@ class Turn:
 
 def child_goal(tree, gid, n, start):
     """n steps of one goal, each: a step-log line through the real loop_journal (JOURNAL_FILE at the record work tree), at step 3 an
-    edit of the goal's own section-5 subsection, then loop_record_commit with no path. The three are one turn at a time."""
+    edit of the goal's own section-5 subsection, a note committed in the goal's record worktree through loop_record_commit with a path,
+    then loop_record_merge from that worktree (KIT-11 C4 (b): with the worktree present the no-path call refuses, so the pending step-log
+    and state lines land through the merge). The four are one turn at a time."""
     py = sys.executable
     rec = os.environ['K10C4_REC']
+    gw = os.environ['LOOP_HOME'] + '/work/%s/record' % gid
     cap = open(os.environ['K10C4_CAP'], 'w', encoding='utf-8', newline='\n')
     wait_until(start)
     bad = 0
     for i in range(1, n + 1):
         text = {1: 'ROLLBACK evidence/T01/writer/rollback.txt sha256 0123456789abcdef', n: 'PASS evidence/T01/writer/proof.txt'}.get(i, 'NOTE step %d' % i)
+        note = 'docs/step-%s-%d.md' % (gid.lower(), i)
         with Turn(os.environ['K10C4_TURN']):
             jp = subprocess.run([py, tree + '/bin/loop_journal.py', gid, 'T01', text], capture_output=True, stdin=subprocess.DEVNULL,
                                 env=dict(os.environ, JOURNAL_FILE=rec + '/docs/JOURNAL.md'))
@@ -211,12 +216,14 @@ def child_goal(tree, gid, n, start):
                 sp = rec + '/docs/STATE.md'
                 s = open(sp, encoding='utf-8', newline='').read()
                 write_text(sp, s.replace('### %s\n- none\n' % gid, '### %s\n- step 3 written by the goal\n' % gid))
+            write_text(gw + '/' + note, 'note of %s step %d\n' % (gid, i))
+            nc = subprocess.run([py, tree + '/bin/loop_record_commit.py', gid, '-m', 'docs(record): %s note %d' % (gid.lower(), i), '--', note],
+                                capture_output=True, stdin=subprocess.DEVNULL, cwd=gw)
             t0 = time.time()
-            cp = subprocess.run([py, tree + '/bin/loop_record_commit.py', gid, '-m', 'chore(record): %s step %d' % (gid.lower(), i)],
-                                capture_output=True, stdin=subprocess.DEVNULL, cwd=rec)
+            cp = subprocess.run([py, tree + '/bin/loop_record_merge.py', gid], capture_output=True, stdin=subprocess.DEVNULL, cwd=gw)
         out = (cp.stdout + cp.stderr).decode('utf-8', 'replace').replace('\r', '').replace('\n', ' | ').strip()
-        bad += (jp.returncode != 0) + (cp.returncode != 0)
-        cap.write('%d journal_rc=%d commit_rc=%d secs=%.2f said=%s\n' % (i, jp.returncode, cp.returncode, time.time() - t0, out))
+        bad += (jp.returncode != 0) + (nc.returncode != 0) + (cp.returncode != 0)
+        cap.write('%d journal_rc=%d note_rc=%d merge_rc=%d secs=%.2f said=%s\n' % (i, jp.returncode, nc.returncode, cp.returncode, time.time() - t0, out))
     cap.close()
     sys.exit(1 if bad else 0)
 
@@ -338,33 +345,48 @@ def commits_row(ctx):
     ok = True
     parts = []
     retries = 0
-    # the commits are on the record branch itself, made on the record repository's own work tree; the goals' branches carry none of them
-    rc, out = w.git(w.rec, 'log', '--format=%ct %(trailers:key=Goal,valueonly)', base + '..record')
+    # KIT-11 C4 (b): with the goals' worktrees present the pending step-log and state lines land through loop-record-merge, which commits
+    # them first (subject "step log and state lines before merging", trailer Goal:), on the record branch itself, on the record
+    # repository's own work tree; the goals' branches carry only their notes
+    pend_g = '--grep=step log and state lines before merging'
+    rc, out = w.git(w.rec, 'log', '--no-merges', pend_g, '--format=%ct %(trailers:key=Goal,valueonly)', base + '..record')
     rows = [x.split() for x in out.split('\n') if x.strip()]
     stamps = [int(r[0]) for r in rows]
-    rc, names = w.git(w.rec, 'log', '--name-only', '--format=', base + '..record')
+    rc, names = w.git(w.rec, 'log', '--no-merges', pend_g, '--name-only', '--format=', base + '..record')
     touched = sorted(set(x.strip() for x in names.split('\n') if x.strip()))
-    on_goal = [w.tip(w.rec, 'rec-' + g.lower()) == base for g in ('FIX-01', 'FIX-02')]
+    rc, mout = w.git(w.rec, 'log', '--merges', '--format=%(trailers:key=Goal,valueonly)', base + '..record')
+    merges = sorted(mout.split())
+    contained = all(w.git(w.rec, 'merge-base', '--is-ancestor', 'rec-' + g.lower(), 'record')[0] == 0 for g in ('FIX-01', 'FIX-02'))
+    notes_only = all(sorted(x for x in w.git(w.rec, 'diff', '--name-only', base, 'rec-' + g.lower())[1].split('\n') if x.strip()) ==
+                     ['docs/step-%s-%d.md' % (g.lower(), i) for i in range(1, 6)] for g in ('FIX-01', 'FIX-02'))
     for g in ('FIX-01', 'FIX-02'):
         ls = caps[g]
-        good = len(ls) == 5 and all(' journal_rc=0 commit_rc=0 ' in x and 'committed' in x for x in ls) and not any('index.lock' in x for x in ls)
+        good = (len(ls) == 5 and all(' journal_rc=0 note_rc=0 merge_rc=0 ' in x and 'merged' in x and 'pending_lines_commit=none' not in x
+                                     and 'pending_lines_commit=' in x for x in ls) and not any('index.lock' in x for x in ls))
         for x in ls:
             m = re.search(r'index_lock_retries=(\d+)', x)
             retries += int(m.group(1)) if m else 0
         landed = sum(1 for r in rows if len(r) == 2 and r[1] == g)
         ok = ok and good and landed == 5
-        parts.append('%s: %d calls, %d with both exits 0, a "committed" line and no index.lock text, %d commits on the record branch with the Goal: %s trailer' % (
-            g, len(ls), sum(1 for x in ls if ' journal_rc=0 commit_rc=0 ' in x and 'committed' in x), landed, g))
+        parts.append('%s: %d steps, %d with the journal, note and merge exits 0, a "merged" line naming a pending-lines commit and no index.lock text, '
+                     '%d pending-lines commits on the record branch with the Goal: %s trailer' % (
+                         g, len(ls), sum(1 for x in ls if ' journal_rc=0 note_rc=0 merge_rc=0 ' in x and 'merged' in x), landed, g))
     span = (max(stamps) - min(stamps)) if stamps else -1
     j = w.git(w.rec, 'show', 'HEAD:docs/JOURNAL.md')[1]
     in_log = sum(len(re.findall(r'^- \S+ %s ' % g, j, re.M)) for g in ('FIX-01', 'FIX-02'))
-    ok = (ok and len(rows) == 10 and 0 <= span < 600 and retries == 0 and touched == ['docs/JOURNAL.md', 'docs/STATE.md'] and all(on_goal)
-          and in_log == 10 and w.pending() == [])
-    return ok, ('%s; %d commits since the base tip, commit timestamps span %d s (under 600); the ten touch only %s; both goal branches still at the '
-                'base tip %s; step-log lines of both goals in the committed docs/JOURNAL.md: %d (10 expected); record work tree clean %s; '
-                'index_lock_retries total %d; JOURNAL_FILE at the record work tree, the lines appended by the real step-log tool, each commit made '
-                'with no path; both children released at one epoch second and taking turns per step' % (
-                    '; '.join(parts), len(rows), span, touched, on_goal, in_log, w.pending() == [], retries))
+    scan = subprocess.run([ctx['py'], ctx['tree'] + '/bin/loop_scan.py', '--range', base + '..record'], capture_output=True, cwd=w.rec,
+                          env=w.env(), stdin=subprocess.DEVNULL)
+    sm = re.search(rb'\bhits=(\d+)', scan.stdout)
+    ok = (ok and len(rows) == 10 and 0 <= span < 600 and retries == 0 and touched == ['docs/JOURNAL.md', 'docs/STATE.md'] and contained
+          and notes_only and merges == ['FIX-01'] * 5 + ['FIX-02'] * 5 and in_log == 10 and w.pending() == []
+          and sm is not None and int(sm.group(1)) == 0 and scan.returncode == 0)
+    return ok, ('%s; %d pending-lines commits since the base tip, commit timestamps span %d s (under 600); the ten touch only %s; merge commits with '
+                'the Goal trailer %s; both goal branches contained in the record branch %s and carrying only their five notes %s; step-log lines of '
+                'both goals in the committed docs/JOURNAL.md: %d (10 expected); record work tree clean %s; independent loop_scan.py --range hits=%s; '
+                'index_lock_retries total %d; JOURNAL_FILE at the record work tree, the lines appended by the real step-log tool, each step a note '
+                'committed in the goal worktree and loop-record-merge run from it; both children released at one epoch second and taking turns per step' % (
+                    '; '.join(parts), len(rows), span, touched, merges, contained, notes_only, in_log, w.pending() == [],
+                    sm.group(1).decode() if sm else 'none', retries))
 
 
 def merge_row(ctx):
@@ -481,7 +503,11 @@ def conflict_row(ctx):
 
 def conflict_live_row(ctx):
     """F1: a conflicted merge in the live shape (step-log line and own state line uncommitted) leaves the tip and the pending lines as they were."""
-    w = World(ctx, 'conflictlive', ('FIX-03', 'FIX-04'))
+    w = World(ctx, 'conflictlive', ('FIX-03', 'FIX-04', 'FIX-05'))
+    # FIX-05 is never opened: its no-path call below runs with no goal worktree present (KIT-11 C4 (b)); its state subsection is set up here
+    write_text(w.rec + '/docs/STATE.md', (read_bytes(w.rec + '/docs/STATE.md') or b'').decode('utf-8') + '### FIX-05\n- none\n')
+    w.git(w.rec, 'add', '--', 'docs/STATE.md')
+    assert w.git(w.rec, 'commit', '-q', '-m', 'chore(fixture): a subsection for a goal that stays unopened')[0] == 0
     for g in ('FIX-03', 'FIX-04'):
         w.tool('worktree', 'open', g)
     pre = []
@@ -508,8 +534,13 @@ def conflict_live_row(ctx):
     merging = os.path.exists(w.rec + '/.git/MERGE_HEAD')
     ok_live = (m2 != 0 and 'conflict' in o2 and t0 == t1 and p0 == p1 == ['docs/JOURNAL.md', 'docs/STATE.md'] and jb == jb1 and sb == sb1
                and staged == '' and not merging and 'unchanged' in o2 and 'uncommitted' in o2)
-    # control 2: the same conflict on a clean tree (the pending lines committed through the helper first)
-    c, oc = w.tool('record_commit', 'FIX-04', '-m', 'chore(record): pending lines')
+    # control 2: the same conflict on a clean tree. With FIX-04's worktree present the no-path call refuses (KIT-11 C4 (b)), so the live
+    # shape is cleared (FIX-04's pending lines restored, as asserted above they were untouched by the conflicted merge) and a pending
+    # step-log line and own state line of FIX-05, whose worktree is absent, are committed through the helper with no path
+    w.git(w.rec, 'checkout', '--', 'docs/JOURNAL.md', 'docs/STATE.md')
+    w.append_step('FIX-05', 'NOTE written before the commit')
+    w.edit_state('FIX-05', '- commit pending')
+    c, oc = w.tool('record_commit', 'FIX-05', '-m', 'chore(record): pending lines')
     t2, p2 = w.tip(w.rec, 'record'), w.pending()
     m3, o3 = w.tool('record_merge', 'FIX-04')
     t3, p3, merging3 = w.tip(w.rec, 'record'), w.pending(), os.path.exists(w.rec + '/.git/MERGE_HEAD')
@@ -622,7 +653,7 @@ def section5_live_row(ctx):
 
 
 def indexlock_row(ctx):
-    w = World(ctx, 'indexlock', ('FIX-05',))
+    w = World(ctx, 'indexlock', ('FIX-05', 'FIX-06'))     # FIX-06 is never opened: the no-path pair below runs with no goal worktree present
     w.tool('worktree', 'open', 'FIX-05')
     folder = w.wtpath('FIX-05', 'record')
     rawn, pairn, tries = (int(os.environ.get(k, d)) for k, d in (('K10C4_RAW_N', '25'), ('K10C4_PAIR_N', '8'), ('K10C4_TRIES', '3')))
@@ -647,14 +678,14 @@ def indexlock_row(ctx):
     retries = sum(int(m.group(1)) for x in hl for m in [re.search(r'retries=(\d+)', x)] if m)
     landed = sum(1 for x in w.git(folder, 'log', '--format=%s', 'record..HEAD')[1].split('\n') if x.startswith('chore(record): help '))
     start = start_epoch()                                  # the same forced second pair, on the record work tree: step-log line, then the helper
-    kids = [spawn(w, ['pair', ctx['tree'], tag, str(pairn), str(start), 'FIX-05'], 'pair-%s.txt' % tag) for tag in 'AB']
+    kids = [spawn(w, ['pair', ctx['tree'], tag, str(pairn), str(start), 'FIX-06'], 'pair-%s.txt' % tag) for tag in 'AB']
     for p, _ in kids:
         p.communicate()
     pl = [x for _, c in kids for x in lines_of(c)]
     pair_ok = len(pl) == 2 * pairn and all(' journal=0 commit=0 ' in x and 'indexlock=0' in x for x in pl)
     pretries = sum(int(m.group(1)) for x in pl for m in [re.search(r'retries=(\d+)', x)] if m)
     jtxt = w.git(w.rec, 'show', 'HEAD:docs/JOURNAL.md')[1]
-    in_log = len(re.findall(r'^- \S+ FIX-05 T01 NOTE pair ', jtxt, re.M))
+    in_log = len(re.findall(r'^- \S+ FIX-06 T01 NOTE pair ', jtxt, re.M))
     pair_ok = pair_ok and in_log == 2 * pairn and w.pending() == []
     ok = lock_ok and retries == 0 and landed >= 2 * pairn and pair_ok
     say = ('unlocked pair REPRODUCED the index.lock failure: %s' % ', '.join('try %d: %d calls, %d with index.lock' % s for s in seen) if reproduced
@@ -662,7 +693,7 @@ def indexlock_row(ctx):
                tries, ', '.join('try %d: %d calls, 0 failed' % (s[0], s[1]) for s in seen)))
     return ok, ('%s; the same forced-second pair of %d processes x %d commits through loop-record-commit on that worktree: %d calls, all exit 0 '
                 'with no index.lock text %s, index_lock_retries %d, %d commits landed on the branch; the same pair on the record work tree (a step-log line '
-                'from the real tool, then loop-record-commit with no path, no turn taken): %d calls, all exit 0 with no index.lock text %s, '
+                'from the real tool, then loop-record-commit with no path for a goal with no worktree, no turn taken): %d calls, all exit 0 with no index.lock text %s, '
                 'index_lock_retries %d, step-log lines in the committed log %d (%d expected), record work tree clean %s' % (
                     say, 2, pairn, len(hl), lock_ok, retries, landed, len(pl), pair_ok, pretries, in_log, 2 * pairn, w.pending() == []))
 

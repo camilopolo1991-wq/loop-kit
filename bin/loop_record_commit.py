@@ -17,6 +17,10 @@ Nothing pending for the two paths is exit 0 and no commit. A state file whose wo
 outside the "### " subsections of section 5 (a line outside section 5, the section-5 heading line, a line of section 5 before its first
 subsection) is refused with one line that names the part, and nothing is committed.
 
+KIT-11 C4 (b): with no path and the goal's record worktree ($LOOP_HOME/work/<GOAL-ID>/record) present it refuses (exit 3, one line
+naming the cause, nothing committed): while a goal worktree exists the step log and STATE.md land only through loop-record-merge
+<GOAL-ID>, which commits the pending lines itself (commit_pair) before the merge.
+
 With paths it commits those files in $LOOP_HOME/work/<GOAL-ID>/record, the goal's worktree on the branch rec-<goal-id lower>, the
 same lock and the same scans, and refuses either of the two files there (a goal's record branch carries no step-log or state change).
 
@@ -303,6 +307,10 @@ def commit(gid, msg, rel):
         if bad_path(p):
             raise wt.Refused('a path must be relative to the record worktree and stay inside it: %s' % p, 2)
     retries = [0]
+    if not rel and os.path.isdir(wt.paths(gid)[0]):
+        # KIT-11 C4 (b): while the goal's record worktree exists the step log and STATE.md land only through loop-record-merge
+        raise wt.Refused('refused: the record worktree work/%s/record exists, so the step log and STATE.md of %s land only through '
+                         'loop-record-merge %s; nothing was committed' % (gid, gid, gid), 3)
     try:
         with sl.append_lock(wt.lock_base()):
             if rel:
