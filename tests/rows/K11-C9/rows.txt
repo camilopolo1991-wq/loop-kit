@@ -1,0 +1,4 @@
+# K11-C9 rows. Format: id :: kind :: expected exit :: note (a verdict is by the exit code and the lines the call prints).
+# Both rows call bin/loop_scan.py with no argument; the config names a throwaway record repository either way.
+r1 :: outside :: 2 :: from a throwaway folder outside any repository: exit 2 and one line naming the cause
+r2 :: inside :: 0 :: control, from inside a throwaway repository: exit 0 and a scan summary with hits=0

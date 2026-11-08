@@ -112,14 +112,18 @@ USAGE = """usage: loop-scan [--help]
        loop-scan FILE [FILE ...]  whole files"""
 
 
-def resolve_repo():
+def resolve_repo(cwd_only=False):
     """P28. The repo whose diff is scanned: the current work tree, else the record
     repo from config. Run outside any repo, `git diff` errored, its stdout was
     empty, and the scan printed lines=0 hits=0 and exited 0: a false clean bill.
+    KIT-11 C9: with cwd_only (the bare call, no argument) there is no config fallback:
+    a folder outside any repo is a refusal, never a scan of the record repo.
     Returns (path, 'cwd' | 'config') or (None, reason)."""
     p = subprocess.run(['git', 'rev-parse', '--show-toplevel'], capture_output=True, text=True)
     if p.returncode == 0 and p.stdout.strip():
         return p.stdout.strip(), 'cwd'
+    if cwd_only:
+        return None, 'the current folder is outside any git repository'
     try:
         import loop_conf
         er = (loop_conf.load().get('ENGINE_RECORD_DIR') or '').strip()
@@ -173,7 +177,7 @@ def main():
     units = []
     where = ''
     if not args or args[0] == '--range':
-        repo, src = resolve_repo()
+        repo, src = resolve_repo(cwd_only=not args)
         if repo is None:
             print('loop-scan: ' + src + '. Exit 2, nothing was scanned.')
             return 2
