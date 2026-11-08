@@ -45,6 +45,12 @@
 # exits 4. A home with no config.env exits 5 (nothing to upgrade). A LOOP_BACKUP_DIR that is unset or not empty is
 # refused with exit 2 before any write.
 #
+# Confined form: --confine (anywhere among the arguments, after the interpreter or beside it) makes every destination the
+# installer writes fall under $LOOP_HOME and nowhere else: the loop folder is $LOOP_HOME itself, the Claude home (agents,
+# hooks, skills) is $LOOP_HOME/home/.claude, the installer's temporary folder is $LOOP_HOME/tmp (removed on exit), and in
+# upgrade mode LOOP_BACKUP_DIR must be inside $LOOP_HOME. $HOME is neither read nor written. An unset, empty or relative
+# LOOP_HOME is refused with exit 2 before any write. Without --confine nothing above changes.
+#
 # Exit codes: 0 installed (or upgraded), 2 usage or unusable repository or HOME or backup folder, 3 interpreter does not
 # run, 4 something is already installed there, 5 a copy or fill step failed, or an upgrade found no config.env.
 # This script never edits settings.json or CLAUDE.md, never pushes, and does not touch git.
@@ -63,6 +69,8 @@ spell() {
 
 WITH_TESTS=0
 UPGRADE=0
+CONFINE=0
+TMPD=""
 PYARG=""
 if [ "$#" -eq 0 ]; then
   # environment form: read only when no positional argument is given
@@ -73,6 +81,8 @@ else
   for a in "$@"; do
     if [ "$a" = "--with-tests" ]; then
       WITH_TESTS=1
+    elif [ "$a" = "--confine" ]; then
+      CONFINE=1
     elif [ -z "$PYARG" ]; then
       PYARG="$a"
     else
@@ -84,6 +94,13 @@ fi
 if [ -z "$PYARG" ]; then
   echo "usage: bash install.sh <interpreter> [--with-tests]   or   LOOP_PY=<interpreter> [LOOP_WITH_TESTS=1] bash install.sh   (the full path of a python 3.8+ that runs)" >&2
   exit 2
+fi
+# --confine: LOOP_HOME must be set and absolute, checked before anything is run or written
+if [ "$CONFINE" -eq 1 ]; then
+  case "$(printf '%s' "${LOOP_HOME:-}" | tr '\\' '/')" in
+    /?*|[A-Za-z]:/?*) ;;
+    *) echo "install.sh: --confine needs LOOP_HOME set to an absolute path; it is unset, empty or relative. Nothing was written." >&2; exit 2;;
+  esac
 fi
 
 # 1. the interpreter must run before anything is written
@@ -101,7 +118,7 @@ case "$PY" in
   *) echo "install.sh: note: the interpreter is not an absolute path; hooks will resolve it through PATH." >&2;;
 esac
 
-if [ -z "${HOME:-}" ] || [ ! -d "$HOME" ]; then
+if [ "$CONFINE" -eq 0 ] && { [ -z "${HOME:-}" ] || [ ! -d "$HOME" ]; }; then
   echo "install.sh: HOME is not a directory. Nothing was written." >&2
   exit 2
 fi
@@ -116,6 +133,8 @@ if [ -n "${LOOP_HOME:-}" ]; then
 else
   LOOPDIR="$HOME/.loop"
 fi
+# the Claude home side: $HOME, or under the loop folder when confined
+if [ "$CONFINE" -eq 1 ]; then DESTHOME="$LOOPDIR/home"; else DESTHOME="$HOME"; fi
 LOOPLIT="$(spell "$LOOPDIR")"
 if [ -z "$LOOPLIT" ]; then
   echo "install.sh: could not spell the loop folder as a literal path. Nothing was written." >&2
@@ -125,7 +144,7 @@ fi
 dest() {
   case "$1" in
     .loop/*) printf '%s' "$LOOPDIR/${1#.loop/}";;
-    *) printf '%s' "$HOME/$1";;
+    *) printf '%s' "$DESTHOME/$1";;
   esac
 }
 NEED="agents bin hooks skills templates"
@@ -159,13 +178,30 @@ if [ "$UPGRADE" -eq 1 ]; then
     /*|[A-Za-z]:/*) ;;
     *) BK="$(pwd)/$BK";;
   esac
+  if [ "$CONFINE" -eq 1 ]; then
+    case "$BK" in
+      */../*|*/..) echo "install.sh: --confine: LOOP_BACKUP_DIR holds a .. part. Refused; nothing was written." >&2; exit 2;;
+      "$LOOPDIR"/?*) ;;
+      *) echo "install.sh: --confine: LOOP_BACKUP_DIR is not inside LOOP_HOME. Refused; nothing was written." >&2; exit 2;;
+    esac
+  fi
   if [ -e "$BK" ] && { [ ! -d "$BK" ] || [ -n "$(ls -A "$BK" 2>/dev/null)" ]; }; then
     echo "install.sh: LOOP_BACKUP_DIR is not an empty folder. Refused; nothing was written." >&2
     exit 2
   fi
 fi
-LIST="$(mktemp)" || { echo "install.sh: cannot make a temporary file. Nothing was written." >&2; exit 2; }
-trap 'rm -f "$LIST"' EXIT
+if [ "$CONFINE" -eq 1 ]; then
+  # the temporary folder is under the loop folder too, and is removed on exit
+  TMPD="$LOOPDIR/tmp"
+  mkdir -p "$TMPD" && LIST="$(mktemp "$TMPD/list.XXXXXX")" || { echo "install.sh: cannot make a temporary file. Nothing was written." >&2; exit 2; }
+else
+  LIST="$(mktemp)" || { echo "install.sh: cannot make a temporary file. Nothing was written." >&2; exit 2; }
+fi
+cleanup() {
+  rm -f "$LIST" "${TMPCFG:-}"
+  if [ -n "$TMPD" ]; then rmdir "$TMPD" 2>/dev/null; fi
+}
+trap cleanup EXIT
 : >"$LIST"
 for pair in $MAP; do
   s="${pair%%:*}"; t="${pair#*:}"
@@ -181,7 +217,7 @@ fi
 
 # 2b. upgrade mode: replace, add, back up, report; the plain install below is not reached
 if [ "$UPGRADE" -eq 1 ]; then
-  HOMELIT="$(spell "$HOME")"
+  HOMELIT="$(spell "$DESTHOME")"
   SRCLIT="$(spell "$SRC")"
   BKLIT="$(spell "$BK")"
   if [ -z "$HOMELIT" ] || [ -z "$SRCLIT" ] || [ -z "$BKLIT" ]; then
@@ -315,7 +351,7 @@ echo "copied $TOTAL file(s)"
 # Besides the token, on the hook command lines of the installed agent files the $HOME spelling is replaced
 # by the literal home this install goes into (drive-letter forward-slash form, C:/... on Windows), so an
 # installed agent file has no $HOME on any hook line. Other lines and other files keep $HOME as written.
-HOMELIT="$(spell "$HOME")"
+HOMELIT="$(spell "$DESTHOME")"
 if [ -z "$HOMELIT" ]; then
   echo "install.sh: could not spell HOME as a literal path" >&2
   exit 5
@@ -358,7 +394,7 @@ for line in sys.stdin.read().split("\n"):
         files += 1
 print("filled %d token(s) in %d file(s), %d hook line(s) given the literal home, %d owner handle token(s)" % (hits, files, lines, ohits))
 '
-( cd "$HOME" && cut -f2 "$LIST" | "$PY" -c "$FILL" "$PY" "$HOMELIT" "${LOOP_OWNER:-}" "$LOOPLIT" ) || { echo "install.sh: filling the interpreter token failed" >&2; exit 5; }
+( cd "$DESTHOME" && cut -f2 "$LIST" | "$PY" -c "$FILL" "$PY" "$HOMELIT" "${LOOP_OWNER:-}" "$LOOPLIT" ) || { echo "install.sh: filling the interpreter token failed" >&2; exit 5; }
 if [ -z "${LOOP_OWNER:-}" ]; then
   echo "LOOP_OWNER is not set: the owner handle (the OWNER_HANDLE token) is set by hand in the installed files."
 fi
@@ -378,7 +414,6 @@ else
   CFG_RECORD="$LOOPLIT/record"
 fi
 TMPCFG="$LOOPDIR/config.env.tmp.$$"
-trap 'rm -f "$LIST" "$TMPCFG"' EXIT
 {
   echo "# config.env for this home, written by install.sh. No secrets belong in this file."
   echo "# Paths may start with ~; the loop tools expand it. Environment variables of the same name win."

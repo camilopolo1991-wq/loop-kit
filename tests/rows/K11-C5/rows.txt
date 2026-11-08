@@ -1,0 +1,6 @@
+# K11-C5 rows: install.sh --confine writes only under the given LOOP_HOME. Fields: id :: kind :: expected :: argument
+# Every row is judged the same on every tree; a tree without --confine reads it as a second interpreter argument and fails row 1.
+1-confine-writes-only-under-loop-home :: confined :: every written file under LOOP_HOME :: loop-confined
+2-control-confine-with-loop-home-unset-exits-2-writes-nothing :: refused :: exit 2, nothing written :: unset
+3-confine-with-relative-loop-home-exits-2-writes-nothing :: refused :: exit 2, nothing written :: relative/loophome
+4-control-without-confine-writes-outside-loop-home :: control :: a file outside LOOP_HOME :: loop-confined
