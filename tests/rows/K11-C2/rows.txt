@@ -1,0 +1,6 @@
+# K11-C2 rows: tripwire peer and owner noise (loop-tripwire check). Format: id :: kind :: expect :: arg
+# FIX-01 is the window's goal (A), FIX-02 the listed peer (B). Each world is a throwaway home under LOOP_ROWS_HOME.
+K11-C2-PEER :: check :: a window for A naming B, while B's dispatch writes current_goal and its report writes report.log, report.log.lock and sent/, reads PEER-NOISE naming B for each and exits 0 :: peer
+K11-C2-OWNER :: check :: a file added under a throwaway Downloads folder reads OWNER-NOISE and exits 0 :: owner
+K11-C2-CONTROL :: check :: control, same window and baseline as the PEER row: a planted file in A's own goal folder outside evidence exits 1 and names the file, the PEER-NOISE lines still printed :: control
+K11-C2-STRANGER :: check :: current_goal holding A's id and a report.log line labelled A, in a window naming B, each stay a FILE difference (exit 1) :: stranger

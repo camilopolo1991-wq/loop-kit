@@ -108,8 +108,15 @@ PEERS (KIT-10 C5; a window started without --peers behaves exactly as before)
     - docs/STATE.md changed in a work tree only inside a `### <peer>` subsection, or its
       status line gone because such commits landed. The step log is grow-only and never a
       difference when appended to.
+    - KIT-11 C2, the shared loop-home files, only on a trace the check reads: current_goal when
+      it now holds a listed peer's id and that peer's current/<peer> file or dispatch/<peer>.*
+      log differs in the same window; report.log (and report.log.lock with it) when every line
+      stamped at or after the baseline carries a listed peer's label; a sent/<sha>.md whose sha
+      ends such a line. Each reads as PEER-NOISE <peer> shared <file>.
   Anything else, a commit with another trailer or none included, stays a difference
-  (exit 1). The PEER-NOISE lines go to stdout grouped per peer and kind, in full to
+  (exit 1). OWNER-NOISE (KIT-11 C2, with or without --peers): a FILE difference on the owner's
+  Downloads folder (a direct child of the home) or beneath it reads as OWNER-NOISE, exit 0 when
+  nothing else differs. The PEER-NOISE lines go to stdout grouped per peer and kind, in full to
   diff-latest.txt, and to the check json under "peer_noise".
 
 BASELINE / CHECK FILE FORMAT
@@ -687,8 +694,67 @@ def _entry(peer, kind, line):
     return {'peer': peer, 'kind': kind, 'line': line}
 
 
-def peer_split_files(diffs, base_files, cur_files, roots, peers):
-    """(kept difference lines, PEER-NOISE entries) for the files detector."""
+REPORT_LINE_RE = re.compile(r'^(\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ) (?:NOT SENT|SENT|KEPT) (\S+) .*sha256 (\S+)$')
+
+
+def _report_rows_since(roots, since):
+    """(rows, clean): the (LABEL, sha) of every report.log line stamped at or after `since`, and whether every such line
+    parsed. No usable `since` or an unreadable log gives ([], False): nothing is attributed on a guess."""
+    if not since:
+        return [], False
+    try:
+        with open(os.path.join(roots['dot_loop'], 'report.log'), 'rb') as fh:
+            text = fh.read().decode('utf-8', 'replace')
+    except OSError:
+        return [], False
+    rows, clean = [], True
+    for line in text.replace('\r', '').split('\n'):
+        if not line.strip():
+            continue
+        first = line.split(' ', 1)[0]
+        if re.match(r'^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$', first) and first < since:
+            continue                                  # written before the window began
+        m = REPORT_LINE_RE.match(line)
+        if m:
+            rows.append((m.group(2).upper(), m.group(3).lower()))
+        else:
+            clean = False
+    return rows, clean
+
+
+def shared_attribution(rels, hits, roots, peers, since):
+    """C2. {rel: [(peer, kind), ...]} for the shared loop-home files a listed peer's own dispatch or report wrote.
+    Traces the check reads: current_goal, when it now holds a listed peer's id AND that peer's current/<peer> file or
+    dispatch/<peer>.* log differs in the same window (its dispatch wrote both); report.log, when every line stamped at or
+    after the baseline carries a listed peer's label (its report wrote them), and report.log.lock with it; a sent/<sha>.md
+    whose sha ends a post-baseline report.log line labelled with a listed peer. Anything else gets no entry."""
+    rels, out = set(rels), {}
+    dispatchers = {h[0] for h in hits if h and h[1] in ('current file', 'dispatch log or prompt')}
+    if 'current_goal' in rels:
+        try:
+            with open(os.path.join(roots['dot_loop'], 'current_goal'), 'rb') as fh:
+                gid = fh.read().decode('utf-8', 'replace').strip().upper()
+        except OSError:
+            gid = ''
+        if gid in peers and gid in dispatchers:
+            out['current_goal'] = [(gid, 'shared current_goal')]
+    sent = [r for r in rels if r.startswith('sent/') and len(r.split('/')) == 2 and r.endswith('.md')]
+    if rels & {'report.log', 'report.log.lock'} or sent:
+        rows, clean = _report_rows_since(roots, since)
+        labels = {lab for lab, _ in rows}
+        if rows and clean and labels <= set(peers):
+            for r in ('report.log', 'report.log.lock'):
+                if r in rels:
+                    out[r] = [(p, 'shared ' + r) for p in sorted(labels)]
+        for r in sent:
+            ps = sorted({lab for lab, sha in rows if sha == r.split('/')[1][:-3] and lab in peers})
+            if ps:
+                out[r] = [(p, 'shared sent/') for p in ps]
+    return out
+
+
+def peer_split_files(diffs, base_files, cur_files, roots, peers, since=None):
+    """(kept difference lines, PEER-NOISE entries) for the files detector. since is the baseline's created_at."""
     keys = set(base_files) | set(cur_files)
     parsed, attributed, noise = [], {}, []
     for l in diffs:
@@ -696,9 +762,15 @@ def peer_split_files(diffs, base_files, cur_files, roots, peers):
         rel = _lh_rel(key, roots) if key in keys else None
         hit = _peer_for_rel(rel, peers) if rel is not None else None
         parsed.append((l, key, rel, hit))
+    shared = shared_attribution([p[2] for p in parsed if p[2] is not None], [p[3] for p in parsed], roots, peers, since)
+    for l, key, rel, hit in parsed:
         if hit:
             noise.append(_entry(hit[0], hit[1], l))
             attributed[rel] = hit[0]
+        elif rel in shared:
+            noise += [_entry(p, k, l) for p, k in shared[rel]]
+            attributed[rel] = shared[rel][0][0]
+    parsed = [(l, key, rel, hit or ((shared[rel][0]) if rel in shared else None)) for l, key, rel, hit in parsed]
     kept = []
     for l, key, rel, hit in parsed:
         if hit:
@@ -971,7 +1043,7 @@ def cmd_check(goal_id, window_id):
         synced_root = os.path.join(roots['claude_skills'], 'synced')
         fdiffs = diff_files(base['files'], cur['files'], synced_root)
         if peers:
-            fdiffs, pn = peer_split_files(fdiffs, base['files'], cur['files'], roots, peers)
+            fdiffs, pn = peer_split_files(fdiffs, base['files'], cur['files'], roots, peers, base.get('created_at'))
             peer_noise += pn
         all_diffs += fdiffs
     else:
@@ -1026,7 +1098,20 @@ def cmd_check(goal_id, window_id):
         for l in all_diffs:
             (noise if any(l.startswith(f'FILE {k}: ') for k in nk) else kept).append(l)
         all_diffs = kept
-    noise_out = ['NOISE ' + l for l in noise] + peer_noise_lines(peer_noise)
+    # C2. The owner's Downloads folder (a direct child of the home, or anything recorded beneath it) is the owner's own
+    # activity, whatever the window names as peers: its FILE differences read as OWNER-NOISE, never as a difference.
+    owner_noise = []
+    if all_diffs:
+        top = os.path.normcase(os.path.normpath(roots['root_toplevel']))
+        dl = os.path.join(top, 'downloads')
+        okeys = {k for k in (set(base['files']) | set(cur['files']))
+                 if os.path.normcase(os.path.normpath(k)) == dl or os.path.normcase(os.path.normpath(k)).startswith(dl + os.sep)}
+        kept = []
+        for l in all_diffs:
+            (owner_noise if l.startswith('FILE ') and l[5:].split(': ', 1)[0] in okeys else kept).append(l)
+        all_diffs = kept
+    noise_out = (['NOISE ' + l for l in noise] + ['OWNER-NOISE ' + l for l in owner_noise]
+                 + peer_noise_lines(peer_noise))
 
     os.makedirs(edir, exist_ok=True)
     check_record = {
@@ -1042,6 +1127,8 @@ def cmd_check(goal_id, window_id):
     if peers:
         check_record['peers'] = peers
         check_record['peer_noise'] = peer_noise
+    if owner_noise:
+        check_record['owner_noise'] = owner_noise
     write_json(os.path.join(edir, f'check-{utcnow_compact()}.json'), check_record)
 
     diff_txt = os.path.join(edir, 'diff-latest.txt')
@@ -1059,6 +1146,10 @@ def cmd_check(goal_id, window_id):
         fh.write(f'\nNOISE ({len(noise)}):\n')
         for l in noise:
             fh.write(l + '\n')
+        if owner_noise:
+            fh.write(f'\nOWNER-NOISE ({len(owner_noise)}):\n')
+            for l in owner_noise:
+                fh.write('OWNER-NOISE ' + l + '\n')
         if peers:
             fh.write(f'\nPEER-NOISE ({len(peer_noise)}), peers {" ".join(peers)}:\n')
             for e in peer_noise:
