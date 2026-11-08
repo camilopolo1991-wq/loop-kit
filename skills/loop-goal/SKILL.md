@@ -44,6 +44,7 @@ Preamble: $LOOP_HOME/templates/GOAL_PREAMBLE.md (Read it first; never pasted her
 Traps: $LOOP_HOME/templates/TRAPS.md (Read it second when it exists)
 Load skill: <the surface skill on this machine, or "none (filesystem via loop-guard-run)">
 Surface: <workflow id and node name | tables | file paths | branch>
+Writable roots: <writer cards only: the roots this goal's writable.txt lists, on this one line, nothing outside them, then the writer's own evidence folder>
 Do: <exact, one change or one question>
 Done when: <observable criteria, copied into the review card>
 Proof: <truth table against pulled activeVersion | AST identity | row counts with control | byte diff | any expected-output string: raw `cmp` or bytes equality, command quoted in evidence>
@@ -61,13 +62,28 @@ Preamble: $LOOP_HOME/templates/GOAL_PREAMBLE.md
 Traps: $LOOP_HOME/templates/TRAPS.md (Read it second when it exists)
 Load skill: <same surface skill>
 Criteria: <copied verbatim from the task card>
-Artefacts: <workflow id plus versionId before and after | table and query | commit sha | file paths | rows the criterion names, copied in>
+Artefacts: <workflow id plus versionId before and after | table and query | commit sha | file paths, only copies the leader made under $LOOP_HOME/scratch/<GOAL-ID>/ | rows the criterion names, copied in>
+Comparison commands: <the cmp or bytes-equality commands the reviewer runs, quoted>
 Earlier populations: <the commands and their last counts, re-run by the reviewer as its regression sweep>
-Rollback recorded at: <path or command>
+Rollback recorded at: <the leader's copy under $LOOP_HOME/scratch/<GOAL-ID>/, or a command>
 Return: the reviewer's format (evidence to .../T<nn>/review/)
 Card file: evidence/T<nn>/review/card.md
 ```
 The pretool guard denies a reviewer dispatch that carries RESULT/proof/writes lines, report.md, or the writer subfolder. The reviewer of a retry is chosen as `agents/loop-leader.md` requires.
+
+## Standing card rules (the card templates above follow them)
+One wording per item, the same words as in `templates/GOAL_PREAMBLE.md` and `templates/TRAPS.md`. `loop-card-lint card.md` has one named check for each item a card can get wrong; (h), (i) and (j) are the leader's behaviour and have none. The checks judge cards whose Preamble line names `GOAL_PREAMBLE.md`.
+
+- C1(a) Interpreter shapes per role: scouts and reviewers run the venv python spelled with a leading ~/, then -I, then one drive-style absolute script path; writers run the venv python with a leading ~/, then exactly one drive-style absolute script path under the writer's own evidence folder or its goal's scratch folder, no flag, no LOOP_PY, no read of config.env; LOOP_PY and loop-py are named for reviewers only.
+- C1(b) writable.txt: every writer card names, on one line headed Writable roots:, the roots its goal's writable.txt lists and nothing outside them.
+- C1(c) No git for writers. A writer card carries no git command. Commits are the leader's, after a review PASS on the final bytes.
+- C1(d) Every pre-edit and rollback copy goes under $LOOP_HOME/scratch/<GOAL-ID>/, never under evidence/.
+- C1(e) A reviewer card names the comparison commands the reviewer runs, on a line headed Comparison commands:, and points only at copies the leader made under $LOOP_HOME/scratch/<GOAL-ID>/; a read-only role is never told to cp, mv or redirect.
+- C1(f) No card carries a merge instruction or the name of the owner's denylist file; a card that measures ancestry names the command, never the merge as an action.
+- C1(g) A reviewer card never names the writer's evidence subfolder, the Rollback line included.
+- C1(h) Tripwire windows before rulings: a ruling, a placement or a goal-folder write happens only with no leader counted for that goal and no window open.
+- C1(i) Subagents stay in the same turn: a leader does not end its turn while a subagent runs.
+- C1(j) Before dispatching any role, the leader runs loop-card-lint on the card and journals its rc.
 
 ## Rules the leader applies
 - A card never routes a role to plan.md, STATE.md or the journal. The leader copies what the role needs into the card. When a criterion names PASS rows of plan.md or journal lines, the leader copies those rows into the review card's Artefacts, and the reviewer's rule (never read plan.md) stands. Criteria and Done when stay the GOAL's words, verbatim, even when those words name plan.md.

@@ -58,6 +58,21 @@ Close rule: a goal is HELD on any criterion measured FAIL unless a ruling names 
 - **A denied command is never redone another way.** A denied `mkdir`, or a denied command that used a `$VAR` path, redone with the Write tool or with the path spelled out literally is re-routing, and re-routing is forbidden. Quote the denial as a finding and stop that step.
 - **Evidence folders are made one way, by every role: the Write tool writing a file at its full path.** No role runs `mkdir`. The leader makes each task's folder by writing that task's card there (`evidence/T<nn>/card.md`, `evidence/T<nn>/writer/card.md`, `evidence/T<nn>/review/card.md`) before it dispatches. The orchestrator makes `evidence/AUDIT/review/` the same way before it dispatches the auditor. Inside its own folder a role makes a subfolder by writing its first file there. A role whose folder is missing returns BLOCKED and names the folder.
 
+## STANDING CARD RULES (C1)
+
+One wording per item. The same words stand in this file, in `templates/TRAPS.md` and in the card templates of `skills/loop-goal/SKILL.md`. `bin/loop_card_lint.py` has one named check for each item a card can get wrong; items (h), (i) and (j) are the leader's behaviour and have none.
+
+- C1(a) Interpreter shapes per role: scouts and reviewers run the venv python spelled with a leading ~/, then -I, then one drive-style absolute script path; writers run the venv python with a leading ~/, then exactly one drive-style absolute script path under the writer's own evidence folder or its goal's scratch folder, no flag, no LOOP_PY, no read of config.env; LOOP_PY and loop-py are named for reviewers only.
+- C1(b) writable.txt: every writer card names, on one line headed Writable roots:, the roots its goal's writable.txt lists and nothing outside them.
+- C1(c) No git for writers. A writer card carries no git command. Commits are the leader's, after a review PASS on the final bytes.
+- C1(d) Every pre-edit and rollback copy goes under $LOOP_HOME/scratch/<GOAL-ID>/, never under evidence/.
+- C1(e) A reviewer card names the comparison commands the reviewer runs, on a line headed Comparison commands:, and points only at copies the leader made under $LOOP_HOME/scratch/<GOAL-ID>/; a read-only role is never told to cp, mv or redirect.
+- C1(f) No card carries a merge instruction or the name of the owner's denylist file; a card that measures ancestry names the command, never the merge as an action.
+- C1(g) A reviewer card never names the writer's evidence subfolder, the Rollback line included.
+- C1(h) Tripwire windows before rulings: a ruling, a placement or a goal-folder write happens only with no leader counted for that goal and no window open.
+- C1(i) Subagents stay in the same turn: a leader does not end its turn while a subagent runs.
+- C1(j) Before dispatching any role, the leader runs loop-card-lint on the card and journals its rc.
+
 ## MACHINE TRAPS
 
 The card names the traps file when this machine has one, and the role reads it second, after this file. It holds this machine's schema quirks, tool quirks and known-bad shapes, dated. An empty or missing file means none are recorded yet, not that none exist.

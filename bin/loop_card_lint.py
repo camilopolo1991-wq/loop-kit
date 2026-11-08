@@ -85,6 +85,53 @@ WRITEWORD = re.compile(r"(?i)(\b(?:writes?|written|writing|saves?|saved|saving|c
 WRITEFIELDS = ("evidence to", "return")
 LIMITFIELD = "must not"
 
+# KIT-11 C1. The standing card rules (a) to (j) of templates/GOAL_PREAMBLE.md, TRAPS.md and skills/loop-goal/SKILL.md, one
+#   wording each, and one named check for each item a card can get wrong. They run on card.md files (task and review cards)
+#   whose `Preamble:` line names GOAL_PREAMBLE.md; any other card (a fixture with its own preamble) is not judged by them.
+#   The role of a card: a card whose first non-empty line starts with `REVIEW ` is a reviewer's; else a card with a path segment
+#   `writer` above it is a writer's; else a scout's. Criteria and Done when are the GOAL's words and exempt from every check.
+#   Each hit names its check, its line and a reason; a path or a matched word is never echoed.
+#   c1a-interpreter-shape        (a) a scout or reviewer card: the venv python spelled with a leading ~/, then -I, then one
+#                                drive-style absolute script path; a writer card: the venv python with a leading ~/, then exactly
+#                                one drive-style absolute script path under a writer folder or a scratch folder, no flag; a writer
+#                                or scout card names no loop-py variable or wrapper, a writer card no read of the config file.
+#                                A Must not field states a limit and is not judged by this check. A scout or reviewer card may state
+#                                the shape in prose: the venv python path, then -I, then one drive-style absolute script path.
+#   c1b-writable-roots           (b) a writer card has a line headed `Writable roots`, and the drive-style or ~/ roots on it
+#                                (the writer's own evidence folder apart) equal the roots in the goal's writable.txt, compared
+#                                after both spellings are normalised to ~/; the goal folder is found from the card's path
+#                                (goals/<ID>/evidence/...).
+#   c1c-no-vcs-writer            (c) a writer card carries no version-control command (the tool's name in any letter case, bare, with its
+#                                .exe suffix or named by a path, followed by a verb or flag). A Must not field is not judged.
+#   c1d-copies-under-scratch     (d) a writer card line naming a pre-edit or rollback copy (copy, snapshot, backup) at an evidence/
+#                                path and no scratch path. A Must not field is not judged.
+#   c1e-reviewer-comparison      (e) a reviewer card has a line headed `Comparison commands:` holding text, or followed by a line that does.
+#   c1e-reviewer-scratch-only    (e) a path on the Artefacts field of a reviewer card that does not lie under a scratch folder.
+#   c1e-readonly-no-copy         (e) a scout or reviewer card line that tells the role to run cp or mv, to copy or move to a file, folder or
+#                                path, to redirect to one, or holds a shell redirect (> or >>) into a file or path. The noun copy and a
+#                                comparison such as > 0 are not it. A Must not field is not judged.
+#   c1f-no-merge                 (f) a card line with the word merge (merge-base is not it); a Must not field is not judged.
+#   c1f-no-denylist-word         (f) the name of the owner's denylist file anywhere on a card; the word is written only here.
+#   c1g-reviewer-no-writer-folder (g) a reviewer card line with a path segment named writer, also at the start of a token (writer-guard.py
+#                                and the like are not it). A Must not field is not judged.
+#   Items (h), (i) and (j) are the leader's behaviour; a card cannot get them wrong, so no check serves them.
+C1_FIELD = re.compile(r"^(?:[A-Z][A-Za-z ]{1,30}|Writable roots[^:]*):")
+C1_PYTOK = re.compile(r"\S*venv[\\/]Scripts[\\/]python\.exe", re.I)
+C1_LOOPPY = re.compile(r"\bLOOP_PY\b|\bloop-py\b")
+C1_CONF = re.compile(r"(?i)\bconfig\.env\b")
+C1_VCS = re.compile(r"(?<![\w.-])(?:[\w.~:/\\-]*[\\/])?(?i:g[i]t(?:\.exe)?)(?![\w./\\-])[ \t]+(?:-\S+|[a-z][\w-]*)")
+C1_SHAPEPROSE = re.compile(r"[,;]?\s+then\s+-I[,;]?\s+then\s+one\s+drive-style\s+absolute\s+script\s+path\b")
+C1_PATHTOK = re.compile(r"(?:[A-Za-z]:[\\/]|~/|\$LOOP_HOME/)[^\s,;]+")
+C1_DEST = r"(?:(?:a|an|the|your|its|another)\s+)?(?:(?:new|other|separate)\s+)?(?:file|folder|directory|place|location|path)\b|(?:[A-Za-z]:[\\/]|~|\$\w|\.{1,2}[\\/]|/)\S*"
+C1_COPYTOLD = re.compile(r"(?i)(\b(?:cp|mv)\s+(?!(?:or|and|nor|is|are)\b)\S|\b(?:copy|move)\s+(?:\S+\s+){0,3}?(?:to|into)\s+(?:%s)|\bredirect(?:s|ed|ing)?\b[^.;\n]*?\b(?:to|into)\s+(?:%s)|(?:^|\s)\d?>>?\s*(?:[~$/\\]|[A-Za-z]:[\\/]|\.{1,2}[\\/]|[A-Za-z_][\w.-]*\.[A-Za-z]\w*|[A-Za-z_][\w-]*/))" % (C1_DEST, C1_DEST))
+C1_MERGE = re.compile(r"(?i)\b(?:merge|merges|merging)\b(?!-base)")
+C1_DENYWORD = re.compile(r"(?i)guard[-_]deny")
+C1_WRITERSEG = re.compile(r"[\\/]writer(?![\w.\-])|(?<![\w.\-])writer[\\/]")
+C1_COPYWORD = re.compile(r"(?i)\b(?:copy|copies|snapshot|snapshots|backup|backups)\b")
+C1_PRE = re.compile(r"(?i)\b(?:pre-edit|rollback|restore)\b")
+C1_EVID = re.compile(r"(?i)\bevidence[\\/]")
+C1_GOALDIR = re.compile(r"^(.*/goals/[^/]+)/evidence/", re.I)
+
 LOGROWS = None
 bad = 0
 
@@ -198,6 +245,107 @@ def logrows(logpath):
     return LOGROWS
 
 
+def c1_norm(p):
+    """A root, both spellings to one: forward slashes, no trailing slash, lower case, the user folder as ~/."""
+    p = p.replace("\\", "/").strip("`'\".:)(").rstrip("/").lower()
+    p = re.sub(r"^[a-z]:/users/[^/]+/", "~/", p)
+    return re.sub(r"^/[a-z]/users/[^/]+/", "~/", p)
+
+
+def c1_roots(text, drop_evidence):
+    out = set()
+    for m in C1_PATHTOK.finditer(text):
+        p = c1_norm(m.group(0))
+        if drop_evidence and "/evidence/" in p + "/":
+            continue
+        out.add(p)
+    return out
+
+
+def c1_card(f, lines, say):
+    """KIT-11 C1: the standing card rules, one named check each (see the C1 block above the constants)."""
+    pre = next((x for x in lines if x.startswith("Preamble:")), "")
+    if "GOAL_PREAMBLE.md" not in pre:
+        return
+    if next((x for x in lines if x.strip()), "").startswith("REVIEW "):
+        role = "reviewer"
+    else:
+        parts = os.path.abspath(f).replace("\\", "/").split("/")[:-1]
+        role = "writer" if "writer" in parts else "scout"
+    exempt = False
+    field = ""
+    have_cmp = False
+    for n, l in enumerate(lines, 1):
+        if C1_FIELD.match(l):
+            field = l.split(":", 1)[0].lower()
+            exempt = (field + ":") in EXEMPT
+        if exempt:
+            continue
+        limit = field == LIMITFIELD
+        if re.match(r"^Comparison commands:\s*\S", l) or (re.match(r"^Comparison commands:\s*$", l) and n < len(lines) and lines[n].strip() and not C1_FIELD.match(lines[n])):
+            have_cmp = True
+        if C1_DENYWORD.search(l):
+            say(f, n, "[c1f-no-denylist-word] names the owner's denylist file. A card proves behaviour and never names that file.")
+        if not limit and C1_MERGE.search(l):
+            say(f, n, "[c1f-no-merge] carries a merge instruction. Merges are the owner's; a card that measures ancestry names the command (merge-base), never the merge as an action.")
+        if role == "reviewer" and not limit and C1_WRITERSEG.search(l):
+            say(f, n, "[c1g-reviewer-no-writer-folder] a reviewer card names the writer's evidence subfolder (the Rollback line included).")
+        if role == "writer" and not limit and C1_VCS.search(l):
+            say(f, n, "[c1c-no-vcs-writer] a writer card carries a version-control command. Commits are the leader's, after a review PASS on the final bytes.")
+        if role == "writer" and not limit and C1_PRE.search(l) and C1_COPYWORD.search(l) and C1_EVID.search(l) and "scratch" not in l.lower():
+            say(f, n, "[c1d-copies-under-scratch] a pre-edit or rollback copy is put under evidence/. Copies go under $LOOP_HOME/scratch/<GOAL-ID>/.")
+        if role != "writer" and not limit and C1_COPYTOLD.search(l):
+            say(f, n, "[c1e-readonly-no-copy] a read-only role is told to copy, move or redirect. The leader makes any copy it needs.")
+        if limit:
+            continue
+        # (a): the interpreter shape, per role
+        for m in C1_PYTOK.finditer(l):
+            tok = m.group(0).lstrip("`'\"(")
+            rest = l[m.end():]
+            if not tok.startswith("~/"):
+                say(f, n, "[c1a-interpreter-shape] the venv python is not spelled with a leading ~/.")
+            elif role == "writer":
+                mm = re.match(r"\s+([A-Za-z]:[\\/]\S*)(.*)$", rest)
+                if not mm:
+                    say(f, n, "[c1a-interpreter-shape] a writer runs the venv python then exactly one drive-style absolute script path, no flag.")
+                else:
+                    p = mm.group(1).replace("\\", "/").lower()
+                    if mm.group(2).strip(" `'\".,;)"):
+                        say(f, n, "[c1a-interpreter-shape] something follows the writer's one script path; the shape is the interpreter, one path, nothing else.")
+                    elif "/scratch/" not in p and "/writer/" not in p:
+                        say(f, n, "[c1a-interpreter-shape] a writer's script lies under its own evidence folder or its goal's scratch folder.")
+            elif not (re.match(r"\s+-I\s+[A-Za-z]:[\\/]\S", rest) or C1_SHAPEPROSE.match(rest)):
+                say(f, n, "[c1a-interpreter-shape] a scout or reviewer runs the venv python, then -I, then one drive-style absolute script path.")
+        if role != "reviewer" and C1_LOOPPY.search(l):
+            say(f, n, "[c1a-interpreter-shape] the loop-py variable and wrapper are named for reviewers only.")
+        if role == "writer" and C1_CONF.search(l):
+            say(f, n, "[c1a-interpreter-shape] a writer card tells no read of the config file.")
+        # (e): a reviewer's artefacts are the leader's copies under scratch
+        if role == "reviewer" and field == "artefacts":
+            for m in C1_PATHTOK.finditer(l):
+                if "/scratch/" not in c1_norm(m.group(0)):
+                    say(f, n, "[c1e-reviewer-scratch-only] a reviewer artefact path does not lie under a scratch folder; the leader copies it there.")
+    if role == "reviewer" and not have_cmp:
+        say(f, "-", "[c1e-reviewer-comparison] a reviewer card needs a line `Comparison commands:` naming the commands the reviewer runs.")
+    if role == "writer":
+        hits = [(n, l) for n, l in enumerate(lines, 1) if re.match(r"^Writable roots[^:]*:", l)]
+        if not hits:
+            say(f, "-", "[c1b-writable-roots] a writer card needs a line headed Writable roots, naming the roots its goal's writable.txt lists.")
+        for n, l in hits:
+            m = C1_GOALDIR.match(os.path.abspath(f).replace("\\", "/"))
+            wt = os.path.join(m.group(1), "writable.txt") if m else ""
+            try:
+                want = c1_roots(open(wt, encoding="utf-8").read(), False) if m else None
+            except OSError:
+                want = None
+            if want is None:
+                say(f, n, "[c1b-writable-roots] the goal's writable.txt cannot be found from this card's path (goals/<ID>/evidence/...).")
+                continue
+            have = c1_roots(l, True)
+            if have != want:
+                say(f, n, "[c1b-writable-roots] the roots on this line differ from the goal's writable.txt: %d only on the card, %d only in writable.txt." % (len(have - want), len(want - have)))
+
+
 def main(argv):
     global bad
     if len(argv) < 1:
@@ -244,6 +392,7 @@ def main(argv):
                 # K07-C7: a review card names no write under .claude.
                 if review and field != LIMITFIELD and CLAUDEPATH.search(l) and (field in WRITEFIELDS or WRITEWORD.search(l)):
                     say(f, n, "review card names a write under .claude. A review card writes only under its evidence folder.")
+            c1_card(f, lines, say)
         elif name == "plan.md":
             live = None; hdr = None; inlive = False; passrows = []; named = set()
             for n, l in enumerate(lines, 1):
