@@ -123,6 +123,10 @@ DEFAULT_TIMEOUT_S = 7200
 # settings.json permissions.deny still outranks everything here.
 ALLOWED_TOOLS = 'Bash(loop-guard-run *) Read Glob Grep Write Edit Agent Skill'
 
+# KIT-11 C3. Set in the environment of every leader this dispatcher launches, whatever the caller
+# had: the wait ceiling at 0. The dry run prints it, so the value is visible without a launch.
+LEADER_ENV = {'CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS': '0'}
+
 
 def resolve_timeout_bin():
     """Absolute path to a VERIFIED GNU timeout, or None.
@@ -573,6 +577,7 @@ def main():
         say('FAIL', prompt); return 4
     say('ok', 'prompt: ' + prompt.splitlines()[0])
     if a.dry_run:
+        say('ok', 'leader environment: ' + ' '.join('%s=%s' % kv for kv in sorted(LEADER_ENV.items())))
         say('ok', 'dry run: ' + ' '.join(cmd)); return 0
     ts = time.strftime('%Y%m%dT%H%M%SZ', time.gmtime())
     logp = os.path.join(DISPATCH, '%s.%s.log' % (goal_id, ts))
@@ -585,6 +590,7 @@ def main():
     if wtmsg:
         say('ok', wtmsg)
     env.update(wtvars)
+    env.update(LEADER_ENV)
     # KIT-10 C2 (a): one file per dispatched goal under current/, and current_goal kept as
     # "last dispatched" for the readers that still read it.
     os.makedirs(CURRENT, exist_ok=True)

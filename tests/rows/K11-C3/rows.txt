@@ -1,0 +1,3 @@
+# K11-C3 rows. id :: kind :: expect :: arg. kind check: arg names a function in run.py; expect is the sentence the row must come out as.
+C3-1 :: check :: a stub launcher started by the dispatcher reads CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS=0 in its environment (the variable was removed from the caller first) :: stub_env
+C3-2 :: check :: the --dry-run output holds the line "leader environment: CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS=0", equal by bytes to the expected line, with a one-byte control :: dry_line
