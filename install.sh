@@ -25,6 +25,7 @@
 #   skills/     -> .claude/skills/
 #   bin/        -> .loop/bin/
 #   templates/  -> .loop/templates/
+#   shims/      -> .loop/shims/   the profile dispatcher shim; shipped only, placed in a profile by the owner's own command
 #   tests/      -> .loop/tests/   only with --with-tests (the docker shim that `loop-tripwire selftest`
 #                                 finds at bin/../tests); without the flag no tests directory is made
 #
@@ -137,7 +138,7 @@ for d in $NEED; do
 done
 
 # 2. destinations: the map of source dir -> destination dir under $HOME
-MAP="agents:.claude/agents hooks:.claude/hooks skills:.claude/skills bin:.loop/bin templates:.loop/templates"
+MAP="agents:.claude/agents hooks:.claude/hooks skills:.claude/skills bin:.loop/bin templates:.loop/templates shims:.loop/shims"
 if [ "$WITH_TESTS" -eq 1 ]; then MAP="$MAP tests:.loop/tests"; fi
 CONFIG="$LOOPDIR/config.env"
 if [ "$UPGRADE" -eq 0 ] && [ -e "$CONFIG" ]; then
