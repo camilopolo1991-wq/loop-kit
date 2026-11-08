@@ -1,0 +1,16 @@
+# K11-C6: six defect cards D1 to D6 and their corrected twins through bin/loop_card_lint.py of LOOP_TREE. id :: kind :: expect :: arg
+# defect and twin: expect is <exit>:<token> ;; <token>, the exit code and the tokens that must be in the output (a token with a leading ! must be absent); arg is <fixture card file under cards/>|<role: scout, reviewer or writer>
+# main-count: runs the same twelve through bin/loop_card_lint.py of LOOP_MAIN_TREE and quotes how many of D1 to D6 that lint passes (exit 0)
+r01-d1-scout-merge :: defect :: 1:[c1f-no-merge] ;; 1 rule(s) broken :: d1-scout-merge.md|scout
+r02-d1-twin :: twin :: 0:0 rule(s) broken ;; !] :: d1-scout-merge-twin.md|scout
+r03-d2-reviewer-no-comparison :: defect :: 1:[c1e-reviewer-comparison] ;; 1 rule(s) broken :: d2-reviewer-no-comparison.md|reviewer
+r04-d2-twin :: twin :: 0:0 rule(s) broken ;; !] :: d2-reviewer-no-comparison-twin.md|reviewer
+r05-d3-reviewer-rollback-writer-folder :: defect :: 1:[c1g-reviewer-no-writer-folder] ;; 1 rule(s) broken :: d3-reviewer-rollback-writer-folder.md|reviewer
+r06-d3-twin :: twin :: 0:0 rule(s) broken ;; !] :: d3-reviewer-rollback-writer-folder-twin.md|reviewer
+r07-d4-reviewer-told-to-cp :: defect :: 1:[c1e-readonly-no-copy] ;; 1 rule(s) broken :: d4-reviewer-told-to-cp.md|reviewer
+r08-d4-twin :: twin :: 0:0 rule(s) broken ;; !] :: d4-reviewer-told-to-cp-twin.md|reviewer
+r09-d5-writer-copies-to-evidence :: defect :: 1:[c1d-copies-under-scratch] ;; 1 rule(s) broken :: d5-writer-copies-to-evidence.md|writer
+r10-d5-twin :: twin :: 0:0 rule(s) broken ;; !] :: d5-writer-copies-to-evidence-twin.md|writer
+r11-d6-writer-names-loop-py :: defect :: 1:[c1a-interpreter-shape] ;; 1 rule(s) broken :: d6-writer-names-loop-py.md|writer
+r12-d6-twin :: twin :: 0:0 rule(s) broken ;; !] :: d6-writer-names-loop-py-twin.md|writer
+r13-control-main-lint-count :: main-count :: report :: all
