@@ -48,6 +48,7 @@ Close rule: a goal is HELD on any criterion measured FAIL unless a ruling names 
 - A leader runs one goal; peers may run beside it; PEER-NOISE, the tripwire's name for a peer's own change, is not an incident; a goal folder is placed only while no leader runs; every role inherits LOOP_GOAL.
 - The goal's Standing rules section is law for the leader and is never a reason to stop.
 - Planted control: a planted control inside an open window is written by the leader, as that one Write, inside a window that brackets no other role, and the window's check names it as the planted INCIDENT.
+- Save-first rule: the leader saves every role's final message word for word as return.md beside its card before any other step, the RETURN line included.
 - Session-cut rule (templates/GOAL.md, Standing rule 1) and its resume step: When a goal resumes after a usage-limit cut, for every task whose last DISPATCH in the cut run has no RETURN, DONE, PARTIAL, FAIL or BLOCKED line after it, the leader writes `T<nn> BLOCKED leader record: cut by the usage limit, run log <name>, card <card path>` before it dispatches that task again, and never launches an agent whose DISPATCH line the step-log tool refused (a launch after a refused write is a FAIL under standing rule 1).
 
 ## GUARDS

@@ -80,6 +80,10 @@
 #   of the same goal and the same task id, before that task's next DISPATCH line, has a text starting "BLOCKED leader record:" (a
 #   hook-denied dispatch, or one cut by the usage limit). A DISPATCH with neither a return.md nor such a line prints FAIL as before.
 #
+#   K11-C11. Also exit 1 for the first RETURN line (text first word RETURN) of a task after a DISPATCH line of the same task whose
+#   card has no return.md beside it: the FAIL line names the RETURN line's number and says it was journaled but never saved. A
+#   return.md beside the card prints no such line. The DISPATCH line itself is judged by K07-C3 as before.
+#
 #   K07-C4. Also exit 1 for each ROLLBACK line of the goal whose named file is absent on disk, and, with --report PATH, for each
 #   ROLLBACK line whose named path appears nowhere in the Writes section of the report; each FAIL line names the line number
 #   in the log file. The named path is the first word after ROLLBACK in the line's text (outer quotes and backticks stripped);
@@ -507,6 +511,20 @@ def check(gid, jf, plan, report="", runs=""):
         for k in tds[1:]:
             if first_ret is None or first_ret > k:
                 retbad.append("line %d: a second DISPATCH for %s sits before the first RETURN, DONE, PARTIAL, FAIL or BLOCKED line of that task" % (nums[k], tid))
+    # K11-C11. A RETURN line of a task names the task's latest earlier DISPATCH; when that DISPATCH's card has no return.md
+    # beside it, the first such RETURN line prints a FAIL line: the return was journaled but never saved.
+    for k in gks:
+        if (jl[k][3].split() or [""])[0] != "RETURN":
+            continue
+        pd = next((j for j in reversed(dks) if j < k and jl[j][2] == jl[k][2]), None)
+        if pd is None:
+            continue
+        if any(j for j in gks if pd < j < k and jl[j][2] == jl[k][2] and (jl[j][3].split() or [""])[0] == "RETURN"):
+            continue
+        word = card_word(jl[pd][3])
+        if word is None or os.path.isfile(card_folder(word) + "/return.md"):
+            continue
+        retbad.append("line %d: the RETURN line for %s was journaled but never saved: no return.md beside the card %s of the DISPATCH on line %d" % (nums[k], jl[k][2], word, nums[pd]))
     retbad.sort(key=lambda s: int(s.split()[1].rstrip(":")))
     # K07-C4. The ROLLBACK-file rule. The path a ROLLBACK line names is the first word after ROLLBACK (outer quotes and backticks
     # stripped); the file must be on disk, resolved as the K07-C3 rule resolves a card path. With --report, the path must also

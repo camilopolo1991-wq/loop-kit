@@ -1,0 +1,4 @@
+# K11-C11: --check names a RETURN line whose return.md was never saved. id :: kind :: expect :: arg
+# expect is <exit>:<token> ;; <token>, a token with a leading ! must be absent from the output
+r1-return-journaled-never-saved :: check :: 1:FAIL line 3: the RETURN line for T01 was journaled but never saved ;; no return.md beside the card evidence/T01/writer/card.md :: return-not-saved
+r2-control-return-saved :: check :: 0:!never saved ;; !FAIL :: return-saved
