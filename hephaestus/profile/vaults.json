@@ -1,0 +1,6 @@
+{
+  "default": "main",
+  "vaults": [
+    {"name": "main", "path": "~/Documents/Hephaestus Vault", "sync": "owner-chosen remote; vault_snapshot.sh stages a zip"}
+  ]
+}

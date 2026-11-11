@@ -1,0 +1,14 @@
+{
+  "_comment": "Read by agent-hooks/skill-load-gate.py and review-gate.py. Fill surface_patterns with regexes that match YOUR guarded surfaces (database hosts, workflow engine, repo paths). Empty list = skill-load-gate guards nothing. claim_roots: path prefixes under which an unreviewed unit's claimed handles block use.",
+  "required_skills": ["working-agreement"],
+  "max_age_hours": 12,
+  "surface_patterns": [
+    "\\bloop_dispatch\\.py\\b",
+    "--agent\\s+loop-leader",
+    "\\.loop/goals\\b",
+    "\\bloop-journal\\b",
+    "PENDING\\.md"
+  ],
+  "write_patterns": null,
+  "claim_roots": ["~/.loop", "$OBSIDIAN_VAULT_PATH"]
+}

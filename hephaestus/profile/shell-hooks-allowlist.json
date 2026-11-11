@@ -1,0 +1,58 @@
+{
+  "approvals": [
+    {
+      "approved_at": "2026-10-21T05:58:19.949186Z",
+      "command": "<HERMES_HOME>/installs/0b0f45a937e3ec2a/environments/f77c8d48599e427189917236f76f95f3/venv/Scripts/python.exe <HERMES_HOME>/profiles/hephaestus/agent-hooks/review-gate.py",
+      "event": "pre_tool_call",
+      "script_mtime_at_approval": "2026-10-21T05:44:28.177796Z"
+    },
+    {
+      "approved_at": "2026-10-21T05:58:24.045733Z",
+      "command": "<HERMES_HOME>/installs/0b0f45a937e3ec2a/environments/f77c8d48599e427189917236f76f95f3/venv/Scripts/python.exe <HERMES_HOME>/profiles/hephaestus/agent-hooks/dispatch-gate.py",
+      "event": "pre_tool_call",
+      "script_mtime_at_approval": "2026-10-21T05:44:28.181899Z"
+    },
+    {
+      "approved_at": "2026-10-21T05:58:27.481308Z",
+      "command": "<HERMES_HOME>/installs/0b0f45a937e3ec2a/environments/f77c8d48599e427189917236f76f95f3/venv/Scripts/python.exe <HERMES_HOME>/profiles/hephaestus/agent-hooks/skill-load-gate.py",
+      "event": "pre_tool_call",
+      "script_mtime_at_approval": "2026-10-21T05:44:28.182448Z"
+    },
+    {
+      "approved_at": "2026-10-21T05:58:29.086502Z",
+      "command": "<HERMES_HOME>/installs/0b0f45a937e3ec2a/environments/f77c8d48599e427189917236f76f95f3/venv/Scripts/python.exe <HERMES_HOME>/profiles/hephaestus/agent-hooks/skill-load-receipt.py",
+      "event": "post_tool_call",
+      "script_mtime_at_approval": "2026-10-21T05:44:28.179796Z"
+    },
+    {
+      "approved_at": "2026-10-21T05:58:30.607684Z",
+      "command": "<HERMES_HOME>/installs/0b0f45a937e3ec2a/environments/f77c8d48599e427189917236f76f95f3/venv/Scripts/python.exe <HERMES_HOME>/profiles/hephaestus/agent-hooks/unit-receipt.py",
+      "event": "post_tool_call",
+      "script_mtime_at_approval": "2026-10-21T05:44:28.180898Z"
+    },
+    {
+      "approved_at": "2026-10-21T05:58:31.719725Z",
+      "command": "<HERMES_HOME>/installs/0b0f45a937e3ec2a/environments/f77c8d48599e427189917236f76f95f3/venv/Scripts/python.exe <HERMES_HOME>/profiles/hephaestus/agent-hooks/vault-recall.py",
+      "event": "pre_llm_call",
+      "script_mtime_at_approval": "2026-10-21T05:44:28.179796Z"
+    },
+    {
+      "approved_at": "2026-10-21T05:58:32.917010Z",
+      "command": "<HERMES_HOME>/installs/0b0f45a937e3ec2a/environments/f77c8d48599e427189917236f76f95f3/venv/Scripts/python.exe <HERMES_HOME>/profiles/hephaestus/agent-hooks/style-gate-hook.py",
+      "event": "post_llm_call",
+      "script_mtime_at_approval": "2026-10-21T05:44:28.178796Z"
+    },
+    {
+      "approved_at": "2026-10-21T05:58:34.535141Z",
+      "command": "<HERMES_HOME>/installs/0b0f45a937e3ec2a/environments/f77c8d48599e427189917236f76f95f3/venv/Scripts/python.exe <HERMES_HOME>/profiles/hephaestus/agent-hooks/record-gate-hook.py",
+      "event": "on_session_end",
+      "script_mtime_at_approval": "2026-10-21T05:44:28.180898Z"
+    },
+    {
+      "approved_at": "2026-10-25T01:13:23.242365Z",
+      "command": "<HERMES_HOME>/installs/0b0f45a937e3ec2a/environments/f77c8d48599e427189917236f76f95f3/venv/Scripts/python.exe <HERMES_HOME>/profiles/hephaestus/agent-hooks/secret-read-gate.py",
+      "event": "pre_tool_call",
+      "script_mtime_at_approval": "2026-10-25T01:11:01.998355Z"
+    }
+  ]
+}
