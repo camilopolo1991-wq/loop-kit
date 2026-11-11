@@ -1,0 +1,99 @@
+---
+name: loop-goal
+description: The GOAL, plan and task-card formats for the LOOP loop, and how the leader writes cards for the scout, writer and reviewer. Use when starting, planning or dispatching a goal.
+---
+
+# Goals, plans and cards
+
+A ticket is the unit of work. A GOAL.md is written only for work spanning several tickets; a single ticket carries its own Acceptance criteria, Authority and Budget, and needs no GOAL.md (skill loop-ticket has the ticket format and procedure).
+
+## GOAL.md (written by the owner or the orchestrator; the leader never edits it)
+```
+# <GOAL-ID>: <outcome in one line>
+Requirement: the owner's words, verbatim. What it does not ask for.
+Acceptance criteria: numbered, each observable, each able to fail.
+Authority: what the loop may do without asking (for example: writes to named surfaces, task branches). Everything else is a gate.
+Budget: max writes, max external calls, max model calls, max wall time (measured as skill loop-record defines it). Four ceilings, every one a number.
+Out of scope: named.
+Known context: pointers only (report ids, card titles). Never machine values: the scout measures those.
+Premises: carried figures, each marked CARRIED with its source, re-measured by a scout.
+Standing rules: the owner's standing rulings that override the base stops for this goal.
+```
+An edit to a placed GOAL.md leaves a signed trace: a commit by the owner, or a ledger row naming the owner as the source of the text, with the new sha256. The orchestrator's RULING.md names that trace by its ledger row number and the full sha. A GOAL.md whose sha changed with no such entry is not run.
+
+## plan.md (the leader's, on disk, so a compaction costs nothing)
+```
+# <GOAL-ID> plan. Updated <UTC>
+| T | task | surface / skill | done when | owner | status |
+|---|---|---|---|---|---|
+| T01 | ... | db / loop-db | ... | scout | PASS <evidence path> |
+Open questions for the owner: (only gates)
+## Live
+goal: <id> | status: <PLANNING | RUNNING | HELD | DONE> | window: <open tripwire id or none> | branch: <checked-out task branch or none> | retries: T<nn>=<n> | gate: <pending gate or none>
+Proposed cards: (findings outside the goal)
+```
+The Live block is rewritten before `TRIPWIRE OPEN` and after `TRIPWIRE CLOSE`, never inside a window, where only journal lines are written.
+Task status values: TODO, RUNNING, PASS, FAIL(n), BLOCKED, GATE, as the first word of the status cell.
+Goal status, the `status:` field in `## Live`: PLANNING, RUNNING, HELD, DONE. Nothing in parentheses, ever (`DONE (closing)` is not a status).
+`loop-card-lint plan.md` checks both, and `loop-card-lint report.md` checks the VERDICT.
+
+## Task card (leader to scout or writer)
+```
+TASK <GOAL-ID>/T<nn>: <one line>
+Preamble: $LOOP_HOME/templates/GOAL_PREAMBLE.md (Read it first; never pasted here)
+Traps: $LOOP_HOME/templates/TRAPS.md (Read it second when it exists)
+Load skill: <the surface skill on this machine, or "none (filesystem via loop-guard-run)">
+Surface: <workflow id and node name | tables | file paths | branch>
+Writable roots: <writer cards only: the roots this goal's writable.txt lists, on this one line, nothing outside them, then the writer's own evidence folder>
+Do: <exact, one change or one question>
+Done when: <observable criteria, copied into the review card>
+Proof: <truth table against pulled activeVersion | AST identity | row counts with control | byte diff | any expected-output string: raw `cmp` or bytes equality, command quoted in evidence>
+Must not: <limits from the goal's authority>
+Evidence to: $LOOP_HOME/goals/<GOAL-ID>/evidence/T<nn>/ (writer: .../T<nn>/writer/)
+Card file: this card, written by the leader to evidence/T<nn>/card.md (writer: .../T<nn>/writer/card.md)
+Premises: each figure marked measured <instrument> or CARRIED; refuting one is a successful outcome
+Return: the role's 30-line format
+```
+
+## Review card (leader to reviewer). Never include the writer's reasoning.
+```
+REVIEW <GOAL-ID>/T<nn>
+Preamble: $LOOP_HOME/templates/GOAL_PREAMBLE.md
+Traps: $LOOP_HOME/templates/TRAPS.md (Read it second when it exists)
+Load skill: <same surface skill>
+Criteria: <copied verbatim from the task card>
+Artefacts: <workflow id plus versionId before and after | table and query | commit sha | file paths, only copies the leader made under $LOOP_HOME/scratch/<GOAL-ID>/ | rows the criterion names, copied in>
+Comparison commands: <the cmp or bytes-equality commands the reviewer runs, quoted>
+Earlier populations: <the commands and their last counts, re-run by the reviewer as its regression sweep>
+Rollback recorded at: <the leader's copy under $LOOP_HOME/scratch/<GOAL-ID>/, or a command>
+Return: the reviewer's format (evidence to .../T<nn>/review/)
+Card file: evidence/T<nn>/review/card.md
+```
+The pretool guard denies a reviewer dispatch that carries RESULT/proof/writes lines, report.md, or the writer subfolder. The reviewer of a retry is chosen as `agents/loop-leader.md` requires.
+
+## Standing card rules (the card templates above follow them)
+One wording per item, the same words as in `templates/GOAL_PREAMBLE.md` and `templates/TRAPS.md`. `loop-card-lint card.md` has one named check for each item a card can get wrong; (h), (i) and (j) are the leader's behaviour and have none. The checks judge cards whose Preamble line names `GOAL_PREAMBLE.md`.
+
+- C1(a) Interpreter shapes per role: scouts and reviewers run the venv python spelled with a leading ~/, then -I, then one drive-style absolute script path; writers run the venv python with a leading ~/, then exactly one drive-style absolute script path under the writer's own evidence folder or its goal's scratch folder, no flag, no LOOP_PY, no read of config.env; LOOP_PY and loop-py are named for reviewers only.
+- C1(b) writable.txt: every writer card names, on one line headed Writable roots:, the roots its goal's writable.txt lists and nothing outside them.
+- C1(c) No git for writers. A writer card carries no git command. Commits are the leader's, after a review PASS on the final bytes.
+- C1(d) Every pre-edit and rollback copy goes under $LOOP_HOME/scratch/<GOAL-ID>/, never under evidence/.
+- C1(e) A reviewer card names the comparison commands the reviewer runs, on a line headed Comparison commands:, and points only at copies the leader made under $LOOP_HOME/scratch/<GOAL-ID>/; a read-only role is never told to cp, mv or redirect.
+- C1(f) No card carries a merge instruction or the name of the owner's denylist file; a card that measures ancestry names the command, never the merge as an action.
+- C1(g) A reviewer card never names the writer's evidence subfolder, the Rollback line included.
+- C1(h) Tripwire windows before rulings: a ruling, a placement or a goal-folder write happens only with no leader counted for that goal and no window open.
+- C1(i) Subagents stay in the same turn: a leader does not end its turn while a subagent runs.
+- C1(j) Before dispatching any role, the leader runs loop-card-lint on the card and journals its rc.
+
+## Rules the leader applies
+- A card never routes a role to plan.md, STATE.md or the journal. The leader copies what the role needs into the card. When a criterion names PASS rows of plan.md or journal lines, the leader copies those rows into the review card's Artefacts, and the reviewer's rule (never read plan.md) stands. Criteria and Done when stay the GOAL's words, verbatim, even when those words name plan.md.
+- Every card is written to its card file with the Write tool (that write makes the task's evidence folder), then linted and dispatched with the same text as `agents/loop-leader.md` (The loop, per task) requires. A card is written before its tripwire window opens, never inside one.
+- A GOAL.md whose sha changed is run only when RULING.md cites the ledger row number and the full sha.
+- One goal at a time. Inside it, tasks run in order. Scouts may run in parallel when their questions do not depend on each other. Writers never run in parallel.
+- A finding inside the goal's surface and authority that is reversible becomes a new task. Everything else becomes a proposed card.
+- A carried figure (from a report or a card) is a claim to check, not a fact. Readings that disagree are handled as the measurement discipline of `templates/GOAL_PREAMBLE.md` requires.
+- Trap: readonly-guard.py judges every physical line of the Bash payload, heredoc data included. A scout or reviewer that writes evidence quoting a guarded command (loop-sql with the write flag, a git state verb, loop-n8n put) is denied, and nothing is saved. In a read-only card, ask the role to describe such a command in words, or have the leader write that evidence from the return. The redirect check also reads a literal greater-than sign inside heredoc data (an arrow, say) as a redirect outside evidence/, so write `result:` in its place. Read-only roles cannot rm, so a throwaway debug file left in evidence/ stays there. Debug in scratch, or not at all.
+- A filesystem task (moving files to trash, writing a tarball) has no surface skill. Its card says `Surface: filesystem via loop-guard-run (no surface skill)` and quotes the GOAL's authority line. A card naming a skill that does not fit gets refused. Split a bulk move in two: a scout computes the exact list and every exclusion, the leader checks the list, and the writer moves only those rows, with rollback, manifest and a per-row progress log written before the first move.
+- Trap: the harness refuses a subagent's Write of a file named `summary.md`, `report.md`, `findings.md` or `analysis.md`. A task card must name its evidence write-up something else (for example `census.md`), or the write silently fails.
+- Rule, not a gate (nothing enforces a writer's choice of comparison; the auditor checks it after the fact): a task card's Proof naming any expected-output string is proven only by a raw byte comparison — `cmp` or a bytes equality (Python bytes ==), never a whitespace- or case-normalised comparison — with a control that fails on a one-byte change, and the evidence quotes the exact comparison command run.
+- Always: a tripwire window brackets every batch of scout or reviewer tasks: one `loop-tripwire start <GOAL-ID> <window-id>` per batch (parallel scouts dispatched together for the same purpose share one window, not one each), no writer dispatched and no leader write besides journal lines until `loop-tripwire check` closes it. `check` exit 1 or exit 2 both mean "do not trust this batch": quarantine its findings, journal an `INCIDENT` line, and report it rather than continue on it silently. The one exception is a difference confined to the session settings file or a surface the owner edits by hand, which the owner confirms he made himself, recorded as noise, never assumed without asking him.
