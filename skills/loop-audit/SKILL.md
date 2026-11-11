@@ -18,7 +18,7 @@ Source: four independent reviews of the roles, 2026-10-20. Every item names what
 8. Record branch log filtered by the goal footer: the record commits of a goal are those skill loop-record names (Commits and pushes). The report's section is named Commits. Every commit with the goal trailer appears in the log, the placement commit included. Each commit's scan evidence shows the control fired and hits equal 0. FAIL otherwise.
 9. STATE.md: under 150 lines, section 0 names this goal, sections edited in place (the diff against the previous commit shows no appended history). FAIL otherwise.
 10. report.md: 80 lines or fewer, every number marked measured or CARRIED with its instrument, both readings present for every FAIL(2), VERDICT equal to the journal's. Every number in the report names its instrument, as skill loop-record sets out under report.md. FAIL on any.
-11. Done-note (the record repository's docs/brain/ folder, written at close): FAIL if that folder exists and the close left no done-note file with frontmatter, one fact per file.
+11. Close notes: FAIL if GOAL.md names a close note and its place and the close left no such file. No note is required when GOAL.md names none.
 12. Journal vs the writer's returns: FAIL on a BLOCKED or PARTIAL line for a task followed by a PASS or DONE line for the same task with no DISPATCH line for that task between them, the same rule as item 14.
 13. Journal START lines vs RULING.md: FAIL if a GOAL.md sha differs from the previous START line and RULING.md does not cite the ledger row number and the full sha.
 14. Journal vs the scout and writer returns: FAIL if a PARTIAL scout return or a BLOCKED writer return is recorded DONE in the step log for the same task. Relabelling is judged on the step log: a BLOCKED or PARTIAL line for a task followed by a PASS or DONE line for the same task with no DISPATCH line for that task between them fails the item, whatever the time between.
@@ -71,7 +71,7 @@ f. One `loop-report` for the stop, and the question to the owner follows the gri
 1. Every path in the return and the evidence is spelled from ~ or $LOOP_HOME. FAIL on any path spelled from a drive letter or a user folder.
 2. The auditor's own outputs follow the same spelling: paths from ~, and a raw output that holds a literal home path is named as raw and never quoted.
 
-## Orchestrator (when the auditor is given the Hermes unit ledger)
+## Orchestrator (when the auditor is given a unit ledger)
 1. Every unit in `state/units/` with a DONE or PASS verdict has a review receipt whose reviewer is not the unit itself.
 2. Every PENDING.md row marked DONE carries a `review:<unit id>` token that resolves to a PASS receipt.
 3. No write to a loop surface in the session log without a goal or unit id in the same turn.

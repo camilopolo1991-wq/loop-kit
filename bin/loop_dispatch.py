@@ -99,7 +99,7 @@ CURRENT = os.path.join(LOOP_HOME, 'current')   # KIT-10 C2: one file per dispatc
 RECEIPTS = os.path.join(LOOP_HOME, 'cache', 'recall-receipts.json')
 LINTS = [os.path.join(LOOP_HOME, 'scripts', 'loop_goal_lint.py'),
          os.path.join(LOOP_HOME, 'scripts', 'goal_file_lint.py')]
-# Carried from the profile dispatcher: where a Hermes profile (HERMES_HOME set) keeps its recall
+# Profile fallback: where a run under a profile home (HERMES_HOME set) keeps its recall
 # receipts and goal lints. LOOP_HOME paths win; the profile paths apply only when HERMES_HOME is
 # set and the LOOP_HOME file is absent. With HERMES_HOME unset nothing here changes.
 _HH = os.environ.get('HERMES_HOME')

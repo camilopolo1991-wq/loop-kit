@@ -151,9 +151,13 @@ WRAPPER_WRITE = {
     # P34. A read is --read or --check as the FIRST argument. The old test ('--read' anywhere)
     # denied --check, the auditor's instrument, and allowed a write whose line text held --read.
     'loop-journal': lambda rest: not (bool(rest) and rest[0] in {'--read', '--check', '--dispatches', '--active'}),
+}
+# Hephaestus's own brain and recall tooling stays in the-forge under R2 (REPOS-01 reading r2).
+BRAIN_TOOL_WRITE = {
     'graphify': lambda rest: bool(rest) and rest[0] in {'extract', 'update', 'export', 'install', 'uninstall', 'hook', 'watch', 'add', 'merge-graphs', 'clone', 'global', 'cluster-only', 'label', 'save-result', 'reflect', 'prs'},
     'graphify-mcp': lambda rest: True,
 }
+WRAPPER_WRITE.update(BRAIN_TOOL_WRITE)
 
 GIT_READ_VERBS = {
     'status', 'log', 'diff', 'show', 'rev-parse', 'ls-files', 'ls-tree', 'cat-file', 'blame',

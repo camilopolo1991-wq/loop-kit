@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""K06-C7 rows runner: a loop home per seat (install.sh honours LOOP_HOME).
+"""K06-C7 rows runner: a configurable loop home (install.sh honours LOOP_HOME).
 
 Environment (no positional argument; exit 64 with the usage line when one is given or one of the first three is unset):
   LOOP_TREE        the tree under test
