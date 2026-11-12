@@ -924,7 +924,7 @@ store that silently overwrites loses the disagreement, which is the informative 
   so a one-line change handed over as safe errors on the first statement and the owner is
   left debugging your SQL: `select conname, pg_get_constraintdef(oid) from pg_constraint
   where confrelid = 'TABLE'::regclass` lists the inbound references in one query. Where a
-  dependent exists, decide its <OWNER> explicitly — re-point it, or drop it and say why it
+  dependent exists, decide its fate explicitly — re-point it, or drop it and say why it
   cannot be restored — rather than leaving a branch for the owner to resolve mid
   transaction. Check the dependent table's columns before promising to re-create the
   reference against them, and check whether the same object name also exists in a mirror

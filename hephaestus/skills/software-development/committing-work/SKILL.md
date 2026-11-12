@@ -87,7 +87,7 @@ Split them before acting:
 
 ## The false alarm to avoid
 
-I reported "536 files with secrets" in `n8n-exports/`. The real matches were
+I reported "536 files with secrets" in a workflow-export folder. The real matches were
 `secret = $env.PGRST_JWT_SECRET` and `createHmac('sha256', secret)` -- field
 names and correct env references, 4668 of them. Then "51 files with 40+ char
 literals" turned out to be rows of `-----` separators.
@@ -111,5 +111,5 @@ alarm in one sweep.
 
 - Never `git add -A` or `git add .` in a repo with unclassified untracked files.
 - Never force-push. Never push a branch other than the documented one
-  (`record` in `/opt/loop/ops`). Never merge without <OWNER>.
+  (the record branch the repo's own docs name). Never merge without <OWNER>.
 - Never commit a `.env`, a backup of one, or a pg_dump.

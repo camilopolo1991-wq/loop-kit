@@ -76,7 +76,7 @@ Then report, with both arms:
 
 ```
 cookies cleared      -> (none)
-clicked real link    -> token YMRgHcb2, received 17:46:19Z
+clicked real link    -> token <ID-PREFIX>, received 17:46:19Z
 LANDED               -> /kanban        not /login
 session              -> "<OWNER> <OWNER> [ADMIN]"   the user's own identity
 CONTROL tampered cookie -> bounced to /login
@@ -100,6 +100,6 @@ env backups showed it in one table.
 ## Side effects are not free
 
 Test probes against production alerting page a human. My bad-signature control
-fired two Slack alerts in `#recruiting-alerts` tagged "possible spoofed
+fired two Slack alerts in a team alert channel tagged "possible spoofed
 request". Warn the user before firing deliberate-failure probes, and tell them
 afterwards which alerts were yours.
