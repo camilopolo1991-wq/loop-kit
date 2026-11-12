@@ -1,4 +1,4 @@
-# PORT-MAP: loop-kit plugin (KIT12B-01)
+# PORT-MAP: the Forge plugin (plugin id loop-kit; KIT12B-01)
 
 Every row of the T01 inventory (67 rows: 54 at main, 13 at 6206b7f) with its class and its home.
 Classes: port = bytes carried into this plugin; wrap = called in place from `$LOOP_HOME/bin`, never copied; exclude = not shipped here.
@@ -77,5 +77,5 @@ Plugin-own files (no kit source): `.claude-plugin/plugin.json`, `hooks/hooks.jso
 
 Counts: 67 rows, port 12, wrap 37, exclude 18 (the 6206b7f hook rows are counted as exclude here because the main port stands in).
 
-Windows-only, not ported: the Hermes venv interpreter path and the `loop-py` Windows spelling (LOOP_PYTHON or `$LOOP_HOME/venv` take their place); the SessionStart preflight registration in the owner's Windows settings.
+Windows-only, not ported: the owner's Windows venv interpreter path and the `loop-py` Windows spelling (LOOP_PYTHON or `$LOOP_HOME/venv` take their place); the SessionStart preflight registration in the owner's Windows settings.
 The three per-role guards ship in `hooks/` but are not registered by `hooks/hooks.json`; the role agents register them with `bash "${CLAUDE_PLUGIN_ROOT}/hooks/run-guard.sh" <guard>` once REPOS-01's agents land.

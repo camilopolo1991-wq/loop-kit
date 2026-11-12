@@ -10,17 +10,17 @@ Lines in MANIFEST.txt:
 
 ```
 $ wc -l < MANIFEST.txt
-52
+60
 ```
 
 Files under bin/ that are not modules (`.py`) or caches (`.pyc`):
 
 ```
 $ find bin -type f ! -name "*.py" ! -name "*.pyc" | wc -l
-13
+17
 ```
 
-Command files, those files: loop-card-lint loop-dispatch loop-guard-run loop-inventory loop-journal loop-preflight loop-redact-check loop-report loop-scan loop-settings-merge loop-skill-lint loop-ticket loop-tripwire
+Command files, those files: loop-card-lint loop-dispatch loop-guard-run loop-inventory loop-journal loop-preflight loop-py loop-record-commit loop-record-merge loop-redact-check loop-report loop-scan loop-settings-merge loop-skill-lint loop-ticket loop-tripwire loop-worktree
 
 Hooks files (caches left out):
 
@@ -37,13 +37,13 @@ Row folders under tests/rows/:
 
 ```
 $ find tests/rows -mindepth 1 -maxdepth 1 -type d | wc -l
-55
+69
 ```
 
 Every row runner takes no argument and reads its environment. The folders on the second line below also take the tree, the home and the work folder as three arguments after the runner path, in that order, with the same fills.
 
-Row folders: C1 C10 C12 C2 C3 C4 C5 C6 C8 K03-C1 K03-C2 K03-C3 K03-C4 K03-C5 K03-C6 K03-C7 K03-C8 K04-C1 K04-C2 K04-C3 K04-C4 K04-C5 K04-C6 K04-C7 K04-C8 K05-C1 K05-C2 K05-C3 K05-C4 K05-C5 K05-C8 K06-C1 K06-C2 K06-C3 K06-C4 K06-C5 K06-C6 K06-C7 K07-C1 K07-C2 K07-C3 K07-C4 K07-C5 K07-C6 K07-C7 K08-C1 K09-C1 K09-C2 S01-C1 S01-C2 S01-C3 S01-C4 S01-C5 S01-C7 S01-C8
-Positional form: C1 C10 C12 C2 C3 C4 C5 C6 C8
+Row folders: C1 C10 C12 C2 C3 C4 C5 C6 C8 K03-C1 K03-C2 K03-C3 K03-C4 K03-C5 K03-C6 K03-C7 K03-C8 K04-C1 K04-C2 K04-C3 K04-C4 K04-C5 K04-C6 K04-C7 K04-C8 K05-C1 K05-C2 K05-C3 K05-C4 K05-C5 K05-C8 K06-C1 K06-C2 K06-C3 K06-C4 K06-C5 K06-C6 K06-C7 K07-C1 K07-C2 K07-C3 K07-C4 K07-C5 K07-C6 K07-C7 K08-C1 K09-C1 K09-C2 K10-C2 K10-C3 K10-C4 K10-C5 K10-C6 K10-C9 K11-C11 K11-C2 K11-C3 K11-C4 K11-C5 K11-C6 K11-C8 K11-C9 S01-C1 S01-C2 S01-C3 S01-C4 S01-C5 S01-C7 S01-C8
+Positional form: C1 C10 C12 C2 C3 C4 C5 C6 C8 K10-C3 K10-C4
 
 ## Configuration keys
 
