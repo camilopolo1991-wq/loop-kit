@@ -1,0 +1,37 @@
+# Recommended settings for a PERSONAL agent on a laptop or VM (review 05, section 6).
+# Apply with `hermes config set <key> <value>`; lists need a config merge with the gateway stopped.
+memory:
+  memory_enabled: true
+  user_profile_enabled: true
+  memory_char_limit: 2200
+  user_char_limit: 1375
+approvals:
+  destructive_slash_confirm: true
+command_allowlist: []            # the previous install pre-approved 23 destructive classes; start empty
+platform_toolsets:
+  cli: [browser, clarify, code_execution, cronjob, delegation, file, memory, session_search, skills, terminal, todo, vision, web]
+  telegram: [web, vision, skills, todo, memory, session_search, clarify, delegation]   # add terminal only after allowed_chats + TELEGRAM_ALLOWED_USERS are set
+agent:
+  max_turns: 60
+tool_loop_guardrails:
+  hard_stop_enabled: true
+delegation:
+  max_iterations: 50
+  subagent_auto_approve: false
+privacy:
+  redact_pii: true
+session_reset:
+  mode: both
+  idle_minutes: 1440
+  at_hour: 4
+prompt_caching:
+  cache_ttl: "1h"
+
+# Post-turn self-improvement fork. Default is TRUE and it FAILS OPEN, so a malformed
+# config leaves it on. It patched three bundle skill files unasked on first install
+# (curator ledger f7fab308, 8aaf2c26, d31dec64, 4944ed5a), rewriting LF to CRLF and
+# adding 95 lines. /refine still works with this off, so on-demand self-improvement is
+# kept and only the silent automatic pass is removed.
+auxiliary:
+  background_review:
+    enabled: false

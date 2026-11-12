@@ -1,0 +1,40 @@
+# Rendered by install.sh into $HERMES_HOME/config.hooks.yaml. Merge into config.yaml with
+# the gateway stopped, then accept the hooks once on a TTY (hooks_auto_accept stays false).
+#
+# Two things this file must get right and the shipped version did not:
+#  1. The ROOT is the real profile home, not a conventional ~/.hermes. Hermes execs the
+#     command as argv (no shell), so a path under a home that does not exist on this host
+#     registers fine and never fires, while the config reads as enforced.
+#  2. Every command names the INTERPRETER by full path and then the hook by full path.
+#     A bare .py as argv[0] cannot execute on Windows: measured, direct exec of a
+#     shebang-only script raises OSError, so shebang reliance is not portable.
+# Forward slashes throughout: shlex eats Windows backslashes, and Hermes splits this
+# string before exec.
+hooks:
+  pre_tool_call:
+    - matcher: "delegate_task|terminal|execute_code|write_file|patch"
+      command: "<HERMES_HOME>/installs/0b0f45a937e3ec2a/environments/f77c8d48599e427189917236f76f95f3/venv/Scripts/python.exe <HERMES_HOME>/profiles/hephaestus/agent-hooks/review-gate.py"
+      timeout: 15
+    - matcher: "terminal|execute_code"
+      command: "<HERMES_HOME>/installs/0b0f45a937e3ec2a/environments/f77c8d48599e427189917236f76f95f3/venv/Scripts/python.exe <HERMES_HOME>/profiles/hephaestus/agent-hooks/dispatch-gate.py"
+      timeout: 25
+    - matcher: "terminal|execute_code|write_file|patch"
+      command: "<HERMES_HOME>/installs/0b0f45a937e3ec2a/environments/f77c8d48599e427189917236f76f95f3/venv/Scripts/python.exe <HERMES_HOME>/profiles/hephaestus/agent-hooks/skill-load-gate.py"
+      timeout: 15
+  post_tool_call:
+    - matcher: "skill_view"
+      command: "<HERMES_HOME>/installs/0b0f45a937e3ec2a/environments/f77c8d48599e427189917236f76f95f3/venv/Scripts/python.exe <HERMES_HOME>/profiles/hephaestus/agent-hooks/skill-load-receipt.py"
+      timeout: 10
+    - matcher: "delegate_task"
+      command: "<HERMES_HOME>/installs/0b0f45a937e3ec2a/environments/f77c8d48599e427189917236f76f95f3/venv/Scripts/python.exe <HERMES_HOME>/profiles/hephaestus/agent-hooks/unit-receipt.py"
+      timeout: 10
+  pre_llm_call:
+    - command: "<HERMES_HOME>/installs/0b0f45a937e3ec2a/environments/f77c8d48599e427189917236f76f95f3/venv/Scripts/python.exe <HERMES_HOME>/profiles/hephaestus/agent-hooks/vault-recall.py"
+      timeout: 10
+  post_llm_call:
+    - command: "<HERMES_HOME>/installs/0b0f45a937e3ec2a/environments/f77c8d48599e427189917236f76f95f3/venv/Scripts/python.exe <HERMES_HOME>/profiles/hephaestus/agent-hooks/style-gate-hook.py"
+      timeout: 10
+  on_session_end:
+    - command: "<HERMES_HOME>/installs/0b0f45a937e3ec2a/environments/f77c8d48599e427189917236f76f95f3/venv/Scripts/python.exe <HERMES_HOME>/profiles/hephaestus/agent-hooks/record-gate-hook.py"
+      timeout: 15
+hooks_auto_accept: false

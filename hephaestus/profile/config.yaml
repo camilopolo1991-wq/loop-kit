@@ -1,0 +1,163 @@
+model:
+  default: claude-opus-5-5
+  provider: anthropic
+_config_version: 50
+onboarding:
+  seen:
+    profile_build_offered: true
+    tool_progress_prompt: true
+    busy_input_prompt: true
+voice:
+  gpt_live:
+    voice: marin
+fallback_providers: []
+moa:
+  presets:
+    default:
+      reference_models:
+        - provider: nous
+          model: nous/welcome
+          enabled: true
+        - provider: openrouter
+          model: deepseek/deepseek-v4-pro
+          enabled: true
+      degraded_reference_policy: loud
+      fanout: user_turn
+  reference_models:
+    - provider: nous
+      model: nous/welcome
+      enabled: true
+    - provider: openrouter
+      model: deepseek/deepseek-v4-pro
+      enabled: true
+  aggregator:
+    provider: openrouter
+    model: anthropic/claude-opus-4.8
+  degraded_reference_policy: loud
+  fanout: user_turn
+  enabled: true
+telemetry:
+  shared_metrics:
+    enabled: false
+    send: false
+    offer_version: 2
+auxiliary:
+  background_review:
+    enabled: false
+
+# ---- hooks, from config.hooks.yaml rendered by install.sh -------------------
+# Each command is '<interpreter full path> <hook full path>'. A bare .py as argv[0]
+# cannot be exec'd on Windows and Hermes execs this string as argv with no shell.
+hooks:
+  pre_tool_call:
+    - matcher: "delegate_task|terminal|execute_code|write_file|patch"
+      command: "<HERMES_HOME>/installs/0b0f45a937e3ec2a/environments/f77c8d48599e427189917236f76f95f3/venv/Scripts/python.exe <HERMES_HOME>/profiles/hephaestus/agent-hooks/review-gate.py"
+      timeout: 15
+    - matcher: "terminal|execute_code"
+      command: "<HERMES_HOME>/installs/0b0f45a937e3ec2a/environments/f77c8d48599e427189917236f76f95f3/venv/Scripts/python.exe <HERMES_HOME>/profiles/hephaestus/agent-hooks/dispatch-gate.py"
+      timeout: 25
+    - matcher: "terminal|execute_code|write_file|patch"
+      command: "<HERMES_HOME>/installs/0b0f45a937e3ec2a/environments/f77c8d48599e427189917236f76f95f3/venv/Scripts/python.exe <HERMES_HOME>/profiles/hephaestus/agent-hooks/skill-load-gate.py"
+      timeout: 15
+    - matcher: "terminal|execute_code"
+      command: "<HERMES_HOME>/installs/0b0f45a937e3ec2a/environments/f77c8d48599e427189917236f76f95f3/venv/Scripts/python.exe <HERMES_HOME>/profiles/hephaestus/agent-hooks/secret-read-gate.py"
+      timeout: 10
+  post_tool_call:
+    - matcher: "skill_view"
+      command: "<HERMES_HOME>/installs/0b0f45a937e3ec2a/environments/f77c8d48599e427189917236f76f95f3/venv/Scripts/python.exe <HERMES_HOME>/profiles/hephaestus/agent-hooks/skill-load-receipt.py"
+      timeout: 10
+    - matcher: "delegate_task"
+      command: "<HERMES_HOME>/installs/0b0f45a937e3ec2a/environments/f77c8d48599e427189917236f76f95f3/venv/Scripts/python.exe <HERMES_HOME>/profiles/hephaestus/agent-hooks/unit-receipt.py"
+      timeout: 10
+  pre_llm_call:
+    - command: "<HERMES_HOME>/installs/0b0f45a937e3ec2a/environments/f77c8d48599e427189917236f76f95f3/venv/Scripts/python.exe <HERMES_HOME>/profiles/hephaestus/agent-hooks/vault-recall.py"
+      timeout: 10
+  post_llm_call:
+    - command: "<HERMES_HOME>/installs/0b0f45a937e3ec2a/environments/f77c8d48599e427189917236f76f95f3/venv/Scripts/python.exe <HERMES_HOME>/profiles/hephaestus/agent-hooks/style-gate-hook.py"
+      timeout: 10
+  on_session_end:
+    - command: "<HERMES_HOME>/installs/0b0f45a937e3ec2a/environments/f77c8d48599e427189917236f76f95f3/venv/Scripts/python.exe <HERMES_HOME>/profiles/hephaestus/agent-hooks/record-gate-hook.py"
+      timeout: 15
+hooks_auto_accept: false
+
+# ---- safer defaults, from config.recommended.yaml ---------------------------
+memory:
+  memory_enabled: true
+  user_profile_enabled: true
+  memory_char_limit: 2200
+  user_char_limit: 1375
+approvals:
+  destructive_slash_confirm: true
+  mode: "off"
+command_allowlist:               # the previous install pre-approved 23 destructive classes; start empty
+  - cua:bring_to_front:foreground
+  - cua:click:background
+  - cua:click:foreground
+  - cua:key:foreground
+  - cua:type:background
+  - cua:type:foreground
+  - script execution via heredoc
+platform_toolsets:
+  cli: [browser, clarify, code_execution, computer_use, cronjob, delegation, file, memory, session_search, skills, terminal, todo, vision, web]
+  telegram: [clarify, file, memory, session_search, skills, terminal, todo, vision, web] # add terminal only after allowed_chats + TELEGRAM_ALLOWED_USERS are set
+agent:
+  max_turns: 60
+tool_loop_guardrails:
+  hard_stop_enabled: true
+delegation:
+  max_iterations: 50
+  subagent_auto_approve: false
+privacy:
+  redact_pii: true
+session_reset:
+  mode: both
+  idle_minutes: 1440
+  at_hour: 4
+prompt_caching:
+  cache_ttl: "1h"
+
+# Post-turn self-improvement fork. Default is TRUE and it FAILS OPEN, so a malformed
+# config leaves it on. It patched three bundle skill files unasked on first install
+# (curator ledger f7fab308, 8aaf2c26, d31dec64, 4944ed5a), rewriting LF to CRLF and
+# adding 95 lines. /refine still works with this off, so on-demand self-improvement is
+# kept and only the silent automatic pass is removed.
+platforms:
+  telegram:
+    enabled: true
+    allowed_chats:
+      - 6680381303
+wake_word:
+  enabled: false
+browser:
+  use_real_profile: false
+known_plugin_toolsets:
+  telegram:
+    - a2a
+known_builtin_toolsets:
+  telegram:
+    - browser
+    - clarify
+    - code_execution
+    - computer_use
+    - connections
+    - context_engine
+    - cronjob
+    - delegation
+    - discord
+    - discord_admin
+    - file
+    - image_gen
+    - kanban
+    - memory
+    - session_search
+    - skills
+    - stt
+    - terminal
+    - todo
+    - tts
+    - video
+    - video_gen
+    - vision
+    - web
+    - x_search
+    - yuanbao

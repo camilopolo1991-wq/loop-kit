@@ -1,4 +1,4 @@
-# K06-C7 rows: a loop home per seat. Fields: id :: kind :: expected :: argument
+# K06-C7 rows: a configurable loop home. Fields: id :: kind :: expected :: argument
 # H is a throwaway home under LOOP_WORK; the second home is H/.loop-second (a non-default name), the first is H/.loop.
 # Every row is judged the same on every tree; wt-main's install.sh ignores LOOP_HOME, so its rows that need the second home fail.
 # (a) the install of the tree with LOOP_HOME at the second home: bin, templates, goals, scratch and a config.env whose LOOP_HOME and
