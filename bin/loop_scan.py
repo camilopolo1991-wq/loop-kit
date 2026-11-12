@@ -7,14 +7,20 @@
 
 It first runs the same detector on a built-in control that must fire in every category.
 If the control does not fire, the scan is broken and it exits 3.
+KIT12A-01 S51: a second scanner, gitleaks (--redact, a rule set carried in this file and handed to it at run time
+through GITLEAKS_CONFIG_TOML, never a file kept), runs over the same input; its own control must fire (else exit 3).
+The binary is LOOP_GITLEAKS, else gitleaks on PATH. Not found or not runnable: gitleaks=UNKNOWN and exit 4, never a pass.
 Prints counts per category and file:line locations only, never the matched text.
 Bare UUIDs and sha256 digests are not hits: they were noise in every PB scan.
 A line containing the token loop-scan:control is a deliberate test string and is skipped; the count of skipped lines is printed.
 """
+import json
 import os
 import re
+import shutil
 import subprocess
 import sys
+import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
 import loop_redact  # noqa: E402
@@ -22,10 +28,10 @@ from loop_redact import Redactor  # noqa: E402
 
 # GATE-01 T05: loop_redact.py's api-key pattern needs a \b immediately before
 # "api", which never holds after an underscore (e.g. SERVICE_API_KEY, or a
-# lowercase service_api_key). loop_redact.py itself is out of this task's
-# surface, so add a supplemental pattern here instead: it fires only when an
-# underscore precedes "api", on top of (never in place of) the 12 patterns
-# already in loop_redact.PATTERNS.
+# lowercase service_api_key). Add a supplemental pattern here: it fires only
+# when an underscore precedes "api", on top of (never in place of) the entries
+# already in loop_redact.PATTERNS (19 at KIT12A-01, counted by len(PATTERNS)
+# before this append; this entry is the 20th).
 loop_redact.PATTERNS.append((
     re.compile(r'(?i)(?<=_)(api[_ -]?key\b["\']?\s*[:=]\s*["\']?)(?!\[[A-Z_]+\])[A-Za-z0-9_\-]{16,}'),
     r'\1[REDACTED]',
@@ -109,7 +115,10 @@ def hits(r, text):
 USAGE = """usage: loop-scan [--help]
        loop-scan                the staged diff (git diff --cached, added lines)
        loop-scan --range A..B   the added lines of a commit range (RECORD_BRANCH default engine-record)
-       loop-scan FILE [FILE ...]  whole files"""
+       loop-scan FILE [FILE ...]  whole files
+       second scanner: gitleaks (LOOP_GITLEAKS, else PATH); summary field gitleaks=<n> or gitleaks=UNKNOWN
+       exit: 0 clean, 1 a hit (either scanner), 2 usage or repo failure, 3 a control did not fire,
+             4 gitleaks absent or unrunnable (gitleaks=UNKNOWN, never a pass; wins over 1)"""
 
 
 def resolve_repo(cwd_only=False):
@@ -147,6 +156,102 @@ def git_diff(repo, extra):
     return p.stdout.decode('utf-8', 'replace')
 
 
+class GitleaksUnknown(Exception):
+    """The second scanner could not give a reading. The text is a fixed reason, never a path or a value."""
+
+
+GL_COMMON = ['--redact', '--no-banner', '--log-level', 'error', '-f', 'json', '-r', '-', '--exit-code', '2']
+GL_TIMEOUT = 300
+
+
+def gitleaks_toml():
+    """KIT12A-01 S51. The rule set handed to gitleaks at run time (GITLEAKS_CONFIG_TOML), built from
+    loop_redact.KEYNAME_SUFFIXES: the gitleaks defaults on their own gave 0 on the planted shape. It extends the
+    defaults, adds one key-name rule (a 20+ character value of the key alphabet; the allowlist on the secret drops a
+    value with no digit, a value with no letter, a path-like value and a bare UUID, which is what the lookaheads do
+    in loop_redact), and skips a line holding the control token like the pattern scan does. No file is kept."""
+    rx = (r'(?i)\b[a-z0-9_]*(?:' + loop_redact.KEYNAME_ALT +
+          r')["\']?[ \t]*[:=][ \t]*["\']?([A-Za-z0-9+/=_-]{20,})')
+    q = json.dumps
+    return '\n'.join([
+        '[extend]', 'useDefault = true', '',
+        '[[allowlists]]', 'regexTarget = "line"', 'regexes = [%s]' % q('loop-scan:control'), '',
+        '[[rules]]', 'id = "loop-keyname-assignment"', 'description = "key-name assignment, long random value"',
+        'regex = %s' % q(rx), 'secretGroup = 1', '',
+        '[[rules.allowlists]]', 'regexTarget = "secret"',
+        'regexes = [%s, %s, %s, %s]' % (q(r'^[^0-9]*$'), q(r'^[^A-Za-z]*$'), q(r'^/'),
+                                        q(r'(?i)^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$')), ''])
+
+
+def gitleaks_bin():
+    """LOOP_GITLEAKS when set (never a fallback to PATH then), else gitleaks on PATH. Raises GitleaksUnknown."""
+    given = os.environ.get('LOOP_GITLEAKS', '').strip()
+    if given:
+        if not os.path.isfile(given):
+            raise GitleaksUnknown('LOOP_GITLEAKS does not name a file')
+        return given
+    found = shutil.which('gitleaks')
+    if not found:
+        raise GitleaksUnknown('gitleaks not found (LOOP_GITLEAKS unset, not on PATH)')
+    return found
+
+
+def gitleaks_run(binpath, tail):
+    """Run gitleaks with the carried rules; return [(file, line)] of its findings. Everything else in its report
+    (the redacted match, the rule, the commit) is dropped here, in process. Raises GitleaksUnknown."""
+    env = dict(os.environ)
+    env.pop('GITLEAKS_CONFIG', None)  # --config and this variable would outrank the carried rule set
+    env['GITLEAKS_CONFIG_TOML'] = gitleaks_toml()
+    try:
+        p = subprocess.run([binpath] + tail[:1] + GL_COMMON + tail[1:], stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                           stdin=subprocess.DEVNULL, env=env, timeout=GL_TIMEOUT)
+    except (OSError, subprocess.SubprocessError):
+        raise GitleaksUnknown('gitleaks could not be run')
+    if p.returncode not in (0, 2):
+        raise GitleaksUnknown('gitleaks exited %d' % p.returncode)
+    try:
+        report = json.loads(p.stdout.decode('utf-8', 'replace') or 'null')
+    except ValueError:
+        report = None
+    if not isinstance(report, list):
+        raise GitleaksUnknown('gitleaks gave no readable report')
+    found = [(str(x.get('File', '')).replace('\\', '/'), int(x.get('StartLine') or 0)) for x in report if isinstance(x, dict)]
+    if (p.returncode == 2) != bool(found):
+        raise GitleaksUnknown('gitleaks exit code and report disagree')
+    return found
+
+
+def gitleaks_control(binpath):
+    """The second scanner's own control: its rule set, run over a throwaway file whose one line is built here from
+    parts, must report a finding. The file is deleted after the run. Raises GitleaksUnknown when gitleaks fails."""
+    d = tempfile.mkdtemp(prefix='loop-scan-gl-')
+    try:
+        fx = os.path.join(d, 'control.txt')
+        with open(fx, 'w', encoding='utf-8') as fh:
+            fh.write('control_' + 'access_key' + '=' + 'zz9' + 'z' * 20 + '\n')
+        return len(gitleaks_run(binpath, ['dir', fx])) >= 1
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
+def gitleaks_scan(mode, files, repo, rng):
+    """(count, [file:line]) from gitleaks over the same input loop-scan scanned: the FILE arguments (files), the
+    commit range (range) or the staged change (bare). Raises GitleaksUnknown. Not run by a test here for the range
+    and bare modes (they need a repository)."""
+    binpath = gitleaks_bin()
+    if not gitleaks_control(binpath):
+        return None, []
+    locs = []
+    if mode == 'files':
+        for f in files:
+            locs += [(f, ln) for _, ln in gitleaks_run(binpath, ['dir', f])]
+    elif mode == 'range':
+        locs = gitleaks_run(binpath, ['git', '--log-opts', rng, repo])
+    else:
+        locs = gitleaks_run(binpath, ['git', '--staged', repo])
+    return len(locs), ['%s:%d' % x for x in locs]
+
+
 def main():
     args = sys.argv[1:]
     if args and args[0] in ('--help', '-h'):
@@ -170,8 +275,19 @@ def main():
         return 3
     name_control ='n/a (no names file)'
     if r.names_re is not None:
-        name_control = 'fired' if r.names_re.search(' ' + r.names_list[-1] + ' ') else 'NOT FIRED'
-        if name_control != 'fired':
+        ok = bool(r.names_re.search(' ' + r.names_list[-1] + ' '))
+        # KIT12A-01 S78: second probe, the joined form (no separator) of the first two single-token entries
+        # (distinct ignoring case, as the redactor builds its pairs). Fewer than two: the single probe, said so.
+        singles = []
+        for n in r.names_list:
+            if len(n.split()) == 1 and all(n.casefold() != s.casefold() for s in singles):
+                singles.append(n)
+        if len(singles) >= 2:
+            ok = ok and bool(r.names_re.search(' ' + singles[0] + singles[1] + ' '))
+            name_control = 'fired' if ok else 'NOT FIRED'
+        else:
+            name_control = 'fired(single-probe,fewer-than-two-single-token-entries)' if ok else 'NOT FIRED'
+        if not name_control.startswith('fired'):
             print('loop-scan: NAME CONTROL DID NOT FIRE - scanner broken')
             return 3
     units = []
@@ -183,7 +299,7 @@ def main():
             return 2
         where = ' repo=%s (%s)' % (tilde_home(repo.replace('\\', '/')), src)
     if args and args[0] == '--range':
-        if len(args) < 2:
+        if len(args) < 2 or args[1].startswith('-'):
             print(USAGE)
             return 2
         diff = git_diff(repo, [args[1]])
@@ -219,11 +335,29 @@ def main():
                 n += t
         if n:
             locs.append(f'{f}:{i}')
-    print(f'loop-scan: control=fired name_control={name_control} lines={len(units)} control_lines_skipped={skipped} hits={r.count} ' +
-          ' '.join(f'{k}={v}' for k, v in sorted(r.by_kind.items())) + where)
+    mode = 'range' if args and args[0] == '--range' else ('files' if args else 'bare')
+    gl_n, gl_locs, gl_why = None, [], ''
+    try:
+        gl_n, gl_locs = gitleaks_scan(mode, args, repo if mode != 'files' else None, args[1] if mode == 'range' else None)
+        if gl_n is None:
+            print('loop-scan: GITLEAKS CONTROL DID NOT FIRE - scanner broken')
+            return 3
+    except GitleaksUnknown as e:
+        gl_why = str(e)
+    parts = ['loop-scan: control=fired name_control=%s lines=%d control_lines_skipped=%d hits=%d' % (
+        name_control, len(units), skipped, r.count)]
+    parts += ['%s=%d' % kv for kv in sorted(r.by_kind.items())]
+    parts.append('gitleaks=' + ('UNKNOWN' if gl_n is None else str(gl_n)))
+    print(' '.join(parts) + where)
+    if gl_n is None:
+        print('  gitleaks unavailable: ' + gl_why)
     for l in locs[:50]:
         print('  hit at ' + l)
-    return 1 if r.count else 0
+    for l in gl_locs[:50]:
+        print('  gitleaks hit at ' + l)
+    if gl_n is None:
+        return 4
+    return 1 if (r.count or gl_n) else 0
 
 
 def parse_diff(diff):
