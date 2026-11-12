@@ -255,8 +255,8 @@ in one pass, clustered by what each unblocks rather than by goal id — five gat
 that all feed one install get the install finished; five gates from five goals
 finish nothing. Answer yourself any gate the record already settles: a goal asking
 "was that config change you?" after a credential swap you performed is not a
-question for the owner. `references/gate-escalation.md` has the extraction
-procedure and why a single heading pattern misses most of them.
+question for the owner. The section "Extracting gates across every goal" above has
+the extraction procedure and why a single heading pattern misses most of them.
 
 **"I don't recall" from the owner is not a dead end — look for a box-answerable
 route before recording CANNOT DETERMINE.** An identity, an ownership or a
