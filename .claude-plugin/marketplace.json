@@ -1,0 +1,12 @@
+{
+  "name": "loop-kit",
+  "owner": {
+    "name": "loop-kit maintainer"
+  },
+  "plugins": [
+    {
+      "name": "loop-kit",
+      "source": "./plugin/loop-kit"
+    }
+  ]
+}

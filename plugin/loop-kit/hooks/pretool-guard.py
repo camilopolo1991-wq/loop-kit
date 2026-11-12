@@ -92,10 +92,10 @@ BASH_DENY = [
     (r'(?<![\w-])psql\b', 'Use the SQL wrapper (loop-sql). It is read-only by default, redacts its output, and journals writes.'),
     (r'hooks\.slack\.com|discord(app)?\.com/api/webhooks|api\.telegram\.org/bot', 'Never fire a chat webhook from the loop. The owner posts.'),
     # authority: the owner only. The leader prints the command for him to run.
-    (r'git\s+push\b[^\n;&|]*\b(main|master)\b', 'Pushing main or master is the owner\'s. Print the command for the owner.'),
-    (r'git\s+push\b[^\n;&|]*(\s--force\b|\s-f\b|--force-with-lease|--mirror|--delete|\s:\S)', 'Force-push, mirror and remote deletion are the owner\'s.'),
-    (r'git\s+(filter-repo|filter-branch)\b|\bbfg\b', 'A history rewrite is the owner\'s.'),
-    (r'git\s+(merge|rebase)\b[^\n;&|]*\b(main|master)\b', 'Merges into or onto main are the owner\'s.'),
+    (r'git(?:\s+(?:-[cC]\s+\S+|--[\w-]+=\S+|--[\w-]+))*\s+push\b[^\n;&|]*\b(main|master)\b', 'Pushing main or master is the owner\'s. Print the command for the owner.'),
+    (r'git(?:\s+(?:-[cC]\s+\S+|--[\w-]+=\S+|--[\w-]+))*\s+push\b[^\n;&|]*(\s--force\b|\s-f\b|--force-with-lease|--mirror|--delete|\s:\S|\s\+\S)', 'Force-push, mirror and remote deletion are the owner\'s.'),
+    (r'git(?:\s+(?:-[cC]\s+\S+|--[\w-]+=\S+|--[\w-]+))*\s+(filter-repo|filter-branch)\b|\bbfg\b', 'A history rewrite is the owner\'s.'),
+    (r'git(?:\s+(?:-[cC]\s+\S+|--[\w-]+=\S+|--[\w-]+))*\s+(merge(?![\w-])|rebase)\b[^\n;&|]*\b(main|master)\b', 'Merges into or onto main are the owner\'s.'),
     (r'\b(GRANT|REVOKE)\b|\b(CREATE|ALTER|DROP)\s+(ROLE|USER)\b|\bDROP\s+(TABLE|SCHEMA|DATABASE)\b|\bTRUNCATE\b', 'GRANT, roles and drops are the owner\'s.'),
     (r'\bgh\s+pr\s+merge\b', 'A GitHub PR merge is a merge. the owner\'s.'),
     (r'docker\s+(compose\s+)?(down|rm|kill|stop|restart)\b', 'Stopping or removing containers is the owner\'s.'),
@@ -198,13 +198,13 @@ PASS_TOOLS = {
 # main-push 2 hits / 0 false, force-push 1 / 0, and the two authority rules
 # below inherit the same shapes already proven in BASH_DENY.
 DISPATCH_DENY = [
-    (r'git\s+push\b[^\n;&|]*\b(main|master)\b',
+    (r'git(?:\s+(?:-[cC]\s+\S+|--[\w-]+=\S+|--[\w-]+))*\s+push\b[^\n;&|]*\b(main|master)\b',
      "A dispatch may not instruct a push of main or master. That is the owner's."),
-    (r'git\s+push\b[^\n;&|]*(\s--force\b|\s-f\b|--force-with-lease|--mirror|--delete)',
+    (r'git(?:\s+(?:-[cC]\s+\S+|--[\w-]+=\S+|--[\w-]+))*\s+push\b[^\n;&|]*(\s--force\b|\s-f\b|--force-with-lease|--mirror|--delete|\s:\S|\s\+\S)',
      "A dispatch may not instruct a force-push, mirror or remote deletion."),
-    (r'git\s+(filter-repo|filter-branch)\b|\bbfg\b',
+    (r'git(?:\s+(?:-[cC]\s+\S+|--[\w-]+=\S+|--[\w-]+))*\s+(filter-repo|filter-branch)\b|\bbfg\b',
      "A dispatch may not instruct a history rewrite."),
-    (r'git\s+(merge|rebase)\b[^\n;&|]*\b(main|master)\b',
+    (r'git(?:\s+(?:-[cC]\s+\S+|--[\w-]+=\S+|--[\w-]+))*\s+(merge(?![\w-])|rebase)\b[^\n;&|]*\b(main|master)\b',
      "A dispatch may not instruct a merge into or onto main."),
 ]
 
