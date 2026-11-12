@@ -1,6 +1,6 @@
-# loop-kit
+# The Forge
 
-A guard kit for running Claude Code agents as a small team that cannot leak a secret, cannot widen its own scope, and leaves a trail another agent can audit.
+The Forge (plugin id loop-kit) is a guard kit for running Claude Code agents as a small team that cannot leak a secret, cannot widen its own scope, and leaves a trail another agent can audit.
 
 ```
 LOOP_PY=/full/path/to/python LOOP_WITH_TESTS=1 bash install.sh
