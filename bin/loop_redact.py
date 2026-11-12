@@ -28,6 +28,17 @@ def _default_secret_files():
 
 SECRET_KEY_HINT = re.compile(r'(KEY|SECRET|TOKEN|PASS|PASSWORD|JWT|PRIVATE|CREDENTIAL|DSN|WEBHOOK|SALT|SIGNING)', re.I)
 
+# KIT12A-01 S51. Name endings of a key-name assignment whose value is a long random string. The one list:
+# the PATTERNS entry below and the second-scanner rule in loop_scan.py are both built from it. A name may
+# carry any prefix (provider_access_key, a secret-prefixed secret_access_key) or none. Endings that
+# loop_redact already covers with a shorter value rule (_secret, _token, _password, api_key) are not repeated.
+KEYNAME_SUFFIXES = (
+    'access_key', 'access_key_id', 'secret_access_key', 'secret_key', 'private_key', 'auth_key', 'signing_key',
+    'encryption_key', 'master_key', 'license_key', 'service_key', 'account_key', 'storage_key',
+    'shared_key', 'client_key', 'app_key', 'session_key',
+)
+KEYNAME_ALT = '|'.join(KEYNAME_SUFFIXES)
+
 PATTERNS = [
     (re.compile(r'-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----'), '[PRIVATE_KEY]'),
     (re.compile(r'eyJ[A-Za-z0-9_-]{6,}\.[A-Za-z0-9_-]{6,}\.[A-Za-z0-9_-]{6,}'), '[JWT]'),
@@ -45,6 +56,10 @@ PATTERNS = [
     (re.compile(r'(?i)\b((?:api[_ -]?)?key|token|secret|password)\b(["\']?\s*[:=]\s*["\']?)[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'), r'\1\2[REDACTED]'),
     (re.compile(r'(?i)\b(api[_ -]?key\b["\']?\s*[:=]\s*["\']?)(?!\[[A-Z_]+\])[A-Za-z0-9_\-]{16,}'), r'\1[REDACTED]'),
     (re.compile(r'(?i)\b([a-z][a-z0-9]*(?:_[a-z0-9]+)*_(?:api_key|secret|token|password|passwd)["\']?\s*[:=]\s*["\']?)(?![/$({%\[<~.])(?=[A-Za-z0-9\-_+=~/]*\d)[A-Za-z0-9\-_+=~/]{16,}(?=[\s"\',;]|$)'), r'\1[REDACTED]'),
+    # KIT12A-01 S51: key-name assignment (upper or lower case) with a 20+ character value of the key alphabet that holds
+    # both a letter and a digit. Runs after the value rules above, which already replaced what they match with
+    # [REDACTED] (a leading bracket is excluded), so one secret is counted once.
+    (re.compile(r'(?i)\b([a-z0-9_]*(?:' + KEYNAME_ALT + r')["\']?\s*[:=]\s*["\']?)(?![/$({%\[<~.])(?![0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![A-Za-z0-9+/=_-]))(?=[A-Za-z0-9+/=_-]*\d)(?=[A-Za-z0-9+/=_-]*[A-Za-z])[A-Za-z0-9+/=_-]{20,}'), r'\1[REDACTED]'),
     (re.compile(r'(?i)\b(?:git@)?github\.com[:/][\w.-]+/[\w.-]+(?:\.git)?\b'), '[GIT_REMOTE]'),
     (re.compile(r'(?i)\bgit@[\w.-]+:[\w.-]+/[\w.-]+(?:\.git)?\b'), '[GIT_REMOTE]'),
 ]
@@ -91,8 +106,27 @@ class Redactor:
         self.names_list = names
         self.names_re = None
         if names:
-            alts = [r'\s+'.join(re.escape(p) for p in n.split()) for n in names]
-            self.names_re = re.compile(r'(?<![\w])(?:' + '|'.join(alts) + r')(?![\w])', re.I)
+            weighted = [(len(n), r'\s+'.join(re.escape(p) for p in n.split())) for n in names]
+            # KIT12A-01 S78 begin: joined forms. Every ordered pair of distinct single-token entries, written
+            # with no separator and with "_" between the parts, joins the one alternation, longest first.
+            # The left boundary stays. On the right only a letter after the pair blocks the match, so a digit or
+            # "_" after a joined pair no longer hides it; single and multi-token entries keep (?![\w]).
+            singles = [n for n in names if len(n.split()) == 1]
+            joined = []
+            for a in singles:
+                for b in singles:
+                    if a.casefold() != b.casefold():
+                        for sep in ('', '_'):
+                            joined.append((len(a) + len(sep) + len(b), re.escape(a) + sep + re.escape(b)))
+            # S78 end
+            weighted.sort(key=lambda w: w[0], reverse=True)
+            joined.sort(key=lambda w: w[0], reverse=True)
+            alts = [w[1] for w in weighted]
+            jalts = [w[1] for w in joined]
+            body = r'(?:' + '|'.join(alts) + r')(?![\w])'
+            if jalts:
+                body = r'(?:' + body + r'|(?:' + '|'.join(jalts) + r')(?![^\W\d_]))'
+            self.names_re = re.compile(r'(?<![\w])' + body, re.I)
         self.count = 0
         self.by_kind = {}
 
