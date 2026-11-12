@@ -1,0 +1,5 @@
+{
+  "name": "loop-kit",
+  "version": "0.1.0",
+  "description": "Loop kit guard hooks and role skills for Claude Code, run from the plugin folder under a loop home."
+}
