@@ -51,7 +51,7 @@ folding is defeating the gate.
 python3 scripts/vault-gate.py --topic "<instrument> <mechanism> <failure words>"
 ```
 Added 2026-10-07 after it was skipped, and skipping it cost a reverted rule and a wasted
-approval from <OWNER>. Proposing to loosen a guard, widen an exemption, relax a threshold,
+approval from the owner. Proposing to loosen a guard, widen an exemption, relax a threshold,
 or ratifying a leader's claim are all *acting on a belief about a mechanism*. That is
 exactly when prior knowledge decides the answer, and it was the one moment the gate did
 not fire, because triggers 1-3 are "ask him", "write a goal", "dispatch". None covers the

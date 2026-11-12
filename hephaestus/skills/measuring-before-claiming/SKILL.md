@@ -882,7 +882,7 @@ silently fixed the checker is not the same evidence as a pass that found nothing
 
 **A checker that NORMALISES text before matching can corrupt the identifier it searches
 for.** Stripping markdown emphasis with a character class containing `_` turns
-`recruiter_adjusted_score` into `recruiteradjustedscore`, so a requirement plainly
+`adjusted_final_score` into `adjustedfinalscore`, so a requirement plainly
 present reports as MISSING. Sibling shapes from the same pass: a phrase the document
 hard-wraps across a newline never matches, and checking one literal in two case variants
 counts as two separate requirements so one always fails. Strip only `*`, backticks and

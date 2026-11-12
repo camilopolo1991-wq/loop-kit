@@ -95,7 +95,7 @@ Never ask the user to retype a voice note. Transcribe it.
    confabulation, and gain is the cheap fix for the cause. Report the pre- and
    post-normalisation RMS so the speaker learns their recording level is the problem.
 
-6a. **Treat a repeated identical clause as the model confabulating over non-speech, and
+5a. **Treat a repeated identical clause as the model confabulating over non-speech, and
    never quote it.** The signature is one phrase restated verbatim many times in a single
    segment ("I'm going to do a little bit of the same thing, but...") or a stray "Thanks
    for watching" — both are training-data filler emitted when the decoder is handed audio
@@ -103,7 +103,7 @@ Never ask the user to retype a voice note. Transcribe it.
    where the real energy is; where the loop sits over a span that does carry energy, the
    audio is too degraded to read and the honest answer is that the span is unreadable.
 
-6b. **A LARGER model that returns less text is more trustworthy than a smaller one that
+5b. **A LARGER model that returns less text is more trustworthy than a smaller one that
    fills the gap.** Where `small` emits a long loop for a span and `medium` returns
    nothing for it, the silence is the correct reading: the bigger model declined to guess.
    Take the shorter transcript, state how many seconds went unresolved, and ask for the

@@ -15,7 +15,7 @@ python3 scripts/recon-gate.py --selftest
 Exit 0 = every asserted mechanism carries a recon line. Exit 1 = LOOK FIRST, do
 not dispatch. Exit 2 = no mechanism asserted (not a pass).
 
-<OWNER>, 2026-10-09, verbatim: *"you need to do this as a pre-goal thing that you
+The owner, 2026-10-09, verbatim: *"you need to do this as a pre-goal thing that you
 go in on front end and take a look at what's going on, or the React front end
 code, take a quick look at what's going on before sending to the leader... let's
 go confirm here that I think is in that mode or this string or code using browser
@@ -30,11 +30,11 @@ Three premise defects in one night, each catchable in under five minutes:
 
 - **"staging actively calls PROD n8n"** -> the node is `disabled=True`, the only
   disabled node in both workflows. The canvas label literally reads
-  **"Call Holistic Score (Deactivated)"**. My evidence was 63 and 4 executions,
+  **"Call Scorer (Deactivated)"**. My evidence was 63 and 4 executions,
   which are WORKFLOW-level and say nothing about whether one node ran. I opened
   the editor only AFTER dispatching the goal.
 - **"`loop-n8n put` is the publish route"** -> `put` returns 3 and sends nothing
-  when `activeVersionId` is NULL (lines 112-115). I "verified" it from
+  when `activeVersionId` is NULL (lines 112-115 of its source at the time). I "verified" it from
   GUIDEGEN-01's PUTs, which were workflows that already had a published version.
   Cost: STGFIX-01 closed HELD having done none of its main task.
 - **"5 workflows affected"** -> 2. One match sat inside a code COMMENT, one was a

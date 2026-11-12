@@ -30,8 +30,9 @@ placeholder resolved at read time by the procedure in the next section.
 `RECORD` is the value of the config key `ENGINE_RECORD_DIR`. Resolve it in two steps and
 never any other way:
 
-1. Key names only, from the kit: `loop-config-keys`. It prints the 15 key names and no
-   values, and it is the only instrument allowed to list them (rule 66 check 1).
+1. Key names only, from the machine's own wrapper: `loop-config-keys` (installed in
+   `LOOP_HOME/bin`, not in this repository's `bin/`). It prints the config key names and
+   no values, and it is the only instrument allowed to list them (rule 66 check 1).
 2. The value, through the loop's own config reader: import `loop_conf` from
    `LOOP_HOME/bin` and read `loop_conf.load()["ENGINE_RECORD_DIR"]`.
 

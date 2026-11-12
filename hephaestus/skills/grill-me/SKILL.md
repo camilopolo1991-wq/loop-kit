@@ -11,7 +11,7 @@ a time, each with a recommended answer. Relentless, not rude.
 **Triggers:** "grill me", "poke holes in this", "stress test this plan", "help me
 with a questionnaire", or any request to clarify next steps before building.
 
-Adapted from an upstream skill set, not shipped here's grill-me. Two changes for this environment: questions
+Adapted from the grill-me skill of an upstream skill set; this file replaces it. Two changes for this environment: questions
 go through `clarify` (not chat prose), and **a question whose answer is on the
 box is not a question** — measure it.
 
@@ -57,14 +57,14 @@ an open field.
 
 A good question names the constraint that makes it hard:
 
-> R1 currently scores from the transcript as a whole. The six dimensions are
+> The scorer currently scores from the transcript as a whole. The six dimensions are
 > defined in `dimension_weights` but nothing maps transcript content to them.
 > Where should the mapping live?
-> - In S09's output schema, so the scorer emits per-dimension scores directly
-> - A separate skill that post-processes S09's output
+> - In the scorer's output schema, so it emits per-dimension scores directly
+> - A separate skill that post-processes the scorer's output
 > - In the n8n workflow, splitting the transcript before scoring
 
-Not: *"How should we handle the R1 dimensions?"*
+Not: *"How should we handle the dimensions?"*
 
 Recommend the reversible option unless there is a reason not to. Say why in one
 line. If the recommendation is weak, say that too.
@@ -144,12 +144,12 @@ override a value that arrives from elsewhere. Third-party platforms supply
 scores, ratings and signals on their own scales, and those scales are theirs to
 define, not ours to normalise.
 
-**Recorded failure:** `candidates.linkedin_ai_score` holds 56 values on a 2.0–5.0
-scale. Its only code reference was in an "add candidate" modal, so it was
-reported as recruiter hand-entry and a ticket was drafted to build an AI scorer
-plus a ticket to rescale to the spec's 1–10. Both were wrong: **LinkedIn provides
-that metric**. The scale is LinkedIn's and is to be respected as-is. Two invented
-tickets, and a proposal to overwrite a real external signal.
+**Recorded failure:** a `records.platform_score` column held 56 values on a 2.0–5.0
+scale. Its only code reference was in an "add record" modal, so it was
+reported as hand-entry by a user and a ticket was drafted to build an AI scorer
+plus a ticket to rescale to the spec's 1–10. Both were wrong: **the third-party
+platform provides that metric**. The scale is the platform's and is to be respected
+as-is. Two invented tickets, and a proposal to overwrite a real external signal.
 
 The measurement was accurate. The inference from it was not. Say what a grep
 proves — that a string appears in a file — and nothing beyond it.

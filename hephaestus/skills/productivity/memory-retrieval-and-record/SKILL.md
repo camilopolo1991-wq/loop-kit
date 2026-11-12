@@ -7,7 +7,7 @@ license: internal
 metadata:
   hermes:
     tags: [memory, vault, retrieval, record, obsidian, staleness]
-    related_skills: [memory-as-index, pending-work-record, <OWNER>-working-agreement]
+    related_skills: [memory-as-index, pending-work-record, working-agreement]
 ---
 
 # Memory retrieval and record discipline

@@ -15,7 +15,7 @@ metadata:
 ## When to Use
 
 Load this whenever something cannot be finished now: a blocker, a deferred task, or a
-decision that belongs to the user. <OWNER>, 2026-10-11, asked for "records of the things
+decision that belongs to the user. The owner, 2026-10-11, asked for "records of the things
 that we have pending" after open items had been living only inside chat replies.
 
 ## Why a file and not a reply
@@ -39,11 +39,11 @@ progress log, no completed work.
 
     | id | opened | what | owner | status | evidence |
     |----|--------|------|-------|--------|----------|
-    | P07 | 2026-10-11 | Which repo is canonical for the engine code | <OWNER> | OPEN | measured: two clones, 12 branches, last commit 10-09; an ops repo with 2 branches, records only; no third repo exists |
+    | P07 | 2026-10-11 | Which repo is canonical for the engine code | owner | OPEN | measured: two clones, 12 branches, last commit 10-09; an ops repo with 2 branches, records only; no third repo exists |
 
 Rules for the columns:
 
-- **owner** is `<OWNER>` or `Hermes`, never both. An item with two owners is two items.
+- **owner** is `owner` or `Hermes`, never both. An item with two owners is two items.
 - **status** is `OPEN`, `ANSWERED`, `DONE` or `DROPPED`. Nothing else.
 - **evidence** carries the measurement that makes the item real, or the word `carried` if
   it is not yet measured. An item with neither is a rumour and does not belong here.

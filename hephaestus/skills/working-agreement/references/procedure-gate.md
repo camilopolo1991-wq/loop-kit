@@ -1,6 +1,6 @@
-# The procedure gate: never hand <OWNER> a command from memory
+# The procedure gate: never hand the owner a command from memory
 
-Read this when: before sending <OWNER> any command, path, or install procedure.
+Read this when: before sending the owner any command, path, or install procedure.
 
 Split out of `SKILL.md` on 2026-10-09 for progressive disclosure
 (Anthropic: SKILL.md body under 500 lines; detail lives in `references/`,
@@ -20,11 +20,11 @@ command to run:
 
 - `$LOOP_HOME/goals/REDACT-01/artifacts/loop_redact.py` - no `artifacts/` dir exists.
   His shell returned `install: cannot stat`. The real artifact is a git blob:
-  `git -C /opt/loop/ops show e624278:kit-src/loop-agent-kit/bin/<f>`.
+  `git -C <ops repo> show <commit>:<kit path>/bin/<f>`.
 - **ONE file named where the goal installs THREE** (`loop_redact.py`, `loop-scan`,
   `loop-names-refresh`). The worst of the three: it would have exited 0 and left a
   partial install that looks complete.
-- `/opt/loop/bin/loop-redact` - never existed. The entry point is `loop_redact.py`
+- `<loop home>/bin/loop-redact` - never existed. The entry point is `loop_redact.py`
   run as a stdin filter. His verification line would have said "No such file" and he
   would have reasonably concluded the install failed.
 
@@ -44,5 +44,5 @@ A remembered path is a guess wearing the costume of a fact.
 
 Same failure shape as the invented `--rollback-first` flag on `loop-n8n put` earlier
 that night, caught only by reading `put --help`. Verify a tool's flags from `--help`
-before prescribing them; `loop-n8n put` needs `--file --expect --goal --reason`, all
-four mandatory.
+before prescribing them; on 2026-10-09 `loop-n8n put` needed `--file --expect --goal
+--reason`, all four mandatory (read `put --help` again before quoting it today).

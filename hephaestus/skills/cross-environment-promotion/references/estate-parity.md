@@ -52,7 +52,7 @@ which concern is tracked separately (they note it, they do not classify it).
 A reader's count is bounded by its slice. When a reader reports "N routes drift" for a
 concern that cuts across groups, re-measure estate-wide yourself before quoting the
 number; the auth reader saw five of ten secret drifts because the other five lived in
-intake and WCM workflows.
+the intake and other workflows.
 
 Consolidate into a ruling sheet with an execution order in waves — safe backports,
 safe promotions, needs-a-timing-test, needs-the-owner — and name the blockers readers
@@ -103,7 +103,7 @@ ONE-SIDE-ONLY / TEST). Publish dates settle "which side is newer" per workflow; 
 CONFLICT is a row where both sides carry exclusive content, and only those need a
 human. Regenerate the registry after every apply; it is the scoreboard.
 
-**Then group by what the user's click runs.** A leg = the workflows one recruiter action
+**Then group by what the user's click runs.** A leg = the workflows one user action
 triggers, plus the prompts they read. `diff <leg>` shows the real items; `apply <leg>`
 snapshots every target, swaps every differing body from the source into the target's
 graph, gates, publishes each, restarts ONCE, and re-diffs. Prompts stored in a DB row

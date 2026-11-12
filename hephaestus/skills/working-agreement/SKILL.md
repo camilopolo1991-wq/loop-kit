@@ -7,7 +7,7 @@ platforms: [linux, macos, windows]
 
 # Working agreement
 
-<OWNER> is the operator. He manages this agent. The agent owns the sub-agents, the loop and the machine. The agent is his only second reader: whatever it calls done, nobody else checks. Company state from the previous installation is gone. The method stayed. Dated corrections live in `references/corrections-ledger.md`. Gates live in `scripts/`. Machine facts live in `$LOOP_HOME/config.env`.
+The owner is the operator. He manages this agent. The agent owns the sub-agents, the loop and the machine. The agent is his only second reader: whatever it calls done, nobody else checks. Company state from the previous installation is gone. The method stayed. Dated corrections live in the owner's corrections ledger, `references/corrections-ledger.md` on the installed machine (it holds his own words, so it is not shipped in this repository). Gates live in `scripts/` of this skill and of `$HERMES_HOME`. Machine facts live in `$LOOP_HOME/config.env`.
 
 ## Recall first
 
@@ -19,7 +19,7 @@ Before acting on any ask, run `python3 $HERMES_HOME/scripts/recall.py "<2-4 keyw
 |---|---|
 | this agent | the owner's own machine, as the owner's user, never root |
 | memory | this skill, MEMORY.md, USER.md, PENDING.md, the Obsidian vault at OBSIDIAN_VAULT_PATH, and its graphify graph at $HERMES_HOME/graph (wiki/index.md is the crawlable entry) |
-| the loop | Claude Code roles under `~/.claude/agents`, goals under `$LOOP_HOME/goals`, dispatched by `scripts/loop_dispatch.py` |
+| the loop | Claude Code roles under `~/.claude/agents`, goals under `$LOOP_HOME/goals`, dispatched by `$HERMES_HOME/scripts/loop_dispatch.py` |
 | sub-agents | `delegate_task` units, each recorded by the unit-receipt hook and reviewed before it counts |
 | only him | merges and pushes to main, grants, spend, credentials, deletions, anything rendered that must be seen |
 
@@ -65,7 +65,7 @@ The second self-correction in one window stops the window. Write the handoff, ke
 
 ## Memory
 
-The vault is a gate, not a notebook. Search before an ask, a goal, a dispatch or an instrument change (`scripts/vault-gate.py`). A lesson is written in the same session that paid for it. `scripts/record_gate.py` at session end checks that it was, and reports whether the graph is behind the vault. `scripts/graph_build.sh` rebuilds it, lint first, never before. Writing goes to the vault, never to the graph. The graph is derived. PENDING.md is the open-items ledger. `open-loops.md` is derived from it and injected every turn. A row moves to DONE only with `review:<unit id>` or `measured:<command>` in its evidence column (the review-gate hook enforces it). File a rule the moment he states it, in `references/corrections-ledger.md`, dated, in his words.
+The vault is a gate, not a notebook. Search before an ask, a goal, a dispatch or an instrument change (`scripts/vault-gate.py`). A lesson is written in the same session that paid for it. `$HERMES_HOME/scripts/record_gate.py` at session end checks that it was, and reports whether the graph is behind the vault. `$HERMES_HOME/scripts/graph_build.sh` rebuilds it, lint first, never before. Writing goes to the vault, never to the graph. The graph is derived. PENDING.md is the open-items ledger. `open-loops.md` is derived from it and injected every turn. A row moves to DONE only with `review:<unit id>` or `measured:<command>` in its evidence column (the review-gate hook enforces it). File a rule the moment he states it, in the corrections ledger, dated, in his words.
 
 ## Reply voice
 
@@ -94,7 +94,7 @@ Rename note: this bundle becomes `forge-covenant` in the rename pass. Until that
 
 **Every hook writes one unconditional first line before anything else**: `<utc iso> spawn event=<event name>`. Then an absent log always means never spawned, and never "spawned and died quietly". Measured 2026-10-21: 5 of the 8 hooks wrote no log on any path, so a silent death and a clean allow were indistinguishable from the outside.
 
-**No POSIX-only API in a hook.** This machine is Windows. A hook runs with `shell=False` under the profile venv python (`agent/shell_hooks.py:339`), and an `AttributeError` on its first statement is swallowed by the fail-open path (`agent/shell_hooks.py:412`), leaving no trace at all. `vault-recall.py` died this way on every turn for 24 hours.
+**No POSIX-only API in a hook.** This machine is Windows. A hook runs with `shell=False` under the profile venv python (`agent/shell_hooks.py:339` in the Hermes agent source), and an `AttributeError` on its first statement is swallowed by the fail-open path (`agent/shell_hooks.py:412`), leaving no trace at all. `vault-recall.py` died this way on every turn for 24 hours.
 
 ### Gate 2 table: the portability sweep
 
@@ -117,7 +117,7 @@ A hook that fails open is invisible by design. The first line and this sweep are
 
 ## References
 
-- `references/corrections-ledger.md`: 65 rules from 1608 of his messages, with counts, dates and his words.
+- The corrections ledger (`references/corrections-ledger.md` on the installed machine, not shipped here): 65 rules from 1608 of his messages at the time of writing, with counts, dates and his words.
 - `references/unresolved-needs-gates.md`: the 15 corrections that recurred 3+ times and which gate now covers each.
 - `references/procedure-gate.md`, `references/recon-gate.md`, `references/vault-gate.md`, `references/vault-usage.md`: how each gate is used.
-- `references/an upstream skill set, not shipped here-skills.md`: the third-party skills this agreement borrows from (grill, triage, retro).
+- The third-party skills this agreement borrows from (grill, triage, retro) come from an upstream skill set. The skill grill-me records its adaptation; no separate reference file is shipped.

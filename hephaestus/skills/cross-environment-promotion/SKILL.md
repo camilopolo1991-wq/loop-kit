@@ -7,7 +7,7 @@ license: internal
 metadata:
   hermes:
     tags: [promotion, staging, production, deployment, verification]
-    related_skills: [measuring-before-claiming, <OWNER>-working-agreement]
+    related_skills: [measuring-before-claiming, working-agreement]
 ---
 
 # Promoting a change into an environment that has no git

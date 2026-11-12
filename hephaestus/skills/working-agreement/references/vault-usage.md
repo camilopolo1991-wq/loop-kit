@@ -4,7 +4,7 @@ Read this when: naming a vault, writing a note, closing a goal, or asking where 
 finding should live. The *retrieval* discipline is in
 [vault-gate.md](vault-gate.md); this file is the mechanics of reading and writing.
 
-Split out 2026-10-10 after <OWNER> asked "is not on the agreement md? How to use it.
+Split out 2026-10-10 after the owner asked "is not on the agreement md? How to use it.
 And all. So you can not think without the core memory and make decisions" - the gate
 was documented, the usage was not, so every session rediscovered paths and conventions.
 
@@ -25,23 +25,23 @@ path:
 ```python
 import json
 d = json.load(open(os.path.expanduser('~/.hermes/vaults.json')))
-# d['default'] == 'work'; d['vaults'] is a LIST of dicts, not a dict keyed by name
+# d['default'] == 'main'; d['vaults'] is a LIST of dicts, not a dict keyed by name
 paths = {v['name']: v['path'] for v in d['vaults']}
 ```
 
-It is a `{_comment, updated, default, vaults:[...]}` object. Indexing it as
-`d['work']` returns nothing and reads as "no vault" - the
+It is a `{default, vaults:[...]}` object. Indexing it as
+`d['main']` returns nothing and reads as "no vault" - the
 [[An empty result set is UNKNOWN, never zero]] trap, hit while writing this file.
 
-Registered as of 2026-10-10 (**two** vaults, not three - a third, `personal`, is a
-stale belief; trust the file):
+The shipped registry (`profile/vaults.json`, read in the worktree) lists **one** vault.
+Earlier readings of this file listed other vaults (a `work` vault, a `study` vault); a
+remembered vault name is a stale belief, so trust the file:
 
 | name | path | sync | sensitivity |
 |---|---|---|---|
 | `main` (default) | OBSIDIAN_VAULT_PATH | the owner chooses the remote; `vault_snapshot.sh` stages a zip | personal method vault, PII gated by lint.py |
-| `study` | `~/Documents/study` | Google Drive personal, replace `study-vault.zip` | personal |
 
-No rclone remote is configured. Sync is <OWNER>'s hands and his OAuth; produce the
+No rclone remote is configured. Sync is the owner's hands and his OAuth; produce the
 zip, never attempt the upload.
 
 ## Work-vault structure and what belongs where
@@ -127,7 +127,7 @@ Clean baseline 2026-10-10: `60 notes, 0 failures, 0 warnings, 77 files PII-scann
 - Any secret. Compare by truncated SHA-256 fingerprint instead; never write a
   backup or export that contains one.
 - The previous `work` vault was company-confidential and is retired. Personal material
-  belongs in `study`.
+  belongs in the `main` vault.
 
 ## Health as of 2026-10-10, and the one real problem
 
@@ -153,7 +153,7 @@ Note `mtime` is useless here - a bulk touch on 10-08 rewrote every timestamp. Co
 `created:` in frontmatter instead.
 
 The 2026-10-09/10 session produced four durable lessons and initially wrote **zero**
-notes; they were only written when <OWNER> asked. `_vault_candidates/CANDIDATES.md`
+notes; they were only written when the owner asked. `_vault_candidates/CANDIDATES.md`
 does not exist, so `harvest-findings.py` has never staged anything either.
 
 The correction, and it is a real misreading to guard against: vault-gate.md's finding

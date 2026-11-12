@@ -27,7 +27,7 @@ Not for internal notes, work orders aimed at an executor, or vault notes.
 
 Do not carry figures from earlier in the session. State re-read from the live system, or it
 does not go in. See `verifying-measurements`; for anything involving spend or volume, read
-its `references/pdf-report-production.md (cost and usage measurement reference not yet written)` first.
+read the live usage figure first (no cost and usage measurement reference has been written yet).
 
 **When the credential on hand cannot reach the figure, weaken the CLAIM to what the stale
 number still supports — never pass the precise stale figure through.** Usage, spend and
@@ -35,8 +35,8 @@ billing numbers typically sit behind an admin- or organisation-scoped credential
 key a pipeline runs on is workspace-scoped and refuses the reporting endpoint; the refusal
 arrives as a plain authentication error naming the scope it wants, so read it rather than
 concluding the figure is unavailable. The resolution is a rewrite, not a caveat: "about half
-of that allowance" survives a month of drift where "$100 of the $200" becomes wrong and
-quotable. Put the as-of and the exact blocker in the draft's notes, and offer the precise
+of that allowance" survives a month of drift where an exact "N of M dollars" becomes wrong
+and quotable. Put the as-of and the exact blocker in the draft's notes, and offer the precise
 figure as an option the reader can restore if they check the console themselves.
 
 ### 2. Separate what is proven from what is not, structurally
@@ -131,7 +131,7 @@ deliberately held back for the longer message, so the omission is visible as a c
 
 **A project handover inventories the ENGINE that built the product, not only the product.** An owner who asks "where are the goals, the agents, the loop" has found the gap: the autonomous tooling (agent roles and what each may do, the goal store with its state counts, how to dispatch, the auth model, the scheduler and its state files, guards and redaction, the journal, and which open goals were in fact delivered by hand so the successor closes them instead of re-running) is a section of its own, measured from disk the same way as the product. Include the service account's privilege grant and tell the successor it is theirs to keep or revoke.
 
-**When the owner says "remove" a paragraph, remove exactly that paragraph and renumber by position; do not soften or rephrase it.** A cut is a judgement about the reader, not an invitation to rewrite. The same literalism applies to a heading qualifier ("(measured)", "(the recruiter journey)"): strip the parenthetical from the heading AND the contents page, nothing else.
+**When the owner says "remove" a paragraph, remove exactly that paragraph and renumber by position; do not soften or rephrase it.** A cut is a judgement about the reader, not an invitation to rewrite. The same literalism applies to a heading qualifier ("(measured)", "(the user journey)"): strip the parenthetical from the heading AND the contents page, nothing else.
 
 **A handover names where every referenced artefact is STORED, with the path a successor can open, not just its title.** A report cited by name ("the v21 repeatability report") is unreachable to someone who was not in the session; give the canonical path, the script that regenerates it, and copy it beside the handover and into the vault's sources folder. Verify the copies are byte-identical before citing them.
 

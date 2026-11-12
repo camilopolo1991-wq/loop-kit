@@ -15,7 +15,7 @@ metadata:
 ## When to Use
 
 Load this before writing persistent memory, when a memory write is rejected for overflow,
-or when a durable fact feels too long to save. <OWNER>'s instruction, 2026-10-11:
+or when a durable fact feels too long to save. The owner's instruction, 2026-10-11:
 
 > "We can reuse the amount of memory that is there so you can go follow this tag on the
 > vault or follow this thing on the vault and the important stuff, so we can reuse the
@@ -33,9 +33,12 @@ is a paragraph that blocks the next ten facts.
 A memory entry should answer *when do I need to go look*, never *what is the answer*:
 
     BAD  (burns 520 chars, goes stale silently)
-      (worked example from the previous installation removed: it named company hosts. The shape: one
-      line that says WHICH vault note holds the topology, never the topology itself.)
-      before probing or claiming anything is down.
+      a full topology pasted into memory: every host, port, container and repo, with the
+      current value of each.
+    GOOD (about 110 chars, cannot go stale)
+      one line that says WHICH vault note holds the topology, never the topology itself:
+      "Infrastructure map: vault note `Infrastructure Map` (UI hosts, containers, ports,
+      repos, DB id collisions). Read before probing or claiming anything is down."
 
 The second form is **better**, not merely shorter: the vault note holds the container
 table, the port-boundary trap and the two readings that look like outages, none of which
