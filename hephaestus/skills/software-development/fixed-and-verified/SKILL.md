@@ -5,7 +5,7 @@ description: Use before claiming fixed or done. Prove the journey.
 
 # What "fixed and verified" means
 
-Earned 2026-10-09, after I said login was "fixed and verified" while <OWNER>
+Earned 2026-10-09, after I said login was "fixed and verified" while the owner
 could not log in. He recalibrated it: *"I need that you unwash your brain and
 change the definition of fixed and verify"*, then *"DONT STOP UNTIL WHAT?"*,
 then *"go to the fucking browser by yourself and use it"*.
@@ -76,9 +76,9 @@ Then report, with both arms:
 
 ```
 cookies cleared      -> (none)
-clicked real link    -> token <ID-PREFIX>, received 17:46:19Z
+clicked real link    -> token a1b2c3d4, received 17:46:19Z
 LANDED               -> /kanban        not /login
-session              -> "<OWNER> <OWNER> [ADMIN]"   the user's own identity
+session              -> "Test User [ADMIN]"   the user's own identity
 CONTROL tampered cookie -> bounced to /login
 CONTROL bad signature   -> rejected at the gate
 ```
@@ -87,7 +87,7 @@ A control that fails is what separates this from a check that cannot fail.
 
 ## Do not stop early
 
-<OWNER>: *"Not stop until is fixed and verified and burn that with iron on your
+The owner: *"Not stop until is fixed and verified and burn that with iron on your
 digital skull."* Ending a turn on a partial pass reads as a finished claim no
 matter how carefully it is hedged. Either the journey completed, or say which
 half is still dead and keep working.

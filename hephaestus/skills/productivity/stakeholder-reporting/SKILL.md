@@ -27,7 +27,7 @@ Not for internal notes, work orders aimed at an executor, or vault notes.
 
 Do not carry figures from earlier in the session. State re-read from the live system, or it
 does not go in. See `verifying-measurements`; for anything involving spend or volume, read
-read the live usage figure first (no cost and usage measurement reference has been written yet).
+the live usage figure first (no cost and usage measurement reference has been written yet).
 
 **When the credential on hand cannot reach the figure, weaken the CLAIM to what the stale
 number still supports — never pass the precise stale figure through.** Usage, spend and

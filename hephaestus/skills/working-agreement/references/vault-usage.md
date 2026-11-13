@@ -11,11 +11,11 @@ was documented, the usage was not, so every session rediscovered paths and conve
 ## Contents
 
 - The registry: never guess a vault path
-- Work-vault structure and what belongs where
+- Vault structure and what belongs where (retired work vault layout, history)
 - The frontmatter contract and the lint gate
 - The write procedure, in order
 - What must NEVER enter a vault
-- Health as of 2026-10-10, and the one real problem
+- Health reading of 2026-10-10 (retired work vault), and the one real problem
 
 ## The registry: never guess a vault path
 
@@ -44,17 +44,22 @@ remembered vault name is a stale belief, so trust the file:
 No rclone remote is configured. Sync is the owner's hands and his OAuth; produce the
 zip, never attempt the upload.
 
-## Work-vault structure and what belongs where
+## Vault structure and what belongs where
+
+History, not the current layout: this folder layout was measured on the retired `work`
+vault (2026-10-10), which is not shipped. Only the `main` vault is shipped; read its real
+folders from the vault itself and do not assume these counts. The layout is kept because
+the routing rule below came from it.
 
 ```
-00 Inbox      0   unsorted capture; should stay near empty
-10 Sources   14   external material. type: source, REQUIRES url + retrieved
-20 Notes     41   one idea per note, written as a claim. This is the real vault
-30 Projects   1   living project models
-40 Daily      0   unused
-90 Meta      10   measured system state, conventions, architecture records
-_retired      3   superseded; orphans here are intentional and fine
-scripts           lint.py and helpers, not notes
+00 Inbox        unsorted capture; should stay near empty
+10 Sources      external material. type: source, REQUIRES url + retrieved
+20 Notes        one idea per note, written as a claim
+30 Projects     living project models
+40 Daily        unused
+90 Meta         measured system state, conventions, architecture records
+_retired        superseded; orphans here are intentional and fine
+scripts         lint.py and helpers, not notes
 ```
 
 Routing rule: a reusable *claim* goes in `20 Notes` with a title that states the
@@ -129,18 +134,13 @@ Clean baseline 2026-10-10: `60 notes, 0 failures, 0 warnings, 77 files PII-scann
 - The previous `work` vault was company-confidential and is retired. Personal material
   belongs in the `main` vault.
 
-## Health as of 2026-10-10, and the one real problem
+## Health reading of 2026-10-10 (retired work vault), and the one real problem
 
-Measured, not assumed:
-
-```
-60 live notes (64 incl. new), 279 wikilinks, 0 dangling targets, lint rc=0
-most-linked: A synthetic test proves nothing without a control (25 inbound)
-             Contradictions are recorded, not overwritten (11)
-             Retrieval is a fairness surface, not a neutral filter (9)
-```
-
-The corpus is healthy. The **write path is not**. Frontmatter `created` dates:
+History, not a current reading: the figures below were measured on the retired `work`
+vault and say nothing about the shipped `main` vault. Re-measure `main` with the lint gate
+above before quoting any of them. At that reading the corpus was healthy (lint rc=0, no
+dangling link targets) and the **write path was not**. The `created` dates of its notes
+showed it, counted from frontmatter:
 
 ```
 2026-09-27  31      2026-10-06   1

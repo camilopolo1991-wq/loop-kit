@@ -5,7 +5,7 @@ description: Use after editing a tracked file. Commit scoping.
 
 # Committing work
 
-Earned 2026-10-09. <OWNER>, verbatim: *"Do the git thing is unacceptable that you
+Earned 2026-10-09. The owner, verbatim: *"Do the git thing is unacceptable that you
 realize changes and not commit look at this mess."* A production fix sat
 uncommitted while the repo described a system that no longer existed, on a
 branch whose last commit was a month old.
@@ -111,5 +111,5 @@ alarm in one sweep.
 
 - Never `git add -A` or `git add .` in a repo with unclassified untracked files.
 - Never force-push. Never push a branch other than the documented one
-  (the record branch the repo's own docs name). Never merge without <OWNER>.
+  (the record branch the repo's own docs name). Never merge without the owner.
 - Never commit a `.env`, a backup of one, or a pg_dump.
